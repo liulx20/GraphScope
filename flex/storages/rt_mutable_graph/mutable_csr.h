@@ -706,19 +706,19 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
 
 class TableMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
  public:
-  explicit TableMutableCsrConstEdgeIter(const MutableNbrSlice<size_t>& slice,
+  explicit TableMutableCsrConstEdgeIter(const MutableNbrSlice<uint32_t>& slice,
                                         const Table* table)
       : nbr_iter_(slice), table_(table) {}
   ~TableMutableCsrConstEdgeIter() = default;
 
   vid_t get_neighbor() const { return nbr_iter_.get_neighbor(); }
-  Any get_data() const {
-    return AnyConverter<size_t>::to_any(table->get_row(nbr_iter_.get_data()));
-  }
-  Any get_data(size_t index) const {
+  Any get_data() const;             /*{
+                return AnyConverter<uint32_t>::to_any(table->get_row(nbr_iter_.get_data()));
+              }*/
+  Any get_data(size_t index) const; /*{
     return AnyConvertex<size_t>::to_any(
         table->columns()[index]->get(nbr_iter_.get_data()));
-  }
+  }*/
   timestamp_t get_timestamp() const { return nbr_iter_.get_timestamp(); }
 
   void next() { nbr_iter_.next(); }
@@ -726,45 +726,49 @@ class TableMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
   size_t size() const { return nbr_iter_.size(); }
 
  private:
-  TypedMutableCsrConstEdgeIter<size_t> nbr_iter_;
+  TypedMutableCsrConstEdgeIter<uint32_t> nbr_iter_;
   const Table* table_;
 };
 
-template <>
 class TableMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
-  using nbr_t = MutableNbr<size_t>;
+  using nbr_t = MutableNbr<uint32_t>;
 
  public:
-  explicit TableMutableCsrEdgeIter(MutableNbrSliceMut<size_t> slice,
+  explicit TableMutableCsrEdgeIter(MutableNbrSliceMut<uint32_t> slice,
                                    Table* table)
       : nbr_iter_(slice), table_(table) {}
   ~TableMutableCsrEdgeIter() = default;
 
   vid_t get_neighbor() const { return nbr_iter_.get_neighbor(); }
-  Any get_data() const {
-    return AnyConverter<size_t>::to_any(table_->get_row(nbr_iter_.get_data()));
-  }
-  Any get_data(size_t index) const {
+  Any get_data() const;             /*{
+                return AnyConverter<size_t>::to_any(table_->get_row(nbr_iter_.get_data()));
+              }*/
+  Any get_data(size_t index) const; /*{
     return AnyConverter<size_t>::to_any(
         table_->columns()[index].get(nbr_iter_.get_data()));
-  }
+  }*/
   timestamp_t get_timestamp() const { return nbr_iter_.get_timestamp(); }
 
   void set_data(const Any& value, timestamp_t ts) {
-    table_->insert(rs_iter_.GetTypedData(), value);
-    nbr_iter_.UpdateTimestamp();
+    // table_->insert(nbr_iter_.GetTypedData(), value);
+    // nbr_iter_.UpdateTimestamp();
   }
 
   void next() { nbr_iter_.next(); }
   bool is_valid() const { return nbr_iter_.is_valid(); }
 
  private:
-  TypedMutableCsrEdgeIter<size_t> nbr_iter_;
+  TypedMutableCsrEdgeIter<uint32_t> nbr_iter_;
   const Table* table_;
 };
-template <typename PROPERTY>
-class TableMutableCsr : public TypedMutableCsrBase<size_t> {
+
+class TableMutableCsr : public TypedMutableCsrBase<uint32_t> {
  public:
+  using nbr_t = MutableNbr<uint32_t>;
+  using adjlist_t = MutableAdjlist<uint32_t>;
+  using slice_t = MutableNbrSlice<uint32_t>;
+  using mut_slice_t = MutableNbrSliceMut<uint32_t>;
+
   TableMutableCsr() {}
   ~TableMutableCsr() {}
   void set_table(Table* table) { table_ptr_ = table; }
@@ -785,28 +789,25 @@ class TableMutableCsr : public TypedMutableCsrBase<size_t> {
     topology_.put_edge(src, dst, index, ts, alloc);
   }
 
-  void batch_put_edge(vid_t src, vid_t dst, const PROPERTY& prop,
-                      timestamp_t ts = 0) override {
+  void batch_put_edge(vid_t src, vid_t dst, /*const PROPERTY& prop,*/
+                      timestamp_t ts = 0);  /*override; {
+      LOG(FATAL) << "Not implemented";
+    }*/
+  void put_edge(vid_t src, vid_t dst,
+                /*const PROPERTY& prop,*/ timestamp_t ts,
+                ArenaAllocator& alloc); /*override {
     LOG(FATAL) << "Not implemented";
-  }
+  }*/
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
-  mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edge_mut(i); }
+  mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
 
-  const nbr_t& get_edge(vid_t i) const { return topology_.get_edge(i); }
-  /**
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                    ArenaAllocator& alloc) override {
- void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                         timestamp_t ts, ArenaAllocator& alloc) override {
+                   ArenaAllocator& alloc) override;
+  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                        timestamp_t ts, ArenaAllocator& alloc) override;
   void put_generic_edge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
-                        ArenaAllocator&) override {
-
- */
-  void put_edge(vid_t src, vid_t dst, const PROPERTY& prop, timestamp_t ts,
-                ArenaAllocator& alloc) override {
-    LOG(FATAL) << "Not implemented";
-  }
+                        ArenaAllocator&) override;
 
   int degree(vid_t i) const { return topology_.degree(i); }
 
@@ -820,7 +821,7 @@ class TableMutableCsr : public TypedMutableCsrBase<size_t> {
         topology_.get_edges(v), table_ptr_);
   }
   MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
-    return TableMutableCsrConstEdgeIter(topology_.get_edges(v), table_ptr_);
+    return new TableMutableCsrConstEdgeIter(topology_.get_edges(v), table_ptr_);
   }
   std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
     return std::make_shared<TableMutableCsrEdgeIter>(topology_.get_edges_mut(v),
@@ -828,7 +829,7 @@ class TableMutableCsr : public TypedMutableCsrBase<size_t> {
   }
 
  private:
-  MutableCsr<int> topology_;
+  MutableCsr<uint32_t> topology_;
   Table* table_ptr_;
 };
 }  // namespace gs

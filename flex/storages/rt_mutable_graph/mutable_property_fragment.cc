@@ -232,7 +232,7 @@ void MutablePropertyFragment::initEdges(
       src_label_name, dst_label_name, edge_label_name);
   EdgeStrategy ie_strtagy = schema_.get_incoming_edge_strategy(
       src_label_name, dst_label_name, edge_label_name);
-
+  //@TODO col_num more than 1
   if (col_num == 0) {
     if (filenames.empty()) {
       std::tie(ie_[index], oe_[index]) =
@@ -486,6 +486,7 @@ inline MutableCsrBase* create_csr(EdgeStrategy es,
       return new EmptyCsr<int64_t>();
     }
   }
+  //@TODO more than one column
   LOG(FATAL) << "not support edge strategy or edge data type";
   return nullptr;
 }
