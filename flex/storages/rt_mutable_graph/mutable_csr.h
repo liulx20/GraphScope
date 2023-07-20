@@ -23,6 +23,7 @@
 #include "flex/storages/rt_mutable_graph/types.h"
 #include "flex/utils/allocators.h"
 #include "flex/utils/mmap_array.h"
+#include "flex/utils/property/table.h"
 #include "flex/utils/property/types.h"
 #include "grape/serialization/in_archive.h"
 #include "grape/serialization/out_archive.h"
@@ -703,6 +704,133 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
   mmap_array<nbr_t> nbr_list_;
 };
 
+class TableMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
+ public:
+  explicit TableMutableCsrConstEdgeIter(const MutableNbrSlice<size_t>& slice,
+                                        const Table* table)
+      : nbr_iter_(slice), table_(table) {}
+  ~TableMutableCsrConstEdgeIter() = default;
+
+  vid_t get_neighbor() const { return nbr_iter_.get_neighbor(); }
+  Any get_data() const {
+    return AnyConverter<size_t>::to_any(table->get_row(nbr_iter_.get_data()));
+  }
+  Any get_data(size_t index) const {
+    return AnyConvertex<size_t>::to_any(
+        table->columns()[index]->get(nbr_iter_.get_data()));
+  }
+  timestamp_t get_timestamp() const { return nbr_iter_.get_timestamp(); }
+
+  void next() { nbr_iter_.next(); }
+  bool is_valid() const { return nbr_iter_.is_valid(); }
+  size_t size() const { return nbr_iter_.size(); }
+
+ private:
+  TypedMutableCsrConstEdgeIter<size_t> nbr_iter_;
+  const Table* table_;
+};
+
+template <>
+class TableMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
+  using nbr_t = MutableNbr<size_t>;
+
+ public:
+  explicit TableMutableCsrEdgeIter(MutableNbrSliceMut<size_t> slice,
+                                   Table* table)
+      : nbr_iter_(slice), table_(table) {}
+  ~TableMutableCsrEdgeIter() = default;
+
+  vid_t get_neighbor() const { return nbr_iter_.get_neighbor(); }
+  Any get_data() const {
+    return AnyConverter<size_t>::to_any(table_->get_row(nbr_iter_.get_data()));
+  }
+  Any get_data(size_t index) const {
+    return AnyConverter<size_t>::to_any(
+        table_->columns()[index].get(nbr_iter_.get_data()));
+  }
+  timestamp_t get_timestamp() const { return nbr_iter_.get_timestamp(); }
+
+  void set_data(const Any& value, timestamp_t ts) {
+    table_->insert(rs_iter_.GetTypedData(), value);
+    nbr_iter_.UpdateTimestamp();
+  }
+
+  void next() { nbr_iter_.next(); }
+  bool is_valid() const { return nbr_iter_.is_valid(); }
+
+ private:
+  TypedMutableCsrEdgeIter<size_t> nbr_iter_;
+  const Table* table_;
+};
+template <typename PROPERTY>
+class TableMutableCsr : public TypedMutableCsrBase<size_t> {
+ public:
+  TableMutableCsr() {}
+  ~TableMutableCsr() {}
+  void set_table(Table* table) { table_ptr_ = table; }
+
+  Table& get_table() { return *table_ptr_; }
+  const Table& get_table() const { return *table_ptr_; }
+  void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
+    topology_.batch_init(vnum, degrees);
+  }
+
+  void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                 timestamp_t ts = 0) {
+    topology_.batch_put_edge(src, dst, index, ts);
+  }
+
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
+                           ArenaAllocator& alloc) {
+    topology_.put_edge(src, dst, index, ts, alloc);
+  }
+
+  void batch_put_edge(vid_t src, vid_t dst, const PROPERTY& prop,
+                      timestamp_t ts = 0) override {
+    LOG(FATAL) << "Not implemented";
+  }
+  slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
+
+  mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edge_mut(i); }
+
+  const nbr_t& get_edge(vid_t i) const { return topology_.get_edge(i); }
+  /**
+  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
+                    ArenaAllocator& alloc) override {
+ void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                         timestamp_t ts, ArenaAllocator& alloc) override {
+  void put_generic_edge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
+                        ArenaAllocator&) override {
+
+ */
+  void put_edge(vid_t src, vid_t dst, const PROPERTY& prop, timestamp_t ts,
+                ArenaAllocator& alloc) override {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  int degree(vid_t i) const { return topology_.degree(i); }
+
+  void Serialize(const std::string& path) override;
+
+  void Deserialize(const std::string& path) override;
+
+  std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
+      vid_t v) const override {
+    return std::make_shared<TableMutableCsrConstEdgeIter>(
+        topology_.get_edges(v), table_ptr_);
+  }
+  MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
+    return TableMutableCsrConstEdgeIter(topology_.get_edges(v), table_ptr_);
+  }
+  std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
+    return std::make_shared<TableMutableCsrEdgeIter>(topology_.get_edges_mut(v),
+                                                     table_ptr_);
+  }
+
+ private:
+  MutableCsr<int> topology_;
+  Table* table_ptr_;
+};
 }  // namespace gs
 
 #endif  // GRAPHSCOPE_GRAPH_MUTABLE_CSR_H_
