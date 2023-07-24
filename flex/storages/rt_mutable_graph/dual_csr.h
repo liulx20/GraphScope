@@ -508,7 +508,7 @@ inline DualCsrBase* create_dual_csr(
     const std::vector<PropertyType>& properties) {
   if (properties.empty()) {
     return new DualTypedCsr<grape::EmptyType>(ies, oes, properties);
-  } else if (properties.size() == 1) {
+  } /**else if (properties.size() == 1) {
     switch (properties[0]) {
     case PropertyType::kInt32:
       return new DualTypedCsr<int32_t>(ies, oes, properties);
@@ -519,11 +519,14 @@ inline DualCsrBase* create_dual_csr(
     case PropertyType::kString:
     case PropertyType::kStringView:
       return new DualTypedCsr<std::string>(ies, oes, properties);
+    case PropertyType::kDouble:
+      return new DualTypedCsr<double>(ies, oes, properties);
     default:
       LOG(FATAL) << "Unsupported property type - " << properties[0];
       return nullptr;
     }
-  } else {
+  } */
+  else {
     return new DualTableCsr(properties);
   }
 }

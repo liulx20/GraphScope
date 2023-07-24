@@ -32,6 +32,18 @@ inline void ParseInt64(const std::string_view& str, int64_t& val) {
 #endif
 }
 
+inline void ParseDouble(const std::string_view& str, double& val) {
+  sscanf(str.data(), "%lf", &val);
+}
+
+inline void ParseUInt32(const std::string_view& str, uint32_t& val) {
+#ifdef __APPLE__
+  sscanf(str.data(), "%u", &val);
+#else
+  sscanf(str.data(), "%" SCNu32, &val);
+#endif
+}
+
 inline void ParseDate(const std::string_view& str, Date& date) {
   date.reset(str.data());
 }
@@ -56,6 +68,14 @@ void ParseRecord(const char* line, std::vector<Property>& rec) {
       int64_t val;
       ParseInt64(sv, val);
       item.set_value<int64_t>(val);
+    } else if (item.type() == PropertyType::kDouble) {
+      double val;
+      ParseDouble(sv, val);
+      item.set_value<double>(val);
+    } else if (item.type() == PropertyType::kUInt32) {
+      uint32_t val;
+      ParseUInt32(sv, val);
+      item.set_value<uint32_t>(val);
     } else if (item.type() == PropertyType::kDate) {
       Date val;
       ParseDate(sv, val);

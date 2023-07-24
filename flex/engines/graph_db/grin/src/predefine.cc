@@ -11,6 +11,8 @@ GRIN_DATATYPE _get_data_type(const gs::PropertyType& type) {
     return GRIN_DATATYPE::Timestamp64;
   } else if (type == gs::PropertyType::kDouble) {
     return GRIN_DATATYPE::Double;
+  } else if (type == gs::PropertyType::kList) {
+    return GRIN_DATATYPE::List;
   } else {
     return GRIN_DATATYPE::Undefined;
   }

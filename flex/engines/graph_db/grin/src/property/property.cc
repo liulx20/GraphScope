@@ -350,11 +350,19 @@ int grin_get_edge_property_value_of_int32(GRIN_GRAPH g, GRIN_EDGE e,
                                           GRIN_EDGE_PROPERTY ep) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
   auto idx = ep >> 24;
-  if (idx > 0 || _get_data_type(_e->data.type()) != GRIN_DATATYPE::Int32) {
-    grin_error_code = INVALID_VALUE;
-    return 0;
+
+  if (idx == 0 && _get_data_type(_e->data.type()) == GRIN_DATATYPE::Int32) {
+    return _e->data.get_value<int>();
   }
-  return _e->data.get_value<int>();
+  if (_e->data.type() == gs::PropertyType::kList) {
+    const auto& vec = _e->data.get_value<std::vector<gs::Property>>();
+    if (vec.size() > idx &&
+        _get_data_type(vec.at(idx).type()) == GRIN_DATATYPE::Int32) {
+      return vec.at(idx).get_value<int>();
+    }
+  }
+  grin_error_code = INVALID_VALUE;
+  return 0;
 }
 
 unsigned int grin_get_edge_property_value_of_uint32(GRIN_GRAPH g, GRIN_EDGE e,
@@ -367,11 +375,19 @@ long long int grin_get_edge_property_value_of_int64(GRIN_GRAPH g, GRIN_EDGE e,
                                                     GRIN_EDGE_PROPERTY ep) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
   auto idx = ep >> 24;
-  if (idx > 0 || _get_data_type(_e->data.type()) != GRIN_DATATYPE::Int64) {
-    grin_error_code = INVALID_VALUE;
-    return 0;
+
+  if (idx == 0 && _get_data_type(_e->data.type()) == GRIN_DATATYPE::Int64) {
+    return _e->data.get_value<int64_t>();
   }
-  return _e->data.get_value<int64_t>();
+  if (_e->data.type() == gs::PropertyType::kList) {
+    const auto& vec = _e->data.get_value<std::vector<gs::Property>>();
+    if (vec.size() > idx &&
+        _get_data_type(vec.at(idx).type()) == GRIN_DATATYPE::Int64) {
+      return vec.at(idx).get_value<int64_t>();
+    }
+  }
+  grin_error_code = INVALID_VALUE;
+  return 0;
 }
 
 unsigned long long int grin_get_edge_property_value_of_uint64(
@@ -389,26 +405,44 @@ double grin_get_edge_property_value_of_double(GRIN_GRAPH g, GRIN_EDGE e,
                                               GRIN_EDGE_PROPERTY ep) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
   auto idx = ep >> 24;
-  if (idx > 0 || _get_data_type(_e->data.type()) != GRIN_DATATYPE::Double) {
-    grin_error_code = INVALID_VALUE;
-    return 0.0;
+  if (idx == 0 && _get_data_type(_e->data.type()) == GRIN_DATATYPE::Double) {
+    return _e->data.get_value<double>();
   }
-  return _e->data.get_value<double>();
+  if (_e->data.type() == gs::PropertyType::kList) {
+    const auto& vec = _e->data.get_value<std::vector<gs::Property>>();
+    if (vec.size() > idx &&
+        _get_data_type(vec.at(idx).type()) == GRIN_DATATYPE::Double) {
+      return vec.at(idx).get_value<double>();
+    }
+  }
+  grin_error_code = INVALID_VALUE;
+  return 0.0;
 }
 
 const char* grin_get_edge_property_value_of_string(GRIN_GRAPH g, GRIN_EDGE e,
                                                    GRIN_EDGE_PROPERTY ep) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
   auto idx = ep >> 24;
-  if (idx > 0 || _get_data_type(_e->data.type()) != GRIN_DATATYPE::String) {
-    grin_error_code = INVALID_VALUE;
-    return NULL;
+  if (idx == 0 && _get_data_type(_e->data.type()) == GRIN_DATATYPE::String) {
+    const auto& s = _e->data.get_value<std::string>();
+    auto len = s.size() + 1;
+    char* out = new char[len];
+    snprintf(out, len, "%s", s.data());
+    return out;
   }
-  auto s = _e->data.get_value<std::string_view>();
-  auto len = s.size() + 1;
-  char* out = new char[len];
-  snprintf(out, len, "%s", s.data());
-  return out;
+  if (_get_data_type(_e->data.type()) == GRIN_DATATYPE::List) {
+    const auto& vec = _e->data.get_value<std::vector<gs::Property>>();
+    if (idx < vec.size() &&
+        _get_data_type(vec.at(idx).type()) == GRIN_DATATYPE::String) {
+      const auto& s = vec.at(idx).get_value<std::string>();
+      auto len = s.size() + 1;
+      char* out = new char[len];
+      snprintf(out, len, "%s", s.data());
+      return out;
+    }
+  }
+  grin_error_code = INVALID_VALUE;
+  return NULL;
 }
 
 int grin_get_edge_property_value_of_date32(GRIN_GRAPH g, GRIN_EDGE e,
@@ -426,12 +460,19 @@ long long int grin_get_edge_property_value_of_timestamp64(
     GRIN_GRAPH g, GRIN_EDGE e, GRIN_EDGE_PROPERTY ep) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
   auto idx = ep >> 24;
-  if (idx > 0 ||
-      _get_data_type(_e->data.type()) != GRIN_DATATYPE::Timestamp64) {
-    grin_error_code = INVALID_VALUE;
-    return 0;
+  if (idx == 0 &&
+      _get_data_type(_e->data.type()) == GRIN_DATATYPE::Timestamp64) {
+    return _e->data.get_value<gs::Date>().milli_second;
   }
-  return _e->data.get_value<gs::Date>().milli_second;
+  if (_get_data_type(_e->data.type()) == GRIN_DATATYPE::List) {
+    const auto& vec = _e->data.get_value<std::vector<gs::Property>>();
+    if (idx < vec.size() &&
+        _get_data_type(vec.at(idx).type()) == GRIN_DATATYPE::Timestamp64) {
+      return vec.at(idx).get_value<gs::Date>().milli_second;
+    }
+  }
+  grin_error_code = INVALID_VALUE;
+  return 0;
 }
 
 GRIN_EDGE_TYPE grin_get_edge_type_from_property(GRIN_GRAPH g,

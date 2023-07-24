@@ -230,38 +230,45 @@ GRIN_ROW grin_get_vertex_row(GRIN_GRAPH g, GRIN_VERTEX v) {
 #endif
 
 #if defined(GRIN_WITH_EDGE_PROPERTY) && defined(GRIN_ENABLE_ROW)
-GRIN_ROW grin_get_edge_row(GRIN_GRAPH g, GRIN_EDGE e) {
-  auto _e = static_cast<GRIN_EDGE_T*>(e);
-  auto type = _get_data_type(_e->data.type());
-  GRIN_ROW_T* r = new GRIN_ROW_T();
+
+const void* get_data(const gs::Property& p) {
+  auto type = _get_data_type(p.type());
   switch (type) {
   case GRIN_DATATYPE::Int32: {
-    r->emplace_back(new int(_e->data.get_value<int>()));
-    break;
+    return new int(p.get_value<int>());
   }
   case GRIN_DATATYPE::Int64: {
-    r->emplace_back(new int64_t(_e->data.get_value<int64_t>()));
-    break;
+    return new int64_t(p.get_value<int64_t>());
   }
   case GRIN_DATATYPE::String: {
-    auto s = _e->data.get_value<std::string_view>();
+    auto s = p.get_value<std::string_view>();
     auto len = s.size() + 1;
     char* out = new char[len];
     snprintf(out, len, "%s", s.data());
-
-    r->emplace_back(out);
-    break;
+    return out;
   }
   case GRIN_DATATYPE::Timestamp64: {
-    r->emplace_back(new int64_t(_e->data.get_value<gs::Date>().milli_second));
-    break;
+    return new int64_t(p.get_value<gs::Date>().milli_second);
   }
   case GRIN_DATATYPE::Double: {
-    r->emplace_back(new double(_e->data.get_value<double>()));
-    break;
+    return new double(p.get_value<double>());
   }
   default:
-    r->emplace_back(static_cast<const void*>(NULL));
+    return static_cast<const void*>(NULL);
+  }
+}
+GRIN_ROW grin_get_edge_row(GRIN_GRAPH g, GRIN_EDGE e) {
+  auto _e = static_cast<GRIN_EDGE_T*>(e);
+
+  auto type = _get_data_type(_e->data.type());
+  GRIN_ROW_T* r = new GRIN_ROW_T();
+  if (type == GRIN_DATATYPE::List) {
+    const auto& vec = _e->data.get_value<std::vector<gs::Property>>();
+    for (const auto& p : vec) {
+      r->emplace_back(get_data(p));
+    }
+  } else {
+    r->emplace_back(get_data(_e->data));
   }
   return r;
 }

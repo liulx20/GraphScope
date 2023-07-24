@@ -252,8 +252,11 @@ void MutablePropertyFragment::Init(
   vertex_label_num_ = schema_.vertex_label_num();
   edge_label_num_ = schema_.edge_label_num();
   vertex_data_.resize(vertex_label_num_);
+
   ie_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
   oe_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
+  dual_csr_list_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_,
+                        NULL);
   lf_indexers_.resize(vertex_label_num_);
 
   if (thread_num == 1) {
@@ -635,9 +638,7 @@ void MutablePropertyFragment::parseVertexFiles(
       ParseRecord(line_buf, header);
       std::vector<std::string> col_names(col_num);
       for (size_t i = 0; i < col_num; ++i) {
-        col_names[i] =
-            std::string(header[i + 1].get_value<std::string>().data(),
-                        header[i + 1].get_value<std::string>().size());
+        col_names[i] = header[i + 1].get_value<std::string>();
       }
       table.reset_header(col_names);
       first_file = false;

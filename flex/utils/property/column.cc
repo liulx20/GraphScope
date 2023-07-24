@@ -66,7 +66,11 @@ std::shared_ptr<ColumnBase> CreateColumn(PropertyType type,
     } else if (type == PropertyType::kDate) {
       return std::make_shared<DateEmptyColumn>();
     } else if (type == PropertyType::kString) {
+      return std::make_shared<TypedEmptyColumn<std::string>>();
+    } else if (type == PropertyType::kStringView) {
       return std::make_shared<TypedEmptyColumn<std::string_view>>();
+    } else if (type == PropertyType::kDouble) {
+      return std::make_shared<TypedEmptyColumn<double>>();
     } else {
       LOG(FATAL) << "unexpected type to create column, "
                  << static_cast<int>(type);
@@ -81,6 +85,10 @@ std::shared_ptr<ColumnBase> CreateColumn(PropertyType type,
       return std::make_shared<DateColumn>(strategy);
     } else if (type == PropertyType::kString) {
       return std::make_shared<StringColumn>(strategy);
+    } else if (type == PropertyType::kStringView) {
+      return std::make_shared<StringViewColumn>(strategy);
+    } else if (type == PropertyType::kDouble) {
+      return std::make_shared<DoubleColumn>(strategy);
     } else {
       LOG(FATAL) << "unexpected type to create column, "
                  << static_cast<int>(type);
