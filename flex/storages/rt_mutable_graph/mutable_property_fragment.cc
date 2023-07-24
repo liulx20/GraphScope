@@ -356,6 +356,16 @@ void MutablePropertyFragment::IngestEdge(label_t src_label, vid_t src_lid,
   dual_csr_list_[index]->IngestEdge(src_lid, dst_lid, arc, ts, alloc);
 }
 
+void MutablePropertyFragment::PutEdge(label_t src_label, vid_t src_lid,
+                                      label_t dst_label, vid_t dst_lid,
+                                      label_t edge_label, timestamp_t ts,
+                                      const Property& data,
+                                      ArenaAllocator& alloc) {
+  size_t index = src_label * vertex_label_num_ * edge_label_num_ +
+                 dst_label * edge_label_num_ + edge_label;
+  dual_csr_list_[index]->PutEdge(src_lid, dst_lid, ts, data, alloc);
+}
+
 const Schema& MutablePropertyFragment::schema() const { return schema_; }
 
 void MutablePropertyFragment::Serialize(const std::string& prefix) {

@@ -49,6 +49,10 @@ class MutablePropertyFragment {
                   vid_t dst_lid, label_t edge_label, timestamp_t ts,
                   grape::OutArchive& arc, ArenaAllocator& alloc);
 
+  void PutEdge(label_t src_label, vid_t src_lid, label_t dst_label,
+               vid_t dst_lid, label_t edge_label, timestamp_t ts,
+               const Property& data, ArenaAllocator& alloc);
+
   const Schema& schema() const;
 
   void Serialize(const std::string& prefix);
