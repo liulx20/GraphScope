@@ -34,8 +34,8 @@ grape::OutArchive& operator>>(grape::OutArchive& out_archive,
   return out_archive;
 }
 
-template <typename EDATA_T>
-void MutableCsr<EDATA_T>::Serialize(const std::string& path) {
+template <typename EDATA_T, typename PROPERTY_T>
+void MutableCsr<EDATA_T, PROPERTY_T>::Serialize(const std::string& path) {
   std::vector<int> size_list;
   for (vid_t i = 0; i < capacity_; ++i) {
     size_list.push_back(adj_lists_[i].size());
@@ -54,8 +54,8 @@ void MutableCsr<EDATA_T>::Serialize(const std::string& path) {
   init_nbr_list_.dump_to_file(path + ".nbr_list", init_nbr_list_.size());
 }
 
-template <typename EDATA_T>
-void MutableCsr<EDATA_T>::Deserialize(const std::string& path) {
+template <typename EDATA_T, typename PROPERTY_T>
+void MutableCsr<EDATA_T, PROPERTY_T>::Deserialize(const std::string& path) {
   size_t size_list_size;
   std::vector<int> size_list;
   {
@@ -155,6 +155,14 @@ void SingleMutableCsr<EDATA_T>::Deserialize(const std::string& path) {
   nbr_list_.open_for_read(path);
 }
 
+void TableMutableCsr::Serialize(const std::string& path) {
+  topology_.Serialize(path + ".topo");
+}
+
+void TableMutableCsr::Deserialize(const std::string& path) {
+  topology_.Deserialize(path + ".topo");
+}
+
 template class SingleMutableCsr<grape::EmptyType>;
 template class MutableCsr<grape::EmptyType>;
 
@@ -173,4 +181,5 @@ template class MutableCsr<int64_t>;
 template class SingleMutableCsr<double>;
 template class MutableCsr<double>;
 
+template class MutableCsr<uint32_t>;
 }  // namespace gs

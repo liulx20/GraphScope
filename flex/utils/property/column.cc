@@ -30,13 +30,13 @@ class TypedEmptyColumn : public ColumnBase {
 
   void set_value(size_t index, const T& val) {}
 
-  void set_any(size_t index, const Any& value) override {}
+  void set(size_t index, const Property& value) {}
 
   T get_view(size_t index) const { T{}; }
 
   PropertyType type() const override { return AnyConverter<T>::type; }
 
-  Any get(size_t index) const override { return Any(); }
+  Property get(size_t index) const override { return Property(); }
 
   void Serialize(const std::string& path, size_t size) override {}
 

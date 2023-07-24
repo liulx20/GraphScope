@@ -112,32 +112,32 @@ GRIN_VERTEX grin_get_dst_vertex_from_edge(GRIN_GRAPH, GRIN_EDGE e) {
 #ifdef GRIN_WITH_EDGE_DATA
 GRIN_DATATYPE grin_get_edge_data_datatype(GRIN_GRAPH, GRIN_EDGE e) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
-  auto type = _e->data.type;
+  auto type = _e->data.type();
   return _get_data_type(type);
 }
 
 const void* grin_get_edge_data_value(GRIN_GRAPH, GRIN_EDGE e) {
   auto _e = static_cast<GRIN_EDGE_T*>(e);
-  auto type = _e->data.type;
+  auto type = _e->data.type();
   switch (_get_data_type(type)) {
   case GRIN_DATATYPE::Int32: {
-    return new int32_t(_e->data.value.i);
+    return new int32_t(_e->data.get_value<int>());
   }
   case GRIN_DATATYPE::Int64: {
-    return new int64_t(_e->data.value.l);
+    return new int64_t(_e->data.get_value<int64_t>());
   }
   case GRIN_DATATYPE::Double: {
-    return new double(_e->data.value.db);
+    return new double(_e->data.get_value<double>());
   }
   case GRIN_DATATYPE::String: {
-    auto s = _e->data.value.s;
+    auto s = _e->data.get_value<std::string_view>();
     auto len = s.size() + 1;
     char* out = new char[len];
     snprintf(out, len, "%s", s.data());
     return out;
   }
   case GRIN_DATATYPE::Timestamp64: {
-    return new int64_t(_e->data.value.d.milli_second);
+    return new int64_t(_e->data.get_value<gs::Date>().milli_second);
   }
   default:
     return GRIN_NULL_EDGE_DATA;

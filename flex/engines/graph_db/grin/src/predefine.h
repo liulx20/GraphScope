@@ -17,7 +17,7 @@ typedef struct GRIN_EDGE_T {
   GRIN_VERTEX src;
   GRIN_DIRECTION dir;
   gs::label_t label;
-  gs::Any data;
+  gs::Property data;
 } GRIN_EDGE_T;
 
 #ifdef GRIN_WITH_VERTEX_PROPERTY
