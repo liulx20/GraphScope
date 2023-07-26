@@ -290,9 +290,10 @@ class DualTableCsr : public DualCsrBase {
       item.set_type(PropertyType::kString);
     }
     for (size_t col_i = 0; col_i != col_num; ++col_i) {
-      data[col_i].set_type(properties_[col_i] == PropertyType::kString
+      data[col_i].set_type(properties_[col_i]);
+      /*data[col_i].set_type(properties_[col_i] == PropertyType::kString
                                ? PropertyType::kStringView
-                               : properties_[col_i]);
+                               : properties_[col_i]);*/
     }
     for (auto filename : filenames) {
       FILE* fin = fopen(filename.c_str(), "r");

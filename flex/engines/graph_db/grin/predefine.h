@@ -54,6 +54,7 @@ typedef enum {
   Time32 = 9,        ///< Time32
   Timestamp64 = 10,  ///< Timestamp
   List = 11,
+  StringView = 12,
 } GRIN_DATATYPE;
 
 /// Enumerates the error codes of grin

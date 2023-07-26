@@ -241,6 +241,13 @@ const void* get_data(const gs::Property& p) {
     return new int64_t(p.get_value<int64_t>());
   }
   case GRIN_DATATYPE::String: {
+    auto s = p.get_value<std::string>();
+    auto len = s.size() + 1;
+    char* out = new char[len];
+    snprintf(out, len, "%s", s.data());
+    return out;
+  }
+  case GRIN_DATATYPE::StringView: {
     auto s = p.get_value<std::string_view>();
     auto len = s.size() + 1;
     char* out = new char[len];

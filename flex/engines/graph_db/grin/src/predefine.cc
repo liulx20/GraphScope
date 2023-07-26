@@ -13,6 +13,8 @@ GRIN_DATATYPE _get_data_type(const gs::PropertyType& type) {
     return GRIN_DATATYPE::Double;
   } else if (type == gs::PropertyType::kList) {
     return GRIN_DATATYPE::List;
+  } else if (type == gs::PropertyType::kStringView) {
+    return GRIN_DATATYPE::StringView;
   } else {
     return GRIN_DATATYPE::Undefined;
   }
