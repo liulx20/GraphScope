@@ -18,7 +18,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../)
 
 set(DEFAULT_BUILD_TYPE "Release")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -mno-avx512f -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC")
 
 
 add_compile_definitions(FLEX_VERSION="${FLEX_VERSION}")

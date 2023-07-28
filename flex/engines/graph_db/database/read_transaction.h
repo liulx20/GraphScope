@@ -146,7 +146,7 @@ class ReadTransaction {
     oid_t GetId() const;
     vid_t GetIndex() const;
 
-    Any GetField(int col_id) const;
+    Property GetField(int col_id) const;
     int FieldNum() const;
 
    private:
@@ -162,7 +162,7 @@ class ReadTransaction {
                   std::shared_ptr<MutableCsrConstEdgeIterBase> iter);
     ~edge_iterator();
 
-    Any GetData() const;
+    Property GetData() const;
 
     bool IsValid() const;
 

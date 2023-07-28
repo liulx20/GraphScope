@@ -233,6 +233,29 @@ class Property {
     std::swap(value_, rhs.value_);
   }
 
+  std::string to_string() const {
+    if(type_ == PropertyType::kInt32){
+      return std::to_string(get_value<int>());
+    } else if (type_ == PropertyType::kInt64) {
+      return std::to_string(get_value<int64_t>());
+    } else if(type_ == PropertyType::kString){
+      return get_value<std::string>();
+    } else if (type_ == PropertyType::kStringView) {
+      const auto& s = get_value<std::string_view>();
+      return std::string(s.data(), s.size());
+      //      return value.s.to_string();
+    } else if (type_ == PropertyType::kDate) {
+      return std::to_string(get_value<Date>().milli_second);
+    } else if (type_ == PropertyType::kEmpty) {
+      return "NULL";
+    } else if (type_ == PropertyType::kDouble) {
+      return std::to_string(get_value<double>());
+    } else {
+      LOG(FATAL) << "Unexpected property type: " << static_cast<int>(type_);
+      return "";
+    }
+  }
+
   bool operator==(const Property& rhs) const {
     if (type_ != rhs.type_) {
       return false;

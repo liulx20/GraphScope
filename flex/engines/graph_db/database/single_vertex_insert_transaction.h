@@ -18,6 +18,7 @@
 
 #include "flex/storages/rt_mutable_graph/types.h"
 #include "grape/serialization/in_archive.h"
+#include "flex/utils/property/types.h"
 
 namespace gs {
 
@@ -34,10 +35,10 @@ class SingleVertexInsertTransaction {
                                 VersionManager& vm, timestamp_t timestamp);
   ~SingleVertexInsertTransaction();
 
-  bool AddVertex(label_t label, oid_t id, const std::vector<Any>& props);
+  bool AddVertex(label_t label, oid_t id, const std::vector<Property>& props);
 
   bool AddEdge(label_t src_label, oid_t src, label_t dst_label, oid_t dst,
-               label_t edge_label, const Any& prop);
+               label_t edge_label, const Property& prop);
 
   void Commit();
 

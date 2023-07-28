@@ -1,4 +1,4 @@
-/** Copyright 2020 Alibaba Group Holding Limited.
+     /** Copyright 2020 Alibaba Group Holding Limited.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -354,8 +354,11 @@ static PropertyType StringToPropertyType(const std::string& str) {
   } else if (str == "Date") {
     return PropertyType::kDate;
   } else if (str == "String") {
-    return PropertyType::kString;
-  } else if (str == "Empty") {
+    //?
+    return PropertyType::kStringView;
+  } else if (str == "StringView"){
+    return PropertyType::kStringView;
+  }else if (str == "Empty") {
     return PropertyType::kEmpty;
   } else if (str == "int64") {
     return PropertyType::kInt64;
