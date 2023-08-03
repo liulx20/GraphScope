@@ -173,7 +173,7 @@ void MutablePropertyFragment::initEdges(
       src_label_name, dst_label_name, edge_label_name);
   //@TODO col_num more than 1
   dual_csr_list_[index] =
-      create_dual_csr(ie_strtagy, oe_strtagy, property_types);
+      create_dual_csr(ie_strtagy, oe_strtagy, property_types,edge_data_[index],edge_table_index_[index]);
   if (filenames.empty()) {
     dual_csr_list_[index]->ConstructEmptyCsr();
   } else {
@@ -354,7 +354,17 @@ void MutablePropertyFragment::IngestEdge(label_t src_label, vid_t src_lid,
   size_t index = src_label * vertex_label_num_ * edge_label_num_ +
                  dst_label * edge_label_num_ + edge_label;
   // ie_[index]->peek_ingest_edge(dst_lid, src_lid, arc, ts, alloc);
-  dual_csr_list_[index]->IngestEdge(src_lid, dst_lid, arc, ts, alloc);
+    Property props;
+    //props_.set_type(PropertyType::kList);
+    arc >> props;
+    //std::vector<Property> props = props_.get_value<std::vector<Property>>();
+    size_t row_id = edge_table_index_[index].fetch_add(1);
+    
+    edge_data_[index].insert(row_id, props);
+    
+    ie_[index]->put_edge_with_index(dst_lid, src_lid, row_id, ts, alloc);
+    oe_[index]->put_edge_with_index(src_lid, dst_lid, row_id, ts, alloc);
+  //dual_csr_list_[index]->IngestEdge(src_lid, dst_lid, arc, ts, alloc);
 }
 
 void MutablePropertyFragment::PutEdge(label_t src_label, vid_t src_lid,
@@ -466,6 +476,8 @@ void MutablePropertyFragment::Deserialize(const std::string& prefix) {
   vertex_data_.resize(vertex_label_num_);
   ie_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
   oe_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
+  edge_data_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_);
+  edge_table_index_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_);
   dual_csr_list_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_,
                         NULL);
   
@@ -501,7 +513,7 @@ void MutablePropertyFragment::Deserialize(const std::string& prefix) {
         EdgeStrategy ie_strategy = schema_.get_incoming_edge_strategy(
             src_label, dst_label, edge_label);
         dual_csr_list_[index] =
-            create_dual_csr(ie_strategy, oe_strategy, properties);
+            create_dual_csr(ie_strategy, oe_strategy, properties,edge_data_[index],edge_table_index_[index]);
         dual_csr_list_[index]->Deserialize(data_dir + "/e_" + src_label + "_" +
                                            dst_label + "_" + edge_label);
         ie_[index] = dual_csr_list_[index]->GetInCsr();
@@ -523,13 +535,15 @@ const Table& MutablePropertyFragment::get_vertex_table(
 Table& MutablePropertyFragment::get_edge_table(label_t src_label, label_t dst_label, label_t edge_label){
   size_t index = src_label * vertex_label_num_ * edge_label_num_ +
                  dst_label * edge_label_num_ + edge_label;
-  return dual_csr_list_[index]->get_table();
+  return edge_data_[index];
+  //return dual_csr_list_[index]->get_table();
 }
 
 const Table& MutablePropertyFragment::get_edge_table(label_t src_label, label_t dst_label, label_t edge_label) const{
   size_t index = src_label * vertex_label_num_ * edge_label_num_ +
                  dst_label * edge_label_num_ + edge_label;
-  return dual_csr_list_.at(index)->get_table();
+  return edge_data_[index];
+  //return dual_csr_list_.at(index)->get_table();
 }
 
 vid_t MutablePropertyFragment::vertex_num(label_t vertex_label) const {

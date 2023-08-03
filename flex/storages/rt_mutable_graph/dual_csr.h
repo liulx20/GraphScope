@@ -38,8 +38,8 @@ class DualCsrBase {
                           timestamp_t timestamp, ArenaAllocator& alloc) = 0;
   virtual void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
                        const Property& data, ArenaAllocator& alloc) = 0;
-  virtual MutableCsrBase* GetInCsr() = 0;
-  virtual MutableCsrBase* GetOutCsr() = 0;
+  virtual TypedMutableCsrBase<unsigned,Property>* GetInCsr() = 0;
+  virtual TypedMutableCsrBase<unsigned,Property>* GetOutCsr() = 0;
 
   virtual Table& get_table() = 0;
   virtual const Table& get_table() const = 0;
@@ -251,7 +251,7 @@ class DualTypedCsr : public DualCsrBase {
 
 class DualTableCsr : public DualCsrBase {
  public:
-  DualTableCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties) {
+  DualTableCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties,Table& table,std::atomic<size_t>& table_index):table_(table),table_index_(table_index) {
     std::vector<std::string> col_names;
     std::vector<StorageStrategy> col_strategies;
     size_t col_num = properties.size();
@@ -388,8 +388,8 @@ class DualTableCsr : public DualCsrBase {
     return table_;
   }
 
-  MutableCsrBase* GetInCsr() override { return in_csr_; }
-  MutableCsrBase* GetOutCsr() override { return out_csr_; }
+  TypedMutableCsrBase<unsigned,Property>* GetInCsr() override { return in_csr_; }
+  TypedMutableCsrBase<unsigned,Property>* GetOutCsr() override { return out_csr_; }
 
   void Serialize(const std::string& path) override {
     std::string table_index_path = path + ".table_index";
@@ -415,8 +415,8 @@ class DualTableCsr : public DualCsrBase {
  protected:
   TypedMutableCsrBase<uint32_t,Property>* in_csr_;
   TypedMutableCsrBase<uint32_t,Property> * out_csr_;
-  Table table_;
-  std::atomic<size_t> table_index_;
+  Table& table_;
+  std::atomic<size_t>& table_index_;
 
   std::vector<PropertyType> properties_;
 };
@@ -540,7 +540,7 @@ class DualStringCsr : public DualCsrBase {
 
 inline DualCsrBase* create_dual_csr(
     EdgeStrategy ies, EdgeStrategy oes,
-    const std::vector<PropertyType>& properties) {
+    const std::vector<PropertyType>& properties,Table& table,std::atomic<size_t>& table_index) {
   /**if (properties.empty()) {
     return new DualTypedCsr<grape::EmptyType>(ies, oes, properties);
   }*/ /**else if (properties.size() == 1) {
@@ -563,7 +563,7 @@ inline DualCsrBase* create_dual_csr(
   } */
   //else 
   {
-    return new DualTableCsr(ies,oes,properties);
+    return new DualTableCsr(ies,oes,properties,table,table_index);
   }
 }
 

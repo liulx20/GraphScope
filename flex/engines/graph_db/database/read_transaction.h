@@ -307,7 +307,7 @@ class ReadTransaction {
     return SingleGraphView<EDATA_T>(*csr, timestamp_);
   }
 
-  SingleTableGraphView GetTableOutgoingSingleGraphView(label_t v_label,label_t neighbor_label, label_t edge_label) const{
+  SingleTableGraphView GetOutgoingSingleGraphView(label_t v_label,label_t neighbor_label, label_t edge_label) const{
     auto csr = dynamic_cast<const SingleTableMutableCsr*>(graph_.get_oe_csr(v_label,neighbor_label,edge_label));
     return SingleTableGraphView(*csr,timestamp_);
   }
@@ -321,7 +321,7 @@ class ReadTransaction {
   }
 
 
-  SingleTableGraphView GetTableIncomingSingleGraphView(label_t v_label,label_t neighbor_label, label_t edge_label) const{
+  SingleTableGraphView GetIncomingSingleGraphView(label_t v_label,label_t neighbor_label, label_t edge_label) const{
     auto csr = dynamic_cast<const SingleTableMutableCsr*>(graph_.get_ie_csr(v_label,neighbor_label,edge_label));
     return SingleTableGraphView(*csr,timestamp_);
   }
