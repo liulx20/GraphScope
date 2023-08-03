@@ -255,6 +255,7 @@ void MutablePropertyFragment::Init(
 
   ie_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
   oe_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
+  auto sum = vertex_label_num_ * vertex_label_num_ * edge_label_num_;
   dual_csr_list_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_,
                         NULL);
   lf_indexers_.resize(vertex_label_num_);
@@ -465,7 +466,9 @@ void MutablePropertyFragment::Deserialize(const std::string& prefix) {
   vertex_data_.resize(vertex_label_num_);
   ie_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
   oe_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
-
+  dual_csr_list_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_,
+                        NULL);
+  
   for (size_t i = 0; i < vertex_label_num_; ++i) {
     lf_indexers_[i].Deserialize(data_dir + "/indexer_" + std::to_string(i));
   }
@@ -515,6 +518,18 @@ Table& MutablePropertyFragment::get_vertex_table(label_t vertex_label) {
 const Table& MutablePropertyFragment::get_vertex_table(
     label_t vertex_label) const {
   return vertex_data_[vertex_label];
+}
+
+Table& MutablePropertyFragment::get_edge_table(label_t src_label, label_t dst_label, label_t edge_label){
+  size_t index = src_label * vertex_label_num_ * edge_label_num_ +
+                 dst_label * edge_label_num_ + edge_label;
+  return dual_csr_list_[index]->get_table();
+}
+
+const Table& MutablePropertyFragment::get_edge_table(label_t src_label, label_t dst_label, label_t edge_label) const{
+  size_t index = src_label * vertex_label_num_ * edge_label_num_ +
+                 dst_label * edge_label_num_ + edge_label;
+  return dual_csr_list_.at(index)->get_table();
 }
 
 vid_t MutablePropertyFragment::vertex_num(label_t vertex_label) const {

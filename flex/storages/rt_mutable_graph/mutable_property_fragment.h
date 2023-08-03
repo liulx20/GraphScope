@@ -63,6 +63,10 @@ class MutablePropertyFragment {
 
   const Table& get_vertex_table(label_t vertex_label) const;
 
+  Table& get_edge_table(label_t src_label, label_t dst_label, label_t edge_label);
+
+  const Table& get_edge_table(label_t src_label,label_t dst_label, label_t edge_label) const;
+
   vid_t vertex_num(label_t vertex_label) const;
 
   bool get_lid(label_t label, oid_t oid, vid_t& lid) const;

@@ -62,8 +62,9 @@ ReadTransaction::edge_iterator::edge_iterator(
       iter_(std::move(iter)) {}
 ReadTransaction::edge_iterator::~edge_iterator() = default;
 
+
 Property ReadTransaction::edge_iterator::GetData() const {
-  return iter_->get_data();
+  return GetField(0);
 }
 
 bool ReadTransaction::edge_iterator::IsValid() const {

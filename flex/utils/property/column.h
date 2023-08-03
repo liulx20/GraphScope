@@ -80,9 +80,9 @@ class TypedColumn : public ColumnBase {
   }
 
   void ingest(uint32_t index, grape::OutArchive& arc) override {
-    T val;
+    Property val;
     arc >> val;
-    set_value(index, val);
+    set_value(index, val.get_value<T>());
   }
 
   StorageStrategy storage_strategy() const override { return strategy_; }
@@ -101,6 +101,7 @@ using DateColumn = TypedColumn<Date>;
 using StringColumn = TypedColumn<std::string>;
 using StringViewColumn = TypedColumn<std::string_view>;
 using DoubleColumn = TypedColumn<double>;
+using UInt8Column = TypedColumn<uint8_t>;
 
 std::shared_ptr<ColumnBase> CreateColumn(
     PropertyType type, StorageStrategy strategy = StorageStrategy::kMem);

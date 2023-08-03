@@ -278,7 +278,10 @@ class MutableCsrConstEdgeIterBase {
 
   virtual vid_t get_neighbor() const = 0;
   virtual Property get_data() const = 0;
+  virtual Property get_data(size_t index) const {return Property();};
+  virtual const Table* get_table() const{ return nullptr;}
   virtual timestamp_t get_timestamp() const = 0;
+  
   virtual size_t size() const = 0;
 
   virtual void next() = 0;
@@ -292,6 +295,7 @@ class MutableCsrEdgeIterBase {
 
   virtual vid_t get_neighbor() const = 0;
   virtual Property get_data() const = 0;
+  virtual Property get_data(size_t index) const {return Property();};
   virtual timestamp_t get_timestamp() const = 0;
   virtual void set_data(const Property& value, timestamp_t ts) = 0;
 
@@ -393,6 +397,11 @@ class TypedMutableCsrBase : public MutableCsrBase {
 
   virtual void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
                         timestamp_t ts, ArenaAllocator& alloc) = 0;
+  virtual void set_table(Table* table){}
+  virtual void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
+                           ArenaAllocator& alloc) {}
+  virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                 timestamp_t ts = 0) {}                         
 };
 
 template <typename EDATA_T, typename PROPERTY_T = EDATA_T>
@@ -717,6 +726,7 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
   mmap_array<nbr_t> nbr_list_;
 };
 
+
 class TableMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
  public:
   explicit TableMutableCsrConstEdgeIter(const MutableNbrSlice<uint32_t>& slice,
@@ -732,6 +742,9 @@ class TableMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
   Property get_data(size_t index) const {
     return table_->get_column_by_id(index)->get(
         nbr_iter_.get_data().get_value<uint32_t>());
+  }
+  const Table* get_table(){
+    return table_;
   }
   timestamp_t get_timestamp() const { return nbr_iter_.get_timestamp(); }
 
@@ -762,7 +775,9 @@ class TableMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
     return table_->get_column_by_id(index)->get(
         nbr_iter_.get_data().get_value<uint32_t>());
   }
-
+  const Table* get_table(){
+    return table_;
+  }
   timestamp_t get_timestamp() const { return nbr_iter_.get_timestamp(); }
 
   void set_data(const Property& value, timestamp_t ts) {
@@ -851,6 +866,80 @@ class TableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
   MutableCsr<uint32_t> topology_;
   Table* table_ptr_;
 };
+
+class SingleTableMutableCsr: public TypedMutableCsrBase<uint32_t, Property> {
+public:
+  using nbr_t = MutableNbr<uint32_t>;
+  using slice_t = MutableNbrSlice<uint32_t>;
+  using mut_slice_t = MutableNbrSliceMut<uint32_t>;
+  SingleTableMutableCsr() {}
+  ~SingleTableMutableCsr() {}
+  void set_table(Table* table) { table_ptr_ = table; }
+
+  Table& get_table() { return *table_ptr_; }
+  const Table& get_table() const { return *table_ptr_; }
+  void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
+    topology_.batch_init(vnum, degrees);
+  }
+
+  void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                 timestamp_t ts = 0) {
+    topology_.batch_put_edge(src, dst, index, ts);
+  }
+
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
+                           ArenaAllocator& alloc) {
+    topology_.put_edge(src, dst, index, ts, alloc);
+  }
+
+  void batch_put_edge(vid_t src, vid_t dst, const Property& prop,
+                      timestamp_t ts = 0) override {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  void put_edge(vid_t src, vid_t dst, const Property& prop, timestamp_t ts,
+                ArenaAllocator& alloc) override {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
+
+  mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
+
+  const nbr_t& get_edge(vid_t i) const { return topology_.get_edge(i); }
+
+  //@TODO add implement for `ingest_edge` and `peek_ingest_edge`
+  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
+                   ArenaAllocator& alloc) override {}
+  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                        timestamp_t ts, ArenaAllocator& alloc) override {}
+  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
+                        timestamp_t ts, ArenaAllocator& alloc) override {
+    put_edge(src, dst, data, ts, alloc);
+  }
+
+  void Serialize(const std::string& path) override;
+
+  void Deserialize(const std::string& path) override;
+
+  std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
+      vid_t v) const override {
+    return std::make_shared<TableMutableCsrConstEdgeIter>(
+        topology_.get_edges(v), table_ptr_);
+  }
+  MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
+    return new TableMutableCsrConstEdgeIter(topology_.get_edges(v), table_ptr_);
+  }
+  std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
+    return std::make_shared<TableMutableCsrEdgeIter>(topology_.get_edges_mut(v),
+                                                     table_ptr_);
+  }
+
+ private:
+  SingleMutableCsr<uint32_t> topology_;
+  Table* table_ptr_;
+};
+
 }  // namespace gs
 
 #endif  // GRAPHSCOPE_GRAPH_MUTABLE_CSR_H_

@@ -52,6 +52,7 @@ bool SingleEdgeInsertTransaction::AddEdge(label_t src_label, oid_t src,
                << "] not found...";
     return false;
   }
+  /**
   const PropertyType& type =
       graph_.schema().get_edge_property(src_label, dst_label, edge_label);
   if (prop.type() != type) {
@@ -59,13 +60,15 @@ bool SingleEdgeInsertTransaction::AddEdge(label_t src_label, oid_t src,
     LOG(ERROR) << "Edge property " << label_name << " type not match, expected "
                << type << ", got " << prop.type();
     return false;
-  }
+  }*/
+  
   src_label_ = src_label;
   dst_label_ = dst_label;
   edge_label_ = edge_label;
   arc_ << static_cast<uint8_t>(1) << src_label << src << dst_label << dst
        << edge_label;
-  serialize_field(arc_, prop);
+  serialize_field(arc_,prop);
+  //serialize_field(arc_, prop);
   return true;
 }
 

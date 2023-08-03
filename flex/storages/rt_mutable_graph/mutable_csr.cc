@@ -163,6 +163,14 @@ void TableMutableCsr::Deserialize(const std::string& path) {
   topology_.Deserialize(path + ".topo");
 }
 
+void SingleTableMutableCsr::Serialize(const std::string& path){
+  topology_.Serialize(path + ".topo");
+}
+
+void SingleTableMutableCsr::Deserialize(const std::string& path){
+  topology_.Deserialize(path + ".topo");
+}
+
 template class SingleMutableCsr<grape::EmptyType>;
 template class MutableCsr<grape::EmptyType>;
 

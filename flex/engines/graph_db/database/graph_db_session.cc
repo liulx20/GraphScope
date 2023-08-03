@@ -63,6 +63,11 @@ std::shared_ptr<ColumnBase> GraphDBSession::get_vertex_property_column(
   return db_.get_vertex_property_column(label, col_name);
 }
 
+std::shared_ptr<ColumnBase> GraphDBSession::get_edge_property_column(uint8_t src_label, uint8_t dst_label,uint8_t edge_label,int col_id){
+  return db_.get_edge_property_column(src_label,dst_label,edge_label,col_id);
+}
+
+
 std::shared_ptr<RefColumnBase> GraphDBSession::get_vertex_id_column(
     uint8_t label) const {
   return std::make_shared<TypedRefColumn<oid_t>>(
@@ -75,12 +80,10 @@ std::vector<char> GraphDBSession::Eval(const std::string& input) {
   uint8_t type = input.back();
   const char* str_data = input.data();
   size_t str_len = input.size() - 1;
-
+  //printf("Query type: %d\n",type);
   std::vector<char> result_buffer;
-
   Decoder decoder(str_data, str_len);
   Encoder encoder(result_buffer);
-
   AppBase* app = nullptr;
   if (likely(apps_[type] != nullptr)) {
     app = apps_[type];

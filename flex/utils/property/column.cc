@@ -89,7 +89,9 @@ std::shared_ptr<ColumnBase> CreateColumn(PropertyType type,
       return std::make_shared<StringViewColumn>(strategy);
     } else if (type == PropertyType::kDouble) {
       return std::make_shared<DoubleColumn>(strategy);
-    } else {
+    } else if(type == PropertyType::kUInt8){
+      return std::make_shared<UInt8Column>(strategy);
+    }else {
       LOG(FATAL) << "unexpected type to create column, "
                  << static_cast<int>(type);
       return nullptr;

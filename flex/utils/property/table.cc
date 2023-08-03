@@ -155,6 +155,7 @@ void Table::insert(size_t index, const Property& value) {
 }
 
 void Table::insert(size_t index, const std::vector<Property>& values) {
+  
   assert(values.size() == columns_.size());
   CHECK_EQ(values.size(), columns_.size());
   size_t col_num = columns_.size();
