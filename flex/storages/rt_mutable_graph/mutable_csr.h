@@ -833,7 +833,7 @@ class TableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
   mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
-  //@TODO add implement for `ingest_edge` and `peek_ingest_edge`
+  
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {}
   void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
@@ -908,7 +908,6 @@ public:
 
   const nbr_t& get_edge(vid_t i) const { return topology_.get_edge(i); }
 
-  //@TODO add implement for `ingest_edge` and `peek_ingest_edge`
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {}
   void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,

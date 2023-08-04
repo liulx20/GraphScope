@@ -23,7 +23,7 @@
 #include "flex/utils/allocators.h"
 
 namespace gs {
-
+/**
 class DualCsrBase {
  public:
   DualCsrBase() = default;
@@ -46,7 +46,7 @@ class DualCsrBase {
 
   virtual void Serialize(const std::string& path) = 0;
   virtual void Deserialize(const std::string& path) = 0;
-};
+};*/
 
 template <typename EDATA_T, typename PROPERTY_T = EDATA_T>
 class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
@@ -127,7 +127,7 @@ inline void preprocess_line(char* line) {
   }
   line[len + 1] = '\0';
 }
-
+/**
 template <typename EDATA_T>
 class DualTypedCsr : public DualCsrBase {
  public:
@@ -248,10 +248,11 @@ class DualTypedCsr : public DualCsrBase {
   TypedMutableCsrBase<EDATA_T>* out_csr_;
   std::vector<PropertyType> properties_;
 };
-
-class DualTableCsr : public DualCsrBase {
+*/
+class DualCsrBase{
  public:
-  DualTableCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties,Table& table,std::atomic<size_t>& table_index):table_(table),table_index_(table_index) {
+  DualCsrBase(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties,Table& table,std::atomic<size_t>& table_index):
+      table_(table),table_index_(table_index) {
     std::vector<std::string> col_names;
     std::vector<StorageStrategy> col_strategies;
     size_t col_num = properties.size();
@@ -281,7 +282,7 @@ class DualTableCsr : public DualCsrBase {
     properties_ = properties;
   }
 
-  ~DualTableCsr() {
+  ~DualCsrBase() {
     if (in_csr_ != nullptr) {
       delete in_csr_;
     }
@@ -290,14 +291,14 @@ class DualTableCsr : public DualCsrBase {
     }
   }
 
-  void ConstructEmptyCsr() override {
+  void ConstructEmptyCsr() /*override*/ {
     in_csr_->batch_init(0, {});
     out_csr_->batch_init(0, {});
   }
 
   void BulkLoad(const LFIndexer<vid_t>& src_indexer,
                 const LFIndexer<vid_t>& dst_indexer,
-                const std::vector<std::string>& filenames) override {
+                const std::vector<std::string>& filenames) /*override*/ {
     std::vector<int> odegree(src_indexer.size(), 0);
     std::vector<int> idegree(dst_indexer.size(), 0);
 
@@ -361,7 +362,7 @@ class DualTableCsr : public DualCsrBase {
 
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                           timestamp_t timestamp,
-                          ArenaAllocator& alloc) override {
+                          ArenaAllocator& alloc) /*override*/ {
     Property props;
     //props_.set_type(PropertyType::kList);
     oarc >> props;
@@ -373,8 +374,8 @@ class DualTableCsr : public DualCsrBase {
     in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
-  virtual void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
-                       const Property& prop, ArenaAllocator& alloc) override {
+  void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
+                       const Property& prop, ArenaAllocator& alloc) /*override*/ {
     std::vector<Property> props = prop.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
     table_.insert(row_id, props);
@@ -388,10 +389,10 @@ class DualTableCsr : public DualCsrBase {
     return table_;
   }
 
-  TypedMutableCsrBase<unsigned,Property>* GetInCsr() override { return in_csr_; }
-  TypedMutableCsrBase<unsigned,Property>* GetOutCsr() override { return out_csr_; }
+  TypedMutableCsrBase<unsigned,Property>* GetInCsr() /*override*/ { return in_csr_; }
+  TypedMutableCsrBase<unsigned,Property>* GetOutCsr() /*override*/ { return out_csr_; }
 
-  void Serialize(const std::string& path) override {
+  void Serialize(const std::string& path) /*override*/ {
     std::string table_index_path = path + ".table_index";
     FILE* fout = fopen(table_index_path.c_str(), "wb");
     fwrite(&table_index_, sizeof(table_index_), 1, fout);
@@ -401,7 +402,7 @@ class DualTableCsr : public DualCsrBase {
     in_csr_->Serialize(path + "_ie");
     out_csr_->Serialize(path + "_oe");
   }
-  void Deserialize(const std::string& path) override {
+  void Deserialize(const std::string& path) /*override*/ {
     std::string table_index_path = path + ".table_index";
     FILE* fin = fopen(table_index_path.c_str(), "r");
     fread(&table_index_, sizeof(table_index_), 1, fin);
@@ -563,7 +564,7 @@ inline DualCsrBase* create_dual_csr(
   } */
   //else 
   {
-    return new DualTableCsr(ies,oes,properties,table,table_index);
+    return new DualCsrBase(ies,oes,properties,table,table_index);
   }
 }
 
