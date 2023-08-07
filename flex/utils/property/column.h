@@ -98,7 +98,7 @@ class TypedColumn : public ColumnBase {
 using IntColumn = TypedColumn<int>;
 using LongColumn = TypedColumn<int64_t>;
 using DateColumn = TypedColumn<Date>;
-using StringColumn = TypedColumn<std::string>;
+using StringColumn = TypedColumn<std::string_view>;
 using StringViewColumn = TypedColumn<std::string_view>;
 using DoubleColumn = TypedColumn<double>;
 using UInt8Column = TypedColumn<uint8_t>;

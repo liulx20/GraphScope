@@ -23,7 +23,7 @@
 #include "flex/utils/allocators.h"
 
 namespace gs {
-/**
+
 class DualCsrBase {
  public:
   DualCsrBase() = default;
@@ -38,15 +38,15 @@ class DualCsrBase {
                           timestamp_t timestamp, ArenaAllocator& alloc) = 0;
   virtual void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
                        const Property& data, ArenaAllocator& alloc) = 0;
-  virtual TypedMutableCsrBase<unsigned,Property>* GetInCsr() = 0;
-  virtual TypedMutableCsrBase<unsigned,Property>* GetOutCsr() = 0;
+  virtual MutableCsrBase* GetInCsr() = 0;
+  virtual MutableCsrBase* GetOutCsr() = 0;
 
   virtual Table& get_table() = 0;
   virtual const Table& get_table() const = 0;
 
   virtual void Serialize(const std::string& path) = 0;
   virtual void Deserialize(const std::string& path) = 0;
-};*/
+};
 
 template <typename EDATA_T, typename PROPERTY_T = EDATA_T>
 class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
@@ -74,7 +74,7 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
 
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {
-    EDATA_T value;
+    Property value;
     arc >> value;
   }
 
@@ -127,7 +127,7 @@ inline void preprocess_line(char* line) {
   }
   line[len + 1] = '\0';
 }
-/**
+
 template <typename EDATA_T>
 class DualTypedCsr : public DualCsrBase {
  public:
@@ -218,12 +218,19 @@ class DualTypedCsr : public DualCsrBase {
     }
   }
 
+  Table& get_table(){
+    return empty_table_;
+  }
+
+  const Table& get_table() const{
+    return empty_table_;
+  }
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                   timestamp_t timestamp, ArenaAllocator& alloc) override {
-    EDATA_T data;
+    Property data;
     oarc >> data;
-    in_csr_->put_edge(dst, src, data, timestamp, alloc);
-    out_csr_->put_edge(src, dst, data, timestamp, alloc);
+    in_csr_->put_edge(dst, src, data.get_value<EDATA_T>(), timestamp, alloc);
+    out_csr_->put_edge(src, dst, data.get_value<EDATA_T>(), timestamp, alloc);
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
                const Property& prop, ArenaAllocator& alloc) override {
@@ -247,12 +254,12 @@ class DualTypedCsr : public DualCsrBase {
   TypedMutableCsrBase<EDATA_T>* in_csr_;
   TypedMutableCsrBase<EDATA_T>* out_csr_;
   std::vector<PropertyType> properties_;
+  Table empty_table_;
 };
-*/
-class DualCsrBase{
+
+class DualTableCsr : public DualCsrBase{
  public:
-  DualCsrBase(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties,Table& table,std::atomic<size_t>& table_index):
-      table_(table),table_index_(table_index) {
+  DualTableCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties) {
     std::vector<std::string> col_names;
     std::vector<StorageStrategy> col_strategies;
     size_t col_num = properties.size();
@@ -282,7 +289,7 @@ class DualCsrBase{
     properties_ = properties;
   }
 
-  ~DualCsrBase() {
+  ~DualTableCsr() {
     if (in_csr_ != nullptr) {
       delete in_csr_;
     }
@@ -291,14 +298,14 @@ class DualCsrBase{
     }
   }
 
-  void ConstructEmptyCsr() /*override*/ {
+  void ConstructEmptyCsr() override {
     in_csr_->batch_init(0, {});
     out_csr_->batch_init(0, {});
   }
 
   void BulkLoad(const LFIndexer<vid_t>& src_indexer,
                 const LFIndexer<vid_t>& dst_indexer,
-                const std::vector<std::string>& filenames) /*override*/ {
+                const std::vector<std::string>& filenames) override {
     std::vector<int> odegree(src_indexer.size(), 0);
     std::vector<int> idegree(dst_indexer.size(), 0);
 
@@ -362,7 +369,7 @@ class DualCsrBase{
 
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                           timestamp_t timestamp,
-                          ArenaAllocator& alloc) /*override*/ {
+                          ArenaAllocator& alloc) override {
     Property props;
     //props_.set_type(PropertyType::kList);
     oarc >> props;
@@ -375,10 +382,10 @@ class DualCsrBase{
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
-                       const Property& prop, ArenaAllocator& alloc) /*override*/ {
-    std::vector<Property> props = prop.get_value<std::vector<Property>>();
+                       const Property& prop, ArenaAllocator& alloc) override {
+    //std::vector<Property> props = prop.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
-    table_.insert(row_id, props);
+    table_.insert(row_id, prop);
     in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
@@ -389,10 +396,10 @@ class DualCsrBase{
     return table_;
   }
 
-  TypedMutableCsrBase<unsigned,Property>* GetInCsr() /*override*/ { return in_csr_; }
-  TypedMutableCsrBase<unsigned,Property>* GetOutCsr() /*override*/ { return out_csr_; }
+  MutableCsrBase* GetInCsr() override { return in_csr_; }
+  MutableCsrBase* GetOutCsr() override { return out_csr_; }
 
-  void Serialize(const std::string& path) /*override*/ {
+  void Serialize(const std::string& path) override {
     std::string table_index_path = path + ".table_index";
     FILE* fout = fopen(table_index_path.c_str(), "wb");
     fwrite(&table_index_, sizeof(table_index_), 1, fout);
@@ -402,7 +409,7 @@ class DualCsrBase{
     in_csr_->Serialize(path + "_ie");
     out_csr_->Serialize(path + "_oe");
   }
-  void Deserialize(const std::string& path) /*override*/ {
+  void Deserialize(const std::string& path) override {
     std::string table_index_path = path + ".table_index";
     FILE* fin = fopen(table_index_path.c_str(), "r");
     fread(&table_index_, sizeof(table_index_), 1, fin);
@@ -416,8 +423,8 @@ class DualCsrBase{
  protected:
   TypedMutableCsrBase<uint32_t,Property>* in_csr_;
   TypedMutableCsrBase<uint32_t,Property> * out_csr_;
-  Table& table_;
-  std::atomic<size_t>& table_index_;
+  Table table_;
+  std::atomic<size_t> table_index_;
 
   std::vector<PropertyType> properties_;
 };
@@ -541,10 +548,10 @@ class DualStringCsr : public DualCsrBase {
 
 inline DualCsrBase* create_dual_csr(
     EdgeStrategy ies, EdgeStrategy oes,
-    const std::vector<PropertyType>& properties,Table& table,std::atomic<size_t>& table_index) {
-  /**if (properties.empty()) {
+    const std::vector<PropertyType>& properties) {
+  if (properties.empty()) {
     return new DualTypedCsr<grape::EmptyType>(ies, oes, properties);
-  }*/ /**else if (properties.size() == 1) {
+  }else if (properties.size() == 1) {
     switch (properties[0]) {
     case PropertyType::kInt32:
       return new DualTypedCsr<int32_t>(ies, oes, properties);
@@ -561,10 +568,8 @@ inline DualCsrBase* create_dual_csr(
       LOG(FATAL) << "Unsupported property type - " << properties[0];
       return nullptr;
     }
-  } */
-  //else 
-  {
-    return new DualCsrBase(ies,oes,properties,table,table_index);
+  }else {
+    return new DualTableCsr(ies,oes,properties);
   }
 }
 
