@@ -48,10 +48,10 @@ class UpdateTransaction {
 
   void Abort();
 
-  bool AddVertex(label_t label, oid_t oid, const std::vector<Property>& props);
+  bool AddVertex(label_t label, oid_t oid, const std::vector<Any>& props);
 
   bool AddEdge(label_t src_label, oid_t src, label_t dst_label, oid_t dst,
-               label_t edge_label, const Property& value);
+               label_t edge_label, const Any& value);
 
   class vertex_iterator {
    public:
@@ -66,9 +66,9 @@ class UpdateTransaction {
 
     vid_t GetIndex() const;
 
-    Property GetField(int col_id) const;
+    Any GetField(int col_id) const;
 
-    bool SetField(int col_id, const Property& value);
+    bool SetField(int col_id, const Any& value);
 
    private:
     label_t label_;
@@ -86,9 +86,9 @@ class UpdateTransaction {
                   UpdateTransaction* txn);
     ~edge_iterator();
 
-    Property GetData() const;
+    Any GetData() const;
 
-    void SetData(const Property& value);
+    void SetData(const Any& value);
 
     bool IsValid() const;
 
@@ -125,16 +125,16 @@ class UpdateTransaction {
   edge_iterator GetInEdgeIterator(label_t label, vid_t u,
                                   label_t neighnor_label, label_t edge_label);
 
-  Property GetVertexField(label_t label, vid_t lid, int col_id) const;
+  Any GetVertexField(label_t label, vid_t lid, int col_id) const;
 
-  bool SetVertexField(label_t label, vid_t lid, int col_id, const Property& value);
+  bool SetVertexField(label_t label, vid_t lid, int col_id, const Any& value);
 
   void SetEdgeData(bool dir, label_t label, vid_t v, label_t neighbor_label,
-                   vid_t nbr, label_t edge_label, const Property& value);
+                   vid_t nbr, label_t edge_label, const Any& value);
 
   bool GetUpdatedEdgeData(bool dir, label_t label, vid_t v,
                           label_t neighbor_label, vid_t nbr, label_t edge_label,
-                          Property& ret) const;
+                          Any& ret) const;
 
   static void IngestWal(MutablePropertyFragment& graph, uint32_t timestamp,
                         char* data, size_t length, ArenaAllocator& alloc);
@@ -175,7 +175,7 @@ class UpdateTransaction {
   std::vector<Table> extra_vertex_properties_;
 
   std::vector<ska::flat_hash_map<vid_t, std::vector<vid_t>>> added_edges_;
-  std::vector<ska::flat_hash_map<vid_t, ska::flat_hash_map<vid_t, Property>>>
+  std::vector<ska::flat_hash_map<vid_t, ska::flat_hash_map<vid_t, Any>>>
       updated_edge_data_;
 
   std::vector<std::string> sv_vec_;

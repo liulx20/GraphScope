@@ -84,7 +84,7 @@ void UpdateTransaction::Commit() {
 void UpdateTransaction::Abort() { release(); }
 
 bool UpdateTransaction::AddVertex(label_t label, oid_t oid,
-                                  const std::vector<Property>& props) {
+                                  const std::vector<Any>& props) {
   vid_t id;
   const std::vector<PropertyType>& types =
       graph_.schema().get_vertex_properties(label);
@@ -93,7 +93,7 @@ bool UpdateTransaction::AddVertex(label_t label, oid_t oid,
   }
   int col_num = types.size();
   for (int col_i = 0; col_i != col_num; ++col_i) {
-    if (props[col_i].type() != types[col_i]) {
+    if (props[col_i].type != types[col_i]) {
       return false;
     }
   }
@@ -120,7 +120,7 @@ bool UpdateTransaction::AddVertex(label_t label, oid_t oid,
 
 bool UpdateTransaction::AddEdge(label_t src_label, oid_t src, label_t dst_label,
                                 oid_t dst, label_t edge_label,
-                                const Property& value) {
+                                const Any& value) {
   vid_t src_lid, dst_lid;
   if (!oid_to_lid(src_label, src, src_lid)) {
     return false;
@@ -130,7 +130,7 @@ bool UpdateTransaction::AddEdge(label_t src_label, oid_t src, label_t dst_label,
   }
   PropertyType type =
       graph_.schema().get_edge_property(src_label, dst_label, edge_label);
-  if (type != value.type()) {
+  if (type != value.type) {
     return false;
   }
   size_t in_csr_index = get_in_csr_index(src_label, dst_label, edge_label);
@@ -166,12 +166,12 @@ oid_t UpdateTransaction::vertex_iterator::GetId() const {
 
 vid_t UpdateTransaction::vertex_iterator::GetIndex() const { return cur_; }
 
-Property UpdateTransaction::vertex_iterator::GetField(int col_id) const {
+Any UpdateTransaction::vertex_iterator::GetField(int col_id) const {
   return txn_->GetVertexField(label_, cur_, col_id);
 }
 
 bool UpdateTransaction::vertex_iterator::SetField(int col_id,
-                                                  const Property& value) {
+                                                  const Any& value) {
   return txn_->SetVertexField(label_, cur_, col_id, value);
 }
 
@@ -191,10 +191,10 @@ UpdateTransaction::edge_iterator::edge_iterator(
       txn_(txn) {}
 UpdateTransaction::edge_iterator::~edge_iterator() = default;
 
-Property UpdateTransaction::edge_iterator::GetData() const {
+Any UpdateTransaction::edge_iterator::GetData() const {
   if (init_iter_->is_valid()) {
     vid_t cur = init_iter_->get_neighbor();
-    Property ret;
+    Any ret;
     if (txn_->GetUpdatedEdgeData(dir_, label_, v_, neighbor_label_, cur,
                                  edge_label_, ret)) {
       return ret;
@@ -203,14 +203,14 @@ Property UpdateTransaction::edge_iterator::GetData() const {
     }
   } else {
     vid_t cur = *added_edges_cur_;
-    Property ret;
+    Any ret;
     CHECK(txn_->GetUpdatedEdgeData(dir_, label_, v_, neighbor_label_, cur,
                                    edge_label_, ret));
     return ret;
   }
 }
 
-void UpdateTransaction::edge_iterator::SetData(const Property& value) {
+void UpdateTransaction::edge_iterator::SetData(const Any& value) {
   if (init_iter_->is_valid()) {
     vid_t cur = init_iter_->get_neighbor();
     txn_->SetEdgeData(dir_, label_, v_, neighbor_label_, cur, edge_label_,
@@ -297,7 +297,7 @@ UpdateTransaction::edge_iterator UpdateTransaction::GetInEdgeIterator(
           this};
 }
 
-Property UpdateTransaction::GetVertexField(label_t label, vid_t lid,
+Any UpdateTransaction::GetVertexField(label_t label, vid_t lid,
                                       int col_id) const {
   auto& vertex_offset = vertex_offsets_[label];
   auto iter = vertex_offset.find(lid);
@@ -310,7 +310,7 @@ Property UpdateTransaction::GetVertexField(label_t label, vid_t lid,
 }
 
 bool UpdateTransaction::SetVertexField(label_t label, vid_t lid, int col_id,
-                                       const Property& value) {
+                                       const Any& value) {
   auto& vertex_offset = vertex_offsets_[label];
   auto iter = vertex_offset.find(lid);
   auto& extra_table = extra_vertex_properties_[label];
@@ -319,7 +319,7 @@ bool UpdateTransaction::SetVertexField(label_t label, vid_t lid, int col_id,
   if (static_cast<size_t>(col_id) >= types.size()) {
     return false;
   }
-  if (types[col_id] != value.type()) {
+  if (types[col_id] != value.type) {
     return false;
   }
   if (iter == vertex_offset.end()) {
@@ -353,21 +353,18 @@ bool UpdateTransaction::SetVertexField(label_t label, vid_t lid, int col_id,
 
 void UpdateTransaction::SetEdgeData(bool dir, label_t label, vid_t v,
                                     label_t neighbor_label, vid_t nbr,
-                                    label_t edge_label, const Property& value) {
+                                    label_t edge_label, const Any& value) {
   size_t csr_index = dir ? get_out_csr_index(label, neighbor_label, edge_label)
                          : get_in_csr_index(label, neighbor_label, edge_label);
-  updated_edge_data_[csr_index][v].emplace(nbr, value);
-  /**if (value.type() == PropertyType::kString) {
-    
+  if (value.type == PropertyType::kString) {
     size_t loc = sv_vec_.size();
     sv_vec_.emplace_back(std::string(value.value.s));
-    Property dup_value;
+    Any dup_value;
     dup_value.set_string(sv_vec_[loc]);
     updated_edge_data_[csr_index][v].emplace(nbr, dup_value);
-    
   } else {
-    //updated_edge_data_[csr_index][v].emplace(nbr, value);
-  }*/
+    updated_edge_data_[csr_index][v].emplace(nbr, value);
+  }
 
   op_num_ += 1;
   arc_ << static_cast<uint8_t>(3) << static_cast<uint8_t>(dir ? 1 : 0) << label
@@ -378,7 +375,7 @@ void UpdateTransaction::SetEdgeData(bool dir, label_t label, vid_t v,
 
 bool UpdateTransaction::GetUpdatedEdgeData(bool dir, label_t label, vid_t v,
                                            label_t neighbor_label, vid_t nbr,
-                                           label_t edge_label, Property& ret) const {
+                                           label_t edge_label, Any& ret) const {
   size_t csr_index = dir ? get_out_csr_index(label, neighbor_label, edge_label)
                          : get_in_csr_index(label, neighbor_label, edge_label);
   auto map_iter = updated_edge_data_[csr_index].find(v);
@@ -406,7 +403,7 @@ void UpdateTransaction::IngestWal(MutablePropertyFragment& graph,
   std::vector<Table> extra_vertex_properties;
 
   std::vector<ska::flat_hash_map<vid_t, std::vector<vid_t>>> added_edges;
-  std::vector<ska::flat_hash_map<vid_t, ska::flat_hash_map<vid_t, Property>>>
+  std::vector<ska::flat_hash_map<vid_t, ska::flat_hash_map<vid_t, Any>>>
       updated_edge_data;
 
   size_t vertex_label_num = graph.schema().vertex_label_num();
@@ -483,10 +480,10 @@ void UpdateTransaction::IngestWal(MutablePropertyFragment& graph,
         edge_iter = graph.get_outgoing_edges_mut(label, v_lid, neighbor_label,
                                                  edge_label);
       }
-      Property value;
-      value.set_type(graph.schema().get_edge_property(
+      Any value;
+      value.type = graph.schema().get_edge_property(
           dir == 0 ? neighbor_label : label, dir == 0 ? label : neighbor_label,
-          label));
+          label);
       while (edge_iter->is_valid()) {
         if (edge_iter->get_neighbor() == nbr_lid) {
           deserialize_field(arc, value);

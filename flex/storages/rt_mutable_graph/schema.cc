@@ -353,11 +353,11 @@ static PropertyType StringToPropertyType(const std::string& str) {
     return PropertyType::kInt32;
   } else if (str == "Date") {
     return PropertyType::kDate;
-  } else if (str == "String") {
+  } else if ((str == "String") or (str == "StringView")) {
     //?
-    return PropertyType::kStringView;
-  } else if (str == "StringView"){
-    return PropertyType::kStringView;
+    return PropertyType::kString;
+  //} else if (str == "StringView"){
+    //return PropertyType::kStringView;
   }else if (str == "Empty") {
     return PropertyType::kEmpty;
   } else if (str == "int64") {

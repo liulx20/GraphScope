@@ -33,9 +33,9 @@ class ColumnBase {
 
   virtual PropertyType type() const = 0;
 
-  virtual void set(size_t index, const Property& value) = 0;
+  virtual void set(size_t index, const Any& value) = 0;
 
-  virtual Property get(size_t index) const = 0;
+  virtual Any get(size_t index) const = 0;
 
   virtual void ingest(uint32_t index, grape::OutArchive& arc) = 0;
 
@@ -56,19 +56,21 @@ class TypedColumn : public ColumnBase {
 
   void set_value(size_t index, const T& val) { buffer_.insert(index, val); }
 
-  void set(size_t index, const Property& value) override {
-    CHECK_EQ(value.type(), type());
-    set_value(index, value.get_value<T>());
+  void set(size_t index, const Any& value) override {
+    //CHECK_EQ(value.type(), type());
+    set_value(index,AnyConverter<T>::from_any(value));
+    //set_value(index, value.get_value<T>());
   }
 
   T get_view(size_t index) const { return buffer_[index]; }
 
   PropertyType type() const override { return AnyConverter<T>::type; }
 
-  Property get(size_t index) const override {
-    Property ret;
-    ret.set_value<T>(buffer_[index]);
-    return ret;
+  Any get(size_t index) const override {
+    //Property ret;
+    //ret.set_value<T>(buffer_[index]);
+    return AnyConverter<T>::to_any(buffer_[index]);
+    //return ret;
   }
 
   void Serialize(const std::string& path, size_t size) override {
@@ -80,9 +82,9 @@ class TypedColumn : public ColumnBase {
   }
 
   void ingest(uint32_t index, grape::OutArchive& arc) override {
-    Property val;
+    T val;
     arc >> val;
-    set_value(index, val.get_value<T>());
+    set_value(index, val);
   }
 
   StorageStrategy storage_strategy() const override { return strategy_; }

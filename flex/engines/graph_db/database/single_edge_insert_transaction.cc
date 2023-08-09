@@ -39,7 +39,7 @@ SingleEdgeInsertTransaction::~SingleEdgeInsertTransaction() { Abort(); }
 
 bool SingleEdgeInsertTransaction::AddEdge(label_t src_label, oid_t src,
                                           label_t dst_label, oid_t dst,
-                                          label_t edge_label, const Property& prop) {
+                                          label_t edge_label, const Any& prop) {
   if (!graph_.get_lid(src_label, src, src_vid_)) {
     std::string label_name = graph_.schema().get_vertex_label_name(src_label);
     LOG(ERROR) << "Source vertex " << label_name << "[" << src

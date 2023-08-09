@@ -173,7 +173,7 @@ class ReadTransaction {
     oid_t GetId() const;
     vid_t GetIndex() const;
 
-    Property GetField(int col_id) const;
+    Any GetField(int col_id) const;
     int FieldNum() const;
 
    private:
@@ -189,13 +189,13 @@ class ReadTransaction {
                   std::shared_ptr<MutableCsrConstEdgeIterBase> iter);
     ~edge_iterator();
 
-    Property GetData() const;
+    Any GetData() const;
 
     bool IsValid() const;
 
     void Next();
 
-    Property GetField(int col_id) const;
+    Any GetField(int col_id) const;
     int FieldNum() const;
     vid_t GetNeighbor() const;
 
@@ -240,7 +240,7 @@ class ReadTransaction {
   AdjListView<uint32_t> GetTableOutgoingEdges(label_t v_label, vid_t v,
                                           label_t neighbor_label,
                                           label_t edge_label) const{
-    auto csr = dynamic_cast<const TypedMutableCsrBase<uint32_t,Property>*>(
+    auto csr = dynamic_cast<const TypedMutableCsrBase<uint32_t,Any>*>(
       graph_.get_oe_csr(v_label,neighbor_label,edge_label)
     );
     return AdjListView<uint32_t>(csr->get_edges(v),timestamp_);
@@ -258,7 +258,7 @@ class ReadTransaction {
   AdjListView<uint32_t> GetTableIncomingEdges(label_t v_label, vid_t v,
                                           label_t neighbor_label,
                                           label_t edge_label) const{
-    auto csr = dynamic_cast<const TypedMutableCsrBase<uint32_t,Property>*>(
+    auto csr = dynamic_cast<const TypedMutableCsrBase<uint32_t,Any>*>(
       graph_.get_ie_csr(v_label,neighbor_label,edge_label)
     );
     return AdjListView<uint32_t>(csr->get_edges(v),timestamp_);

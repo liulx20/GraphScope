@@ -2,6 +2,3 @@
 	path = learning_engine/graph-learn
 	url = https://github.com/alibaba/graph-learn.git
 
-[submodule "flex/grin"]
-	path = flex/grin
-	url = https://github.com/GraphScope/GRIN.git

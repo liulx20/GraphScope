@@ -36,7 +36,7 @@ class SingleEdgeInsertTransaction {
   ~SingleEdgeInsertTransaction();
 
   bool AddEdge(label_t src_label, oid_t src, label_t dst_label, oid_t dst,
-               label_t edge_label, const Property& prop);
+               label_t edge_label, const Any& prop);
 
   void Abort();
 

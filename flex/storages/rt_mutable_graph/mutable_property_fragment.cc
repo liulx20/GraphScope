@@ -367,7 +367,7 @@ void MutablePropertyFragment::IngestEdge(label_t src_label, vid_t src_lid,
 void MutablePropertyFragment::PutEdge(label_t src_label, vid_t src_lid,
                                       label_t dst_label, vid_t dst_lid,
                                       label_t edge_label, timestamp_t ts,
-                                      const Property& data,
+                                      const Any& data,
                                       ArenaAllocator& alloc) {
   size_t index = src_label * vertex_label_num_ * edge_label_num_ +
                  dst_label * edge_label_num_ + edge_label;
@@ -647,18 +647,18 @@ void MutablePropertyFragment::parseVertexFiles(
   auto& table = vertex_data_[label_index];
   auto& property_types = schema_.get_vertex_properties(vertex_label);
   size_t col_num = property_types.size();
-  std::vector<Property> properties(col_num);
+  std::vector<Any> properties(col_num);
   for (size_t col_i = 0; col_i != col_num; ++col_i) {
-    properties[col_i].set_type(property_types[col_i]);
+    properties[col_i].type = (property_types[col_i]);
   }
 
   char line_buf[4096];
   oid_t oid;
   vid_t v_index;
   bool first_file = true;
-  std::vector<Property> header(col_num + 1);
+  std::vector<Any> header(col_num + 1);
   for (auto& item : header) {
-    item.set_type(PropertyType::kString);
+    item.type = (PropertyType::kString);
   }
   for (auto filename : filenames) {
     FILE* fin = fopen(filename.c_str(), "r");
@@ -670,7 +670,9 @@ void MutablePropertyFragment::parseVertexFiles(
       ParseRecord(line_buf, header);
       std::vector<std::string> col_names(col_num);
       for (size_t i = 0; i < col_num; ++i) {
-        col_names[i] = header[i + 1].get_value<std::string>();
+        col_names[i] = std::string(header[i + 1].value.s.data(),
+                                   header[i + 1].value.s.size());
+        //col_names[i] = header[i + 1].get_value<std::string>();
       }
       table.reset_header(col_names);
       first_file = false;

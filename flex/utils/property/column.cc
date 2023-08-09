@@ -30,13 +30,13 @@ class TypedEmptyColumn : public ColumnBase {
 
   void set_value(size_t index, const T& val) {}
 
-  void set(size_t index, const Property& value) {}
+  void set(size_t index, const Any& value) {}
 
   T get_view(size_t index) const { T{}; }
 
   PropertyType type() const override { return AnyConverter<T>::type; }
 
-  Property get(size_t index) const override { return Property(); }
+  Any get(size_t index) const override { return Any(); }
 
   void Serialize(const std::string& path, size_t size) override {}
 
@@ -67,9 +67,9 @@ std::shared_ptr<ColumnBase> CreateColumn(PropertyType type,
       return std::make_shared<DateEmptyColumn>();
     } else if (type == PropertyType::kString) {
       return std::make_shared<TypedEmptyColumn<std::string>>();
-    } else if (type == PropertyType::kStringView) {
+    } /**else if (type == PropertyType::kStringView) {
       return std::make_shared<TypedEmptyColumn<std::string_view>>();
-    } else if (type == PropertyType::kDouble) {
+    }*/ else if (type == PropertyType::kDouble) {
       return std::make_shared<TypedEmptyColumn<double>>();
     } else {
       LOG(FATAL) << "unexpected type to create column, "
@@ -85,13 +85,13 @@ std::shared_ptr<ColumnBase> CreateColumn(PropertyType type,
       return std::make_shared<DateColumn>(strategy);
     } else if (type == PropertyType::kString) {
       return std::make_shared<StringColumn>(strategy);
-    } else if (type == PropertyType::kStringView) {
+    } /*else if (type == PropertyType::kStringView) {
       return std::make_shared<StringViewColumn>(strategy);
-    } else if (type == PropertyType::kDouble) {
+    } */else if (type == PropertyType::kDouble) {
       return std::make_shared<DoubleColumn>(strategy);
-    } else if(type == PropertyType::kUInt8){
+    } /**else if(type == PropertyType::kUInt8){
       return std::make_shared<UInt8Column>(strategy);
-    }else {
+    }*/else {
       LOG(FATAL) << "unexpected type to create column, "
                  << static_cast<int>(type);
       return nullptr;

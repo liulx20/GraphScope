@@ -37,7 +37,7 @@ class DualCsrBase {
   virtual void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                           timestamp_t timestamp, ArenaAllocator& alloc) = 0;
   virtual void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
-                       const Property& data, ArenaAllocator& alloc) = 0;
+                       const Any& data, ArenaAllocator& alloc) = 0;
   virtual MutableCsrBase* GetInCsr() = 0;
   virtual MutableCsrBase* GetOutCsr() = 0;
 
@@ -60,7 +60,7 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
 
   slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
 
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
+  void put_generic_edge(vid_t src, vid_t dst, const Any& data,
                         timestamp_t ts, ArenaAllocator& alloc) override {}
 
   void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data, timestamp_t ts,
@@ -74,7 +74,7 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
 
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {
-    Property value;
+    Any value;
     arc >> value;
   }
 
@@ -178,9 +178,9 @@ class DualTypedCsr : public DualCsrBase {
 
     bool first_file = true;
     size_t col_num = properties_.size();
-    std::vector<Property> header(col_num + 2);
+    std::vector<Any> header(col_num + 2);
     for (auto& item : header) {
-      item.set_type(PropertyType::kString);
+      item.type=(PropertyType::kString);
     }
     for (auto filename : filenames) {
       FILE* fin = fopen(filename.c_str(), "r");
@@ -192,7 +192,7 @@ class DualTypedCsr : public DualCsrBase {
         ParseRecord(line_buf, header);
         std::vector<std::string> col_names(col_num);
         for (size_t i = 0; i < col_num; ++i) {
-          col_names[i] = header[i + 2].get_value<std::string>();
+          col_names[i] = header[i + 2].value.s;
         }
         first_file = false;
       }
@@ -227,14 +227,17 @@ class DualTypedCsr : public DualCsrBase {
   }
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                   timestamp_t timestamp, ArenaAllocator& alloc) override {
-    Property data;
+    EDATA_T data;
     oarc >> data;
-    in_csr_->put_edge(dst, src, data.get_value<EDATA_T>(), timestamp, alloc);
-    out_csr_->put_edge(src, dst, data.get_value<EDATA_T>(), timestamp, alloc);
+    
+    in_csr_->put_edge(dst, src, data, timestamp, alloc);
+    out_csr_->put_edge(src, dst, data, timestamp, alloc);
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
-               const Property& prop, ArenaAllocator& alloc) override {
-    EDATA_T data = prop.get_value<EDATA_T>();
+               const Any& prop, ArenaAllocator& alloc) override {
+    //EDATA_T data = prop.get_value<EDATA_T>();
+    EDATA_T data;
+    ConvertAny<EDATA_T>::to(prop,data);
     in_csr_->put_edge(dst, src, data, timestamp, alloc);
     out_csr_->put_edge(src, dst, data, timestamp, alloc);
   }
@@ -270,14 +273,14 @@ class DualTableCsr : public DualCsrBase{
     table_.init(col_names, properties, col_strategies,
                 std::numeric_limits<int>::max());
     if (ie_strategy == EdgeStrategy::kNone) {
-      in_csr_ = new EmptyCsr<uint32_t, Property>();
+      in_csr_ = new EmptyCsr<uint32_t, Any>();
     } else if (ie_strategy == EdgeStrategy::kMultiple) {
       in_csr_ = new TableMutableCsr();
     } else if (ie_strategy == EdgeStrategy::kSingle) {
       in_csr_ = new SingleTableMutableCsr();
     }
     if (oe_strategy == EdgeStrategy::kNone) {
-      out_csr_ = new EmptyCsr<uint32_t, Property>();
+      out_csr_ = new EmptyCsr<uint32_t, Any>();
     } else if (oe_strategy == EdgeStrategy::kMultiple) {
       out_csr_ = new TableMutableCsr();
     } else if (oe_strategy == EdgeStrategy::kSingle) {
@@ -306,6 +309,7 @@ class DualTableCsr : public DualCsrBase{
   void BulkLoad(const LFIndexer<vid_t>& src_indexer,
                 const LFIndexer<vid_t>& dst_indexer,
                 const std::vector<std::string>& filenames) override {
+    /**
     std::vector<int> odegree(src_indexer.size(), 0);
     std::vector<int> idegree(dst_indexer.size(), 0);
 
@@ -313,11 +317,11 @@ class DualTableCsr : public DualCsrBase{
     vid_t src_index, dst_index;
     char line_buf[4096];
     oid_t src, dst;
-    std::vector<Property> data(properties_.size());
+    std::vector<Any> data(properties_.size());
 
     bool first_file = true;
     size_t col_num = properties_.size();
-    std::vector<Property> header(col_num + 2);
+    std::vector<Any> header(col_num + 2);
     for (auto& item : header) {
       item.set_type(PropertyType::kString);
     }
@@ -325,7 +329,7 @@ class DualTableCsr : public DualCsrBase{
       data[col_i].set_type(properties_[col_i]);
       /*data[col_i].set_type(properties_[col_i] == PropertyType::kString
                                ? PropertyType::kStringView
-                               : properties_[col_i]);*/
+                               : properties_[col_i]);
     }
     for (auto filename : filenames) {
       FILE* fin = fopen(filename.c_str(), "r");
@@ -364,13 +368,13 @@ class DualTableCsr : public DualCsrBase{
                                         std::get<2>(edge), 0);
       out_csr_->batch_put_edge_with_index(std::get<0>(edge), std::get<1>(edge),
                                          std::get<2>(edge), 0);
-    }
+    }*/
   }
 
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                           timestamp_t timestamp,
                           ArenaAllocator& alloc) override {
-    Property props;
+    Any props;
     //props_.set_type(PropertyType::kList);
     oarc >> props;
     //std::vector<Property> props = props_.get_value<std::vector<Property>>();
@@ -382,7 +386,7 @@ class DualTableCsr : public DualCsrBase{
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
-                       const Property& prop, ArenaAllocator& alloc) override {
+                       const Any& prop, ArenaAllocator& alloc) override {
     //std::vector<Property> props = prop.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
     table_.insert(row_id, prop);
@@ -421,8 +425,8 @@ class DualTableCsr : public DualCsrBase{
   }
 
  protected:
-  TypedMutableCsrBase<uint32_t,Property>* in_csr_;
-  TypedMutableCsrBase<uint32_t,Property> * out_csr_;
+  TypedMutableCsrBase<uint32_t,Any>* in_csr_;
+  TypedMutableCsrBase<uint32_t,Any> * out_csr_;
   Table table_;
   std::atomic<size_t> table_index_;
 
@@ -559,9 +563,9 @@ inline DualCsrBase* create_dual_csr(
       return new DualTypedCsr<Date>(ies, oes, properties);
     case PropertyType::kInt64:
       return new DualTypedCsr<int64_t>(ies, oes, properties);
-    case PropertyType::kString:
-    case PropertyType::kStringView:
-      return new DualTypedCsr<std::string>(ies, oes, properties);
+    //case PropertyType::kString:
+   // case PropertyType::kStringView:
+      //return new DualTypedCsr<std::string>(ies, oes, properties);
     case PropertyType::kDouble:
       return new DualTypedCsr<double>(ies, oes, properties);
     default:

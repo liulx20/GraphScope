@@ -108,19 +108,16 @@ const std::shared_ptr<ColumnBase> Table::get_column(
   return nullptr;
 }
 
-std::vector<Property> Table::get_row_as_vec(size_t row_id) const {
-  std::vector<Property> ret;
+std::vector<Any> Table::get_row_as_vec(size_t row_id) const {
+  std::vector<Any> ret;
   for (auto ptr : columns_) {
     ret.push_back(ptr->get(row_id));
   }
   return ret;
 }
 
-Property Table::get_row(size_t row_id) const {
-  auto vec = get_row_as_vec(row_id);
-  Property ret;
-  ret.set_value<std::vector<Property>>(vec);
-  return ret;
+std::vector<Any> Table::get_row(size_t row_id) const {
+  return get_row_as_vec(row_id);
 }
 
 std::shared_ptr<ColumnBase> Table::get_column_by_id(size_t index) {
@@ -142,19 +139,19 @@ const std::shared_ptr<ColumnBase> Table::get_column_by_id(size_t index) const {
 size_t Table::col_num() const { return columns_.size(); }
 std::vector<std::shared_ptr<ColumnBase>>& Table::columns() { return columns_; }
 
-void Table::insert(size_t index, const Property& value) {
-  if (value.type() == PropertyType::kEmpty) {
+void Table::insert(size_t index, const Any& value) {
+  if (value.type == PropertyType::kEmpty) {
     CHECK_EQ(columns_.size(), 0);
-  } else if (value.type() == PropertyType::kList) {
+  }/** else if (value.type() == PropertyType::kList) {
     auto list = value.get_value<std::vector<Property>>();
     insert(index, list);
-  } else {
+  } */else {
     CHECK_EQ(columns_.size(), 1);
     columns_[0]->set(index, value);
   }
 }
 
-void Table::insert(size_t index, const std::vector<Property>& values) {
+void Table::insert(size_t index, const std::vector<Any>& values) {
   
   assert(values.size() == columns_.size());
   CHECK_EQ(values.size(), columns_.size());
@@ -270,11 +267,11 @@ void Table::buildColumnPtrs() {
   }
 }
 
-Property Table::at(size_t row_id, size_t col_id) {
+Any Table::at(size_t row_id, size_t col_id) {
   return columns_[col_id]->get(row_id);
 }
 
-Property Table::at(size_t row_id, size_t col_id) const {
+Any Table::at(size_t row_id, size_t col_id) const {
   return columns_[col_id]->get(row_id);
 }
 
