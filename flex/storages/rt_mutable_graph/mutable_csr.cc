@@ -145,6 +145,15 @@ void MutableCsr<std::string>::Deserialize(const std::string& path) {
   }
 }
 
+void SingleMutableCsr<std::string>::Serialize(const std::string& path) {
+  nbr_list_.dump_to_file(path,nbr_list_.size());
+}
+
+void SingleMutableCsr<std::string>::Deserialize(const std::string& path) {
+  nbr_list_.open_for_read(path);
+}
+
+
 template <typename EDATA_T>
 void SingleMutableCsr<EDATA_T>::Serialize(const std::string& path) {
   nbr_list_.dump_to_file(path, nbr_list_.size());

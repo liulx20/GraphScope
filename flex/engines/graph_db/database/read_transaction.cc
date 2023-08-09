@@ -73,6 +73,14 @@ bool ReadTransaction::edge_iterator::IsValid() const {
 
 void ReadTransaction::edge_iterator::Next() { iter_->next(); }
 
+Property ReadTransaction::edge_iterator::GetField(int col_id) const{
+  return iter_->get_data(col_id);
+}
+
+int ReadTransaction::edge_iterator::FieldNum() const{
+  return iter_->get_table()->col_num();
+}
+
 vid_t ReadTransaction::edge_iterator::GetNeighbor() const {
   return iter_->get_neighbor();
 }

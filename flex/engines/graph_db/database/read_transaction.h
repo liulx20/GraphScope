@@ -195,6 +195,8 @@ class ReadTransaction {
 
     void Next();
 
+    Property GetField(int col_id) const;
+    int FieldNum() const;
     vid_t GetNeighbor() const;
 
     label_t GetNeighborLabel() const;
