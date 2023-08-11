@@ -18,7 +18,7 @@
 
 #include "flex/storages/rt_mutable_graph/types.h"
 #include "grape/serialization/in_archive.h"
-#include "flex/utils/property/types.h"
+
 
 namespace gs {
 
@@ -26,7 +26,7 @@ class MutablePropertyFragment;
 class ArenaAllocator;
 class WalWriter;
 class VersionManager;
-class Any;
+class Property;
 
 class SingleVertexInsertTransaction {
  public:
