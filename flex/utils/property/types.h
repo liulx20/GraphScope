@@ -145,6 +145,16 @@ struct Any{
     new(&any) std::any(val);
   }
 
+  Any(grape::EmptyType&&){
+    type = POD;
+    u8 = 0;
+  }
+
+  Any(const grape::EmptyType&&){
+    type = POD;
+    u8 = 0;
+  }
+
   template<typename T>
   void set_val(T&& val){
     type = ANY;
@@ -274,6 +284,7 @@ struct Any{
 
   template<typename T>
   void get_val(T& data) const{
+      printf("get val error\n");
       data = std::any_cast<T>(any);
   }
 
@@ -326,6 +337,7 @@ struct Any{
   void get_val(Date& data) const{
     data = dt;
   }
+  
 
   Any(uint8_t u8):type(POD),u8(u8){}
   Any(int8_t i8):type(POD),i8(i8){}
