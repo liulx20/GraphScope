@@ -61,7 +61,8 @@ bool SingleVertexInsertTransaction::AddVertex(label_t label, oid_t id,
                  << ", but got " << prop.type();
       return false;
     }
-    serialize_field(arc_, prop);
+    arc_ << prop;
+    //serialize_field(arc_, prop);
   }
   added_vertex_id_ = id;
   added_vertex_label_ = label;
@@ -115,7 +116,8 @@ bool SingleVertexInsertTransaction::AddEdge(label_t src_label, oid_t src,
   
   arc_ << static_cast<uint8_t>(1) << src_label << src << dst_label << dst
        << edge_label;
-  serialize_field(arc_,prop);
+  arc_ << prop;
+  //serialize_field(arc_,prop);
 
   //serialize_field(arc_, prop);
   parsed_endpoints_.push_back(src_vid);

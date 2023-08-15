@@ -658,7 +658,7 @@ void MutablePropertyFragment::parseVertexFiles(
   bool first_file = true;
   std::vector<Property> header(col_num + 1);
   for (auto& item : header) {
-    item.set_type(PropertyType::kString);
+    item.set_type(PropertyType::kStringView);
   }
   for (auto filename : filenames) {
     FILE* fin = fopen(filename.c_str(), "r");
@@ -670,7 +670,8 @@ void MutablePropertyFragment::parseVertexFiles(
       ParseRecord(line_buf, header);
       std::vector<std::string> col_names(col_num);
       for (size_t i = 0; i < col_num; ++i) {
-        col_names[i] = header[i + 1].get_value<std::string>();
+        auto sv = header[i + 1].get_value<std::string_view>();
+        col_names[i] = std::string(sv.data(),sv.size());
       }
       table.reset_header(col_names);
       first_file = false;

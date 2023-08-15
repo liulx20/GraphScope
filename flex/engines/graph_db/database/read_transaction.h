@@ -107,7 +107,17 @@ class SingleGraphView {
  public:
   SingleGraphView(const SingleMutableCsr<EDATA_T>& csr, timestamp_t timestamp)
       : csr_(csr), timestamp_(timestamp) {}
-
+  
+  /**
+  bool exist(vid_t v) const {
+    bool flag = (csr_.get_edge(v).timestamp.load() <= timestamp_);
+    if(!flag){
+      flag = (csr_.get_edge(v).timestamp.load(std::memory_order_acquire) <= timestamp_);  
+    }
+    return flag;
+  }*/
+  
+  
   bool exist(vid_t v) const {
     return (csr_.get_edge(v).timestamp.load() <= timestamp_);
   }

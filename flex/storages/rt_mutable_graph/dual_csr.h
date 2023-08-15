@@ -95,26 +95,7 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
         MutableNbrSliceMut<EDATA_T>::empty());
   }
 };
-/**
-template <typename EDATA_T>
-class EmptyCsr : public TypedMutableCsrBase<EDATA_T> {
- public:
-  EmptyCsr() = default;
-  ~EmptyCsr() = default;
 
-  void batch_init(vid_t vnum, const std::vector<int>& degree) override {}
-
-  void Serialize(const std::string& path) override {}
-
-  void Deserialize(const std::string& path) override {}
-
-  void batch_put_edge(vid_t src, vid_t dst, const EDATA_T& data,
-                      timestamp_t ts = 0) override {}
-
-  void put_edge(vid_t src, vid_t dst, const EDATA_T& data, timestamp_t ts,
-                ArenaAllocator& alloc) override {}
-};
-*/
 inline void preprocess_line(char* line) {
   size_t len = strlen(line);
   while (len >= 0) {
@@ -180,7 +161,7 @@ class DualTypedCsr : public DualCsrBase {
     size_t col_num = properties_.size();
     std::vector<Property> header(col_num + 2);
     for (auto& item : header) {
-      item.set_type(PropertyType::kString);
+      item.set_type(PropertyType::kStringView);
     }
     for (auto filename : filenames) {
       FILE* fin = fopen(filename.c_str(), "r");
@@ -192,7 +173,8 @@ class DualTypedCsr : public DualCsrBase {
         ParseRecord(line_buf, header);
         std::vector<std::string> col_names(col_num);
         for (size_t i = 0; i < col_num; ++i) {
-          col_names[i] = header[i + 2].get_value<std::string>();
+          auto sw = header[i + 2].get_value<std::string_view>();
+          col_names[i] = std::string(sw.data(),sw.size());
         }
         first_file = false;
       }
@@ -229,8 +211,9 @@ class DualTypedCsr : public DualCsrBase {
                   timestamp_t timestamp, ArenaAllocator& alloc) override {
     Property data;
     oarc >> data;
-    in_csr_->put_edge(dst, src, data.get_value<EDATA_T>(), timestamp, alloc);
-    out_csr_->put_edge(src, dst, data.get_value<EDATA_T>(), timestamp, alloc);
+    EDATA_T dt = data.get_value<EDATA_T>();
+    in_csr_->put_edge(dst, src, dt, timestamp, alloc);
+    out_csr_->put_edge(src, dst, dt, timestamp, alloc);
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
                const Property& prop, ArenaAllocator& alloc) override {
@@ -319,13 +302,10 @@ class DualTableCsr : public DualCsrBase{
     size_t col_num = properties_.size();
     std::vector<Property> header(col_num + 2);
     for (auto& item : header) {
-      item.set_type(PropertyType::kString);
+      item.set_type(PropertyType::kStringView);
     }
     for (size_t col_i = 0; col_i != col_num; ++col_i) {
       data[col_i].set_type(properties_[col_i]);
-      /*data[col_i].set_type(properties_[col_i] == PropertyType::kString
-                               ? PropertyType::kStringView
-                               : properties_[col_i]);*/
     }
     for (auto filename : filenames) {
       FILE* fin = fopen(filename.c_str(), "r");
@@ -337,7 +317,8 @@ class DualTableCsr : public DualCsrBase{
         ParseRecord(line_buf, header);
         std::vector<std::string> col_names(col_num);
         for (size_t i = 0; i < col_num; ++i) {
-          col_names[i] = header[i + 2].get_value<std::string>();
+          auto sw = header[i + 2].get_value<std::string_view>();
+          col_names[i] = std::string(sw.data(),sw.size());
         }
         table_.reset_header(col_names);
         first_file = false;

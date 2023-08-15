@@ -67,7 +67,7 @@ class TypedColumn : public ColumnBase {
 
   Property get(size_t index) const override {
     Property ret;
-    ret.set_value<T>(buffer_[index]);
+    ret.set_value(buffer_[index]);
     return ret;
   }
 

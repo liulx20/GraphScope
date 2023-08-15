@@ -119,7 +119,7 @@ std::vector<Property> Table::get_row_as_vec(size_t row_id) const {
 Property Table::get_row(size_t row_id) const {
   auto vec = get_row_as_vec(row_id);
   Property ret;
-  ret.set_value<std::vector<Property>>(vec);
+  ret.set_value(std::move(vec));
   return ret;
 }
 
