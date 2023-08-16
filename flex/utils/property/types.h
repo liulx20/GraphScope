@@ -55,7 +55,7 @@ enum class PropertyType {
 struct Date {
   Date() = default;
   ~Date() = default;
-  //Date(const Date& rhs);
+  // Date(const Date& rhs);
   Date(int64_t x);
   Date(const char* str);
 
@@ -65,15 +65,13 @@ struct Date {
   int64_t milli_second;
 };
 
-
 template <typename T>
 struct AnyConverter;
 
 struct Property {
   union AnyValue {
-  
-  AnyValue() {}
-  ~AnyValue() {}
+    AnyValue() {}
+    ~AnyValue() {}
 
     uint8_t u8;
     int8_t i8;
@@ -93,238 +91,201 @@ struct Property {
   };
 
   Property() : type_(PropertyType::kEmpty) {}
-  Property(const Property& prop): type_(prop.type_){
-    if(type_ == PropertyType::kString){
+  Property(const Property& prop) : type_(prop.type_) {
+    if (type_ == PropertyType::kString) {
       new (&(value.s)) std::string(prop.value.s);
-    }else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       new (&(value.vec)) std::vector<Property>(prop.value.vec);
-    } else if(type_ == PropertyType::kAny) {
-      new(&(value.any)) std::any(prop.value.any);
+    } else if (type_ == PropertyType::kAny) {
+      new (&(value.any)) std::any(prop.value.any);
     } else {
-      memcpy(&value,&prop.value,sizeof(prop.value));
+      memcpy(&value, &prop.value, sizeof(prop.value));
     }
   }
 
-  Property(Property&& prop): type_(prop.type_){
-    if(type_ == PropertyType::kString){
+  Property(Property&& prop) : type_(prop.type_) {
+    if (type_ == PropertyType::kString) {
       new (&(value.s)) std::string(std::move(prop.value.s));
-    } else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       new (&(value.vec)) std::vector<Property>(std::move(prop.value.vec));
-    } else if(type_ == PropertyType::kAny){
-      new(&(value.any)) std::any(std::move(prop.value.any));
-    } else{
-      memcpy(&value,&prop.value,sizeof(prop.value));
+    } else if (type_ == PropertyType::kAny) {
+      new (&(value.any)) std::any(std::move(prop.value.any));
+    } else {
+      memcpy(&value, &prop.value, sizeof(prop.value));
     }
   }
 
-  Property& operator=(const Property& prop){
-    if(this == &prop){
+  Property& operator=(const Property& prop) {
+    if (this == &prop) {
       return *this;
     }
-    if(type_ == PropertyType::kString){
+    if (type_ == PropertyType::kString) {
       value.s.~basic_string();
-    }else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       value.vec.~vector();
-    }else if(type_ == PropertyType::kAny){
+    } else if (type_ == PropertyType::kAny) {
       value.any.~any();
     }
     type_ = prop.type_;
-    if(type_ == PropertyType::kString){
+    if (type_ == PropertyType::kString) {
       new (&(value.s)) std::string(prop.value.s);
-    }else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       new (&(value.vec)) std::vector<Property>(prop.value.vec);
-    } else if(type_ == PropertyType::kAny){
-      new(&(value.any)) std::any(prop.value.any);
-    }else{
-       memcpy(&value,&prop.value,sizeof(prop.value));
+    } else if (type_ == PropertyType::kAny) {
+      new (&(value.any)) std::any(prop.value.any);
+    } else {
+      memcpy(&value, &prop.value, sizeof(prop.value));
     }
     return *this;
   }
 
-  Property& operator=(Property&& prop){
-    if(this == &prop){
+  Property& operator=(Property&& prop) {
+    if (this == &prop) {
       return *this;
     }
-    if(type_ == PropertyType::kString){
+    if (type_ == PropertyType::kString) {
       value.s.~basic_string();
-    }else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       value.vec.~vector();
-    }else{
+    } else {
       value.any.~any();
     }
     type_ = prop.type_;
-    if(type_ == PropertyType::kString){
+    if (type_ == PropertyType::kString) {
       new (&(value.s)) std::string(std::move(prop.value.s));
-    }else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       new (&(value.vec)) std::vector<Property>(std::move(prop.value.vec));
-    }else if(type_ == PropertyType::kAny){
-      new(&(value.any)) std::any(std::move(prop.value.any));
-    }else {
-      memcpy(&value,&prop.value,sizeof(prop.value));
+    } else if (type_ == PropertyType::kAny) {
+      new (&(value.any)) std::any(std::move(prop.value.any));
+    } else {
+      memcpy(&value, &prop.value, sizeof(prop.value));
     }
     return *this;
   }
 
   ~Property() {
-    if(static_cast<int>(type_) <= 12){}
-    else if(type_ == PropertyType::kString){
+    if (type_ == PropertyType::kString) {
       value.s.~basic_string();
-    }else if(type_ == PropertyType::kList){
+    } else if (type_ == PropertyType::kList) {
       value.vec.~vector();
-    }else{
+    } else if (type_ == PropertyType::kAny) {
       value.any.~any();
     }
   }
 
-  PropertyType type() const{
-    return type_;
-  }
-  
-  void set_type(PropertyType tp){
-    type_ = tp;
-  }
+  PropertyType type() const { return type_; }
 
+  void set_type(PropertyType tp) { type_ = tp; }
 
-  template<typename T>
-  T get_value() const{
+  template <typename T>
+  T get_value() const {
     T data;
     get_val(data);
     return data;
   }
 
-  template<typename T>
+  template <typename T>
   void get_val(T& data) const {
-   // printf("bad type: %d\n",(int)type_);
+    // printf("bad type: %d\n",(int)type_);
     data = std::any_cast<T>(value.any);
   }
 
-  void get_val(uint8_t& data) const {
-    data = value.u8;
-  }
+  void get_val(uint8_t& data) const { data = value.u8; }
 
-  void get_val(int8_t& data) const {
-    data = value.i8;
-  }
+  void get_val(int8_t& data) const { data = value.i8; }
 
-  void get_val(uint16_t& data) const {
-    data = value.u16;
-  }
+  void get_val(uint16_t& data) const { data = value.u16; }
 
-  void get_val(int16_t& data) const {
-    data = value.i16;
-  }
+  void get_val(int16_t& data) const { data = value.i16; }
 
-  void get_val(uint32_t& data) const {
-    data = value.u32;
-  }
+  void get_val(uint32_t& data) const { data = value.u32; }
 
-  void get_val(int32_t& data) const{
-    data = value.i32;
-  }
-  
-  void get_val(uint64_t& data) const {
-    data = value.u64;
-  }
+  void get_val(int32_t& data) const { data = value.i32; }
 
-  void get_val(int64_t& data) const{
-    data = value.i64;
-  }
+  void get_val(uint64_t& data) const { data = value.u64; }
 
-  void get_val(double& data) const{
-    data = value.db;
-  }
+  void get_val(int64_t& data) const { data = value.i64; }
 
-  void get_val(Date& d) const{
-    d.milli_second = value.dt.milli_second;
-  }
+  void get_val(double& data) const { data = value.db; }
 
-  void get_val(std::string_view& sw) const{
-    sw = value.sw;
-  }
+  void get_val(Date& d) const { d.milli_second = value.dt.milli_second; }
 
-  void get_val(float& f) const{
-    f = value.f;
-  }
+  void get_val(std::string_view& sw) const { sw = value.sw; }
 
-  void get_val(grape::EmptyType&) const{}
+  void get_val(float& f) const { f = value.f; }
 
-  void get_val(std::string& s) const{
-    s = value.s;
-  }
+  void get_val(grape::EmptyType&) const {}
 
-  void get_val(std::vector<Property>& vec) const{
-    vec = value.vec;
-  }
+  void get_val(std::string& s) const { s = value.s; }
 
-  template<typename T>
-  void set_value(T&& val){
+  void get_val(std::vector<Property>& vec) const { vec = value.vec; }
+
+  template <typename T>
+  void set_value(T&& val) {
     set_val(std::forward<T>(val));
   }
-  
-  template<typename T>
-  void set_val(const T&& val){
+
+  template <typename T>
+  void set_val(const T&& val) {
     type_ = PropertyType::kAny;
-    new(&(value.any)) std::any(std::move(val));
+    new (&(value.any)) std::any(std::move(val));
   }
 
-  template<typename T>
-  void set_val(const T& val){
+  template <typename T>
+  void set_val(const T& val) {
     type_ = PropertyType::kAny;
-    printf("set error %d\n",(int)type_);
-    new(&(value.any)) std::any(val);
+    printf("set error %d\n", (int) type_);
+    new (&(value.any)) std::any(val);
   }
-  
-  void set_val(const std::string& s){
+
+  void set_val(const std::string& s) {
     type_ = PropertyType::kString;
     new (&(value.s)) std::string(s);
   }
 
-  void set_val(std::string&& s){
+  void set_val(std::string&& s) {
     type_ = PropertyType::kString;
     new (&(value.s)) std::string(std::move(s));
   }
 
-  void set_val(const std::vector<Property>& vec){
+  void set_val(const std::vector<Property>& vec) {
     type_ = PropertyType::kList;
     new (&(value.vec)) std::vector<Property>(vec);
   }
 
-  void set_val(std::vector<Property>&& vec){
+  void set_val(std::vector<Property>&& vec) {
     type_ = PropertyType::kList;
     new (&(value.vec)) std::vector<Property>(std::move(vec));
   }
 
-  void set_val(const grape::EmptyType& ){}
+  void set_val(const grape::EmptyType&) {}
 
+  void set_val(grape::EmptyType&&) {}
 
-  void set_val(grape::EmptyType&& ){}
-
-  void set_val(const uint8_t& u8){
+  void set_val(const uint8_t& u8) {
     type_ = PropertyType::kUInt8;
     value.u8 = u8;
   }
 
-  void set_val(uint8_t&& u8){
+  void set_val(uint8_t&& u8) {
     type_ = PropertyType::kUInt8;
     value.u8 = u8;
   }
 
-  void set_val(const int8_t& i8){
+  void set_val(const int8_t& i8) {
     type_ = PropertyType::kInt8;
     value.i8 = i8;
   }
 
-  void set_val(int8_t&& i8){
+  void set_val(int8_t&& i8) {
     type_ = PropertyType::kInt8;
     value.i8 = i8;
   }
-
 
   void set_val(const uint16_t& u16) {
     type_ = PropertyType::kUInt16;
     value.u16 = u16;
   }
-
 
   void set_val(uint16_t&& u16) {
     type_ = PropertyType::kUInt16;
@@ -341,12 +302,12 @@ struct Property {
     value.i16 = i16;
   }
 
-  void set_val(const uint32_t& v){
+  void set_val(const uint32_t& v) {
     type_ = PropertyType::kUInt32;
     value.u32 = v;
   }
 
-  void set_val(uint32_t&& v){
+  void set_val(uint32_t&& v) {
     type_ = PropertyType::kUInt32;
     value.u32 = v;
   }
@@ -390,7 +351,7 @@ struct Property {
     type_ = PropertyType::kDate;
     value.dt = v;
   }
-  
+
   void set_val(const std::string_view& v) {
     type_ = PropertyType::kStringView;
     value.sw = v;
@@ -411,37 +372,38 @@ struct Property {
     value.db = db;
   }
 
-  void set_val(const float& f){
+  void set_val(const float& f) {
     type_ = PropertyType::kFloat;
     value.f = f;
   }
 
-  void set_val(float&& f){
+  void set_val(float&& f) {
     type_ = PropertyType::kFloat;
     value.f = f;
   }
-  
 
   std::string to_string() const {
-    if (type_ == PropertyType::kUInt8){
+    if (type_ == PropertyType::kUInt8) {
       return std::to_string(value.u8);
-    }else if(type_ == PropertyType::kInt8){
+    } else if (type_ == PropertyType::kInt8) {
       return std::to_string(value.i8);
-    } else if(type_ == PropertyType::kUInt16){
+    } else if (type_ == PropertyType::kUInt16) {
       return std::to_string(value.u16);
-    } else if(type_ == PropertyType::kInt16){
+    } else if (type_ == PropertyType::kInt16) {
       return std::to_string(value.i16);
-    }else if (type_ == PropertyType::kInt32) {
+    } else if (type_ == PropertyType::kInt32) {
       return std::to_string(value.i32);
-    } else if(type_ == PropertyType::kUInt32){
+    } else if (type_ == PropertyType::kUInt32) {
       return std::to_string(value.u32);
-    } else if(type_ == PropertyType::kUInt64){
+    } else if (type_ == PropertyType::kUInt64) {
       return std::to_string(value.u64);
-    }else if (type_ == PropertyType::kInt64) {
+    } else if (type_ == PropertyType::kInt64) {
       return std::to_string(value.i64);
     } else if (type_ == PropertyType::kStringView) {
       return std::string(value.sw.data(), value.sw.size());
       //      return value.s.to_string();
+    } else if (type_ == PropertyType::kString) {
+      return value.s;
     } else if (type_ == PropertyType::kDate) {
       return value.dt.to_string();
     } else if (type_ == PropertyType::kEmpty) {
@@ -454,13 +416,12 @@ struct Property {
     }
   }
 
-
   template <typename T>
   static Property From(T&& value) {
     Property prop;
     prop.set_value(std::forward<T>(value));
     return prop;
-    //return AnyConverter<T>::to_any(value);
+    // return AnyConverter<T>::to_any(value);
   }
 
   PropertyType type_;
@@ -480,7 +441,6 @@ struct AnyConverter<int8_t> {
     ret.value.i8 = value;
     return ret;
   }
-
 };
 
 template <>
@@ -493,7 +453,6 @@ struct AnyConverter<uint8_t> {
     ret.value.u8 = value;
     return ret;
   }
-
 };
 
 template <>
@@ -508,7 +467,6 @@ struct AnyConverter<int16_t> {
   }
 };
 
-
 template <>
 struct AnyConverter<uint16_t> {
   static constexpr PropertyType type = PropertyType::kUInt16;
@@ -521,7 +479,6 @@ struct AnyConverter<uint16_t> {
   }
 };
 
-
 template <>
 struct AnyConverter<int32_t> {
   static constexpr PropertyType type = PropertyType::kInt32;
@@ -532,7 +489,6 @@ struct AnyConverter<int32_t> {
     ret.value.i32 = value;
     return ret;
   }
-
 };
 
 template <>
@@ -568,7 +524,6 @@ struct AnyConverter<uint64_t> {
     ret.value.u64 = value;
     return ret;
   }
-
 };
 
 template <>
@@ -581,7 +536,6 @@ struct AnyConverter<int64_t> {
     ret.value.i64 = value;
     return ret;
   }
-
 };
 
 grape::InArchive& operator<<(grape::InArchive& arc, const Date& v);
@@ -611,26 +565,21 @@ struct AnyConverter<std::string_view> {
   }
 };
 
-template<>
-struct AnyConverter<std::vector<Property>>{
+template <>
+struct AnyConverter<std::vector<Property>> {
   static constexpr PropertyType type = PropertyType::kList;
-  static Property to_any(const std::vector<Property>& value){
+  static Property to_any(const std::vector<Property>& value) {
     Property ret;
     ret.set_val(value);
     return ret;
   }
 };
 
-
-
 template <>
 struct AnyConverter<grape::EmptyType> {
   static constexpr PropertyType type = PropertyType::kEmpty;
 
-  static Property to_any(const grape::EmptyType& value) {
-    return Property();
-  }
-
+  static Property to_any(const grape::EmptyType& value) { return Property(); }
 };
 
 template <>
@@ -682,9 +631,9 @@ void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
 
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
                   std::string& prop);
-                  
+
 grape::InArchive& operator<<(grape::InArchive& in_archive,
-                            const Property& value);
+                             const Property& value);
 grape::OutArchive& operator>>(grape::OutArchive& out_archive, Property& value);
 
 grape::InArchive& operator<<(grape::InArchive& in_archive,

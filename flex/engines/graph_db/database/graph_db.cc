@@ -152,9 +152,10 @@ std::shared_ptr<ColumnBase> GraphDB::get_vertex_property_column(
 }
 
 std::shared_ptr<ColumnBase> GraphDB::get_edge_property_column(
-  uint8_t src_label, uint8_t dst_label, uint8_t edge_label, int col_id
-)const {
-  return graph_.get_edge_table(src_label,dst_label,edge_label).get_column_by_id(col_id);
+    uint8_t src_label, uint8_t dst_label, uint8_t edge_label,
+    int col_id) const {
+  return graph_.get_edge_table(src_label, dst_label, edge_label)
+      .get_column_by_id(col_id);
 }
 
 AppWrapper GraphDB::CreateApp(uint8_t app_type, int thread_id) {

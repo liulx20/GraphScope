@@ -49,7 +49,7 @@ class DualCsrBase {
 };
 
 template <typename EDATA_T, typename PROPERTY_T = EDATA_T>
-class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
+class EmptyCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
   using slice_t = MutableNbrSlice<EDATA_T>;
 
  public:
@@ -93,6 +93,58 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T,PROPERTY_T> {
   std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
     return std::make_shared<TypedMutableCsrEdgeIter<EDATA_T>>(
         MutableNbrSliceMut<EDATA_T>::empty());
+  }
+};
+
+template <>
+class EmptyCsr<uint32_t, std::string>
+    : public TypedMutableCsrBase<uint32_t, std::string> {
+  using slice_t = MutableNbrSlice<uint32_t>;
+
+ public:
+  EmptyCsr() = default;
+  ~EmptyCsr() = default;
+  void set_column(StringColumn*) override{};
+  void batch_init(vid_t vnum, const std::vector<int>& degree) override {}
+
+  slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
+
+  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
+                        timestamp_t ts, ArenaAllocator& alloc) override {}
+
+  void put_edge(vid_t src, vid_t dst, const std::string& data, timestamp_t ts,
+                ArenaAllocator& alloc) override {}
+  void Serialize(const std::string& path) override {}
+
+  void Deserialize(const std::string& path) override {}
+
+  void batch_put_edge(vid_t src, vid_t dst, const std::string& data,
+                      timestamp_t ts = 0) override {}
+
+  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
+                   ArenaAllocator& alloc) override {
+    Property value;
+    arc >> value;
+  }
+
+  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                        const timestamp_t ts, ArenaAllocator& alloc) override {}
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
+                           ArenaAllocator& alloc) {}
+  void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                 timestamp_t ts = 0) {}
+  std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
+      vid_t v) const override {
+    return std::make_shared<TypedMutableCsrConstEdgeIter<unsigned>>(
+        MutableNbrSlice<uint32_t>::empty());
+  }
+  MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
+    return new TypedMutableCsrConstEdgeIter<uint32_t>(
+        MutableNbrSlice<uint32_t>::empty());
+  }
+  std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
+    return std::make_shared<TypedMutableCsrEdgeIter<uint32_t>>(
+        MutableNbrSliceMut<uint32_t>::empty());
   }
 };
 
@@ -174,7 +226,7 @@ class DualTypedCsr : public DualCsrBase {
         std::vector<std::string> col_names(col_num);
         for (size_t i = 0; i < col_num; ++i) {
           auto sw = header[i + 2].get_value<std::string_view>();
-          col_names[i] = std::string(sw.data(),sw.size());
+          col_names[i] = std::string(sw.data(), sw.size());
         }
         first_file = false;
       }
@@ -200,13 +252,9 @@ class DualTypedCsr : public DualCsrBase {
     }
   }
 
-  Table& get_table(){
-    return empty_table_;
-  }
+  Table& get_table() { return empty_table_; }
 
-  const Table& get_table() const{
-    return empty_table_;
-  }
+  const Table& get_table() const { return empty_table_; }
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                   timestamp_t timestamp, ArenaAllocator& alloc) override {
     Property data;
@@ -240,9 +288,10 @@ class DualTypedCsr : public DualCsrBase {
   Table empty_table_;
 };
 
-class DualTableCsr : public DualCsrBase{
+class DualTableCsr : public DualCsrBase {
  public:
-  DualTableCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,const std::vector<PropertyType>& properties) {
+  DualTableCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,
+               const std::vector<PropertyType>& properties) {
     std::vector<std::string> col_names;
     std::vector<StorageStrategy> col_strategies;
     size_t col_num = properties.size();
@@ -318,7 +367,7 @@ class DualTableCsr : public DualCsrBase{
         std::vector<std::string> col_names(col_num);
         for (size_t i = 0; i < col_num; ++i) {
           auto sw = header[i + 2].get_value<std::string_view>();
-          col_names[i] = std::string(sw.data(),sw.size());
+          col_names[i] = std::string(sw.data(), sw.size());
         }
         table_.reset_header(col_names);
         first_file = false;
@@ -342,40 +391,35 @@ class DualTableCsr : public DualCsrBase{
 
     for (auto& edge : parsed_edges) {
       in_csr_->batch_put_edge_with_index(std::get<1>(edge), std::get<0>(edge),
-                                        std::get<2>(edge), 0);
-      out_csr_->batch_put_edge_with_index(std::get<0>(edge), std::get<1>(edge),
                                          std::get<2>(edge), 0);
+      out_csr_->batch_put_edge_with_index(std::get<0>(edge), std::get<1>(edge),
+                                          std::get<2>(edge), 0);
     }
   }
 
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
-                          timestamp_t timestamp,
-                          ArenaAllocator& alloc) override {
+                  timestamp_t timestamp, ArenaAllocator& alloc) override {
     Property props;
-    //props_.set_type(PropertyType::kList);
+    // props_.set_type(PropertyType::kList);
     oarc >> props;
-    //std::vector<Property> props = props_.get_value<std::vector<Property>>();
+    // std::vector<Property> props = props_.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
-    
+
     table_.insert(row_id, props);
-    
+
     in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
-                       const Property& prop, ArenaAllocator& alloc) override {
-    //std::vector<Property> props = prop.get_value<std::vector<Property>>();
+               const Property& prop, ArenaAllocator& alloc) override {
+    // std::vector<Property> props = prop.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
     table_.insert(row_id, prop);
     in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
-  Table& get_table(){
-    return table_;
-  }
-  const Table& get_table() const{
-    return table_;
-  }
+  Table& get_table() { return table_; }
+  const Table& get_table() const { return table_; }
 
   MutableCsrBase* GetInCsr() override { return in_csr_; }
   MutableCsrBase* GetOutCsr() override { return out_csr_; }
@@ -402,27 +446,44 @@ class DualTableCsr : public DualCsrBase{
   }
 
  protected:
-  TypedMutableCsrBase<uint32_t,Property>* in_csr_;
-  TypedMutableCsrBase<uint32_t,Property> * out_csr_;
+  TypedMutableCsrBase<uint32_t, Property>* in_csr_;
+  TypedMutableCsrBase<uint32_t, Property>* out_csr_;
   Table table_;
   std::atomic<size_t> table_index_;
 
   std::vector<PropertyType> properties_;
 };
-/**
+
 class DualStringCsr : public DualCsrBase {
  public:
-  DualStringCsr() : column_(StorageStrategy::kMem) {
+  DualStringCsr(EdgeStrategy ie_strategy, EdgeStrategy oe_strategy,
+                const std::vector<PropertyType>&)
+      : column_(StorageStrategy::kMem) {
     column_.init(std::numeric_limits<int>::max());
-    in_csr_.set_column(&column_);
-    out_csr_.set_column(&column_);
-    table_index_.store(0);
+
+    column_index_.store(0);
+    if (ie_strategy == EdgeStrategy::kNone) {
+      in_csr_ = new EmptyCsr<uint32_t, std::string>();
+    } else if (ie_strategy == EdgeStrategy::kMultiple) {
+      in_csr_ = new StringMutableCsr();
+    } else if (ie_strategy == EdgeStrategy::kSingle) {
+      in_csr_ = new SingleStringMutableCsr();
+    }
+    if (oe_strategy == EdgeStrategy::kNone) {
+      out_csr_ = new EmptyCsr<uint32_t, std::string>();
+    } else if (oe_strategy == EdgeStrategy::kMultiple) {
+      out_csr_ = new StringMutableCsr();
+    } else if (oe_strategy == EdgeStrategy::kSingle) {
+      out_csr_ = new SingleStringMutableCsr();
+    }
+    in_csr_->set_column(&column_);
+    out_csr_->set_column(&column_);
   }
   ~DualStringCsr() {}
 
   void ConstructEmptyCsr() override {
-    in_csr_.batch_init(0, {});
-    out_csr_.batch_init(0, {});
+    in_csr_->batch_init(0, {});
+    out_csr_->batch_init(0, {});
   }
 
   void BulkLoad(const LFIndexer<vid_t>& src_indexer,
@@ -435,7 +496,7 @@ class DualStringCsr : public DualCsrBase {
     vid_t src_index, dst_index;
     char line_buf[4096];
     oid_t src, dst;
-    std::string_view data;
+    std::string data;
 
     for (auto filename : filenames) {
       FILE* fin = fopen(filename.c_str(), "r");
@@ -450,38 +511,39 @@ class DualStringCsr : public DualCsrBase {
         dst_index = dst_indexer.get_index(dst);
         ++idegree[dst_index];
         ++odegree[src_index];
-        size_t row_id = table_index_.fetch_add(1);
+        size_t row_id = column_index_.fetch_add(1);
         column_.set_value(row_id, data);
         parsed_edges.emplace_back(src_index, dst_index, row_id);
       }
       fclose(fin);
     }
 
-    in_csr_.batch_init(dst_indexer.size(), idegree);
-    out_csr_.batch_init(src_indexer.size(), odegree);
+    in_csr_->batch_init(dst_indexer.size(), idegree);
+    out_csr_->batch_init(src_indexer.size(), odegree);
 
     for (auto& edge : parsed_edges) {
-      in_csr_.batch_put_edge_with_index(std::get<1>(edge), std::get<0>(edge),
-                                        std::get<2>(edge), 0);
-      out_csr_.batch_put_edge_with_index(std::get<0>(edge), std::get<1>(edge),
+      in_csr_->batch_put_edge_with_index(std::get<1>(edge), std::get<0>(edge),
                                          std::get<2>(edge), 0);
+      out_csr_->batch_put_edge_with_index(std::get<0>(edge), std::get<1>(edge),
+                                          std::get<2>(edge), 0);
     }
   }
 
-  virtual void IngestEdge(vid_t src, vid_t dst,
-                          grape::OutArchive& oarc,timestamp_t timestamp,
+  virtual void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
+                          timestamp_t timestamp,
                           ArenaAllocator& alloc) override {
-    std::string_view prop;
+    Property prop;
     oarc >> prop;
-    size_t row_id = table_index_.fetch_add(1);
-    column_.set_value(row_id, prop);
-    in_csr_.put_edge_with_index(dst, src, row_id, timestamp, alloc);
-    out_csr_.put_edge_with_index(src, dst, row_id, timestamp, alloc);
+    // string_view??
+    size_t row_id = column_index_.fetch_add(1);
+    column_.set_value(row_id, prop.get_value<std::string>());
+    in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
+    out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
 
   virtual void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
                        const Property& prop, ArenaAllocator& alloc) override {
-    size_t row_id = table_index_.fetch_add(1);
+    size_t row_id = column_index_.fetch_add(1);
     if (prop.type() == PropertyType::kString) {
       column_.set_value(row_id, prop.get_value<std::string>());
     } else if (prop.type() == PropertyType::kStringView) {
@@ -491,48 +553,50 @@ class DualStringCsr : public DualCsrBase {
                  << ", string or string_view is expected...";
     }
 
-    in_csr_.put_edge_with_index(dst, src, row_id, timestamp, alloc);
-    out_csr_.put_edge_with_index(src, dst, row_id, timestamp, alloc);
+    in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
+    out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
 
-  MutableCsrBase* GetInCsr() override { return &in_csr_; }
-  MutableCsrBase* GetOutCsr() override { return &out_csr_; }
+  MutableCsrBase* GetInCsr() override { return in_csr_; }
+  MutableCsrBase* GetOutCsr() override { return out_csr_; }
+  Table& get_table() { return empty_table_; }
 
+  const Table& get_table() const { return empty_table_; }
   void Serialize(const std::string& path) override {
     std::string table_index_path = path + ".table_index";
     FILE* fout = fopen(table_index_path.c_str(), "wb");
-    fwrite(&table_index_, sizeof(table_index_), 1, fout);
+    fwrite(&column_index_, sizeof(column_index_), 1, fout);
     fclose(fout);
 
-    column_.Serialize(path + "_ecolumn", table_index_.load());
-    in_csr_.Serialize(path + "_ie");
-    out_csr_.Serialize(path + "_oe");
+    column_.Serialize(path + "_ecolumn", column_index_.load());
+    in_csr_->Serialize(path + "_ie");
+    out_csr_->Serialize(path + "_oe");
   }
   void Deserialize(const std::string& path) override {
     std::string table_index_path = path + ".table_index";
     FILE* fin = fopen(table_index_path.c_str(), "r");
-    fread(&table_index_, sizeof(table_index_), 1, fin);
+    fread(&column_index_, sizeof(column_index_), 1, fin);
     fclose(fin);
 
     column_.Deserialize(path + "_ecolumn");
-    in_csr_.Deserialize(path + "_ie");
-    out_csr_.Deserialize(path + "_oe");
+    in_csr_->Deserialize(path + "_ie");
+    out_csr_->Deserialize(path + "_oe");
   }
 
  private:
-  MutableCsr<std::string> in_csr_;
-  MutableCsr<std::string> out_csr_;
+  TypedMutableCsrBase<uint32_t, std::string>* in_csr_;
+  TypedMutableCsrBase<uint32_t, std::string>* out_csr_;
   StringColumn column_;
-  std::atomic<size_t> table_index_;
+  Table empty_table_;
+  std::atomic<size_t> column_index_;
 };
-*/
 
 inline DualCsrBase* create_dual_csr(
     EdgeStrategy ies, EdgeStrategy oes,
     const std::vector<PropertyType>& properties) {
   if (properties.empty()) {
     return new DualTypedCsr<grape::EmptyType>(ies, oes, properties);
-  }else if (properties.size() == 1) {
+  } else if (properties.size() == 1) {
     switch (properties[0]) {
     case PropertyType::kInt32:
       return new DualTypedCsr<int32_t>(ies, oes, properties);
@@ -542,15 +606,16 @@ inline DualCsrBase* create_dual_csr(
       return new DualTypedCsr<int64_t>(ies, oes, properties);
     case PropertyType::kString:
     case PropertyType::kStringView:
-      return new DualTypedCsr<std::string>(ies, oes, properties);
+      return new DualStringCsr(ies, oes, properties);
+      // return new DualTypedCsr<std::string>(ies, oes, properties);
     case PropertyType::kDouble:
       return new DualTypedCsr<double>(ies, oes, properties);
     default:
       LOG(FATAL) << "Unsupported property type - " << properties[0];
       return nullptr;
     }
-  }else {
-    return new DualTableCsr(ies,oes,properties);
+  } else {
+    return new DualTableCsr(ies, oes, properties);
   }
 }
 

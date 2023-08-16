@@ -95,6 +95,59 @@ class TypedColumn : public ColumnBase {
   StorageStrategy strategy_;
 };
 
+template <>
+class TypedColumn<std::string> : public ColumnBase {
+ public:
+  TypedColumn(StorageStrategy strategy) : strategy_(strategy) {}
+  ~TypedColumn() {}
+
+  void init(size_t max_size) override { buffer_.resize(max_size); }
+
+  void set_value(size_t index, const std::string& val) {
+    buffer_.insert(index, val);
+  }
+
+  void set(size_t index, const Property& value) override {
+    CHECK_EQ(value.type(), type());
+    set_value(index, value.get_value<std::string>());
+  }
+
+  std::string get_view(size_t index) const {
+    return std::string(buffer_[index].data(), buffer_[index].size());
+  }
+
+  PropertyType type() const override { return AnyConverter<std::string>::type; }
+
+  Property get(size_t index) const override {
+    Property ret;
+    ret.set_value(std::string(buffer_[index].data(), buffer_[index].size()));
+    return ret;
+  }
+
+  void Serialize(const std::string& path, size_t size) override {
+    buffer_.dump_to_file(path, size);
+  }
+
+  void Deserialize(const std::string& path) override {
+    buffer_.open_for_read(path);
+  }
+
+  void ingest(uint32_t index, grape::OutArchive& arc) override {
+    Property val;
+    arc >> val;
+    set_value(index, val.get_value<std::string>());
+  }
+
+  StorageStrategy storage_strategy() const override { return strategy_; }
+
+  const mmap_array<std::string_view>& buffer() const { return buffer_; }
+  mmap_array<std::string_view>& buffer() { return buffer_; }
+
+ private:
+  mmap_array<std::string_view> buffer_;
+  StorageStrategy strategy_;
+};
+
 using IntColumn = TypedColumn<int>;
 using LongColumn = TypedColumn<int64_t>;
 using DateColumn = TypedColumn<Date>;

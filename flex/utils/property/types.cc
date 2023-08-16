@@ -88,8 +88,8 @@ void ParseRecord(const char* line, std::vector<Property>& rec) {
       std::string val(sv);
       item.set_value(val);
     } else {
-      LOG(FATAL) << "Unexpected property type: "
-                 << static_cast<int>(item.type_) << ".";
+      LOG(FATAL) << "Unexpected property type: " << static_cast<int>(item.type_)
+                 << ".";
     }
     cur = ptr + 1;
   }
@@ -278,14 +278,14 @@ grape::InArchive& operator<<(grape::InArchive& in_archive,
     break;
   case PropertyType::kString:
     in_archive << value.value.s;
-    //value.get_value<std::string>();
+    // value.get_value<std::string>();
     break;
   case PropertyType::kStringView:
     in_archive << value.value.sw;
     break;
   case PropertyType::kList:
     in_archive << value.value.vec;
-    //get_value<std::vector<Property>>();
+    // get_value<std::vector<Property>>();
     break;
   }
 
@@ -293,7 +293,7 @@ grape::InArchive& operator<<(grape::InArchive& in_archive,
 }
 
 grape::OutArchive& operator>>(grape::OutArchive& out_archive, Property& value) {
-  //PropertyType type;
+  // PropertyType type;
   out_archive >> value.type_;
   switch (value.type_) {
   case PropertyType::kEmpty:
@@ -337,7 +337,7 @@ grape::OutArchive& operator>>(grape::OutArchive& out_archive, Property& value) {
     out_archive >> s;
     value.set_value(std::move(s));
   } break;
-  case PropertyType::kStringView: 
+  case PropertyType::kStringView:
     out_archive >> value.value.sw;
     break;
   case PropertyType::kList: {
@@ -370,7 +370,7 @@ inline static uint32_t str_2_to_number(const char* str) {
   return char_to_digit(str[0]) * 10u + char_to_digit(str[1]);
 }
 
-//Date::Date(const Date& x) : milli_second(x.milli_second) {}
+// Date::Date(const Date& x) : milli_second(x.milli_second) {}
 Date::Date(int64_t x) : milli_second(x) {}
 Date::Date(const char* str) { reset(str); }
 

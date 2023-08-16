@@ -36,8 +36,8 @@ SingleVertexInsertTransaction::SingleVertexInsertTransaction(
 }
 SingleVertexInsertTransaction::~SingleVertexInsertTransaction() { Abort(); }
 
-bool SingleVertexInsertTransaction::AddVertex(label_t label, oid_t id,
-                                              const std::vector<Property>& props) {
+bool SingleVertexInsertTransaction::AddVertex(
+    label_t label, oid_t id, const std::vector<Property>& props) {
   size_t arc_size = arc_.GetSize();
   arc_ << static_cast<uint8_t>(0) << label << id;
   const std::vector<PropertyType>& types =
@@ -62,7 +62,7 @@ bool SingleVertexInsertTransaction::AddVertex(label_t label, oid_t id,
       return false;
     }
     arc_ << prop;
-    //serialize_field(arc_, prop);
+    // serialize_field(arc_, prop);
   }
   added_vertex_id_ = id;
   added_vertex_label_ = label;
@@ -113,13 +113,13 @@ bool SingleVertexInsertTransaction::AddEdge(label_t src_label, oid_t src,
                << type << ", got " << prop.type();
     return false;
   }*/
-  
+
   arc_ << static_cast<uint8_t>(1) << src_label << src << dst_label << dst
        << edge_label;
   arc_ << prop;
-  //serialize_field(arc_,prop);
+  // serialize_field(arc_,prop);
 
-  //serialize_field(arc_, prop);
+  // serialize_field(arc_, prop);
   parsed_endpoints_.push_back(src_vid);
   parsed_endpoints_.push_back(dst_vid);
   return true;

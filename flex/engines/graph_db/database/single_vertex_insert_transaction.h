@@ -19,7 +19,6 @@
 #include "flex/storages/rt_mutable_graph/types.h"
 #include "grape/serialization/in_archive.h"
 
-
 namespace gs {
 
 class MutablePropertyFragment;

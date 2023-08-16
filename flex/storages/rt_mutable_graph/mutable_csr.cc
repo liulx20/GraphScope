@@ -145,6 +145,13 @@ void MutableCsr<std::string>::Deserialize(const std::string& path) {
   }
 }
 
+void SingleMutableCsr<std::string>::Serialize(const std::string& path) {
+  nbr_list_.dump_to_file(path, nbr_list_.size());
+}
+
+void SingleMutableCsr<std::string>::Deserialize(const std::string& path) {
+  nbr_list_.open_for_read(path);
+}
 
 template <typename EDATA_T>
 void SingleMutableCsr<EDATA_T>::Serialize(const std::string& path) {
@@ -156,6 +163,22 @@ void SingleMutableCsr<EDATA_T>::Deserialize(const std::string& path) {
   nbr_list_.open_for_read(path);
 }
 
+void StringMutableCsr::Serialize(const std::string& path) {
+  topology_.Serialize(path + ".topo");
+}
+
+void StringMutableCsr::Deserialize(const std::string& path) {
+  topology_.Deserialize(path + ".topo");
+}
+
+void SingleStringMutableCsr::Serialize(const std::string& path) {
+  topology_.Serialize(path + ".topo");
+}
+
+void SingleStringMutableCsr::Deserialize(const std::string& path) {
+  topology_.Deserialize(path + ".topo");
+}
+
 void TableMutableCsr::Serialize(const std::string& path) {
   topology_.Serialize(path + ".topo");
 }
@@ -164,11 +187,11 @@ void TableMutableCsr::Deserialize(const std::string& path) {
   topology_.Deserialize(path + ".topo");
 }
 
-void SingleTableMutableCsr::Serialize(const std::string& path){
+void SingleTableMutableCsr::Serialize(const std::string& path) {
   topology_.Serialize(path + ".topo");
 }
 
-void SingleTableMutableCsr::Deserialize(const std::string& path){
+void SingleTableMutableCsr::Deserialize(const std::string& path) {
   topology_.Deserialize(path + ".topo");
 }
 

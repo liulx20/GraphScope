@@ -62,7 +62,6 @@ ReadTransaction::edge_iterator::edge_iterator(
       iter_(std::move(iter)) {}
 ReadTransaction::edge_iterator::~edge_iterator() = default;
 
-
 Property ReadTransaction::edge_iterator::GetData() const {
   return iter_->get_data();
 }
@@ -73,12 +72,12 @@ bool ReadTransaction::edge_iterator::IsValid() const {
 
 void ReadTransaction::edge_iterator::Next() { iter_->next(); }
 
-Property ReadTransaction::edge_iterator::GetField(int col_id) const{
+Property ReadTransaction::edge_iterator::GetField(int col_id) const {
   return iter_->get_data(col_id);
 }
 
-int ReadTransaction::edge_iterator::FieldNum() const{
-  return iter_->get_table()->col_num();
+int ReadTransaction::edge_iterator::FieldNum() const {
+  return iter_->col_num();
 }
 
 vid_t ReadTransaction::edge_iterator::GetNeighbor() const {
