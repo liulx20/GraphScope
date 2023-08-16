@@ -69,8 +69,6 @@ bool SingleEdgeInsertTransaction::AddEdge(label_t src_label, oid_t src,
   arc_ << static_cast<uint8_t>(1) << src_label << src << dst_label << dst
        << edge_label;
   arc_ << prop;
-  // serialize_field(arc_,prop);
-  // serialize_field(arc_, prop);
   return true;
 }
 

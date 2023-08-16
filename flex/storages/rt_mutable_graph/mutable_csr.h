@@ -343,7 +343,7 @@ class TypedMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
   Property get_data() const {
     Property data;
     data.set_value(cur_->data);
-    return data;  // AnyConverter<EDATA_T>::to_any(cur_->data);
+    return data;
   }
   timestamp_t get_timestamp() const { return cur_->timestamp.load(); }
 
@@ -422,8 +422,8 @@ class TypedMutableCsrBase<uint32_t, std::string> : public MutableCsrBase {
                                          timestamp_t ts = 0) = 0;
 };
 
-template <typename EDATA_T, typename PROPERTY_T = EDATA_T>
-class MutableCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
+template <typename EDATA_T>
+class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
  public:
   using nbr_t = MutableNbr<EDATA_T>;
   using adjlist_t = MutableAdjlist<EDATA_T>;
@@ -541,9 +541,7 @@ class StringMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
     Property prop;
     std::string_view sw =
         column_->get_view(nbr_iter_.get_data().get_value<uint32_t>());
-    prop.set_value(std::string(
-        sw.data(),
-        sw.size()));  // table_->get_row(nbr_iter_.get_data().get_value<uint32_t>());
+    prop.set_value(std::string(sw.data(), sw.size()));
     return prop;
   }
 
@@ -640,9 +638,7 @@ class StringMutableCsr : public TypedMutableCsrBase<unsigned, std::string> {
   void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
                         timestamp_t ts, ArenaAllocator& alloc) override {}
   void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
-    // put_edge(src, dst, data, ts, alloc);
-  }
+                        timestamp_t ts, ArenaAllocator& alloc) override {}
 
   void Serialize(const std::string& path) override;
 

@@ -400,9 +400,7 @@ class DualTableCsr : public DualCsrBase {
   void IngestEdge(vid_t src, vid_t dst, grape::OutArchive& oarc,
                   timestamp_t timestamp, ArenaAllocator& alloc) override {
     Property props;
-    // props_.set_type(PropertyType::kList);
     oarc >> props;
-    // std::vector<Property> props = props_.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
 
     table_.insert(row_id, props);
@@ -412,7 +410,6 @@ class DualTableCsr : public DualCsrBase {
   }
   void PutEdge(vid_t src, vid_t dst, timestamp_t timestamp,
                const Property& prop, ArenaAllocator& alloc) override {
-    // std::vector<Property> props = prop.get_value<std::vector<Property>>();
     size_t row_id = table_index_.fetch_add(1);
     table_.insert(row_id, prop);
     in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
@@ -598,18 +595,32 @@ inline DualCsrBase* create_dual_csr(
     return new DualTypedCsr<grape::EmptyType>(ies, oes, properties);
   } else if (properties.size() == 1) {
     switch (properties[0]) {
+    case PropertyType::kInt8:
+      return new DualTypedCsr<int8_t>(ies, oes, properties);
+    case PropertyType::kUInt8:
+      return new DualTypedCsr<uint8_t>(ies, oes, properties);
+    case PropertyType::kInt16:
+      return new DualTypedCsr<int16_t>(ies, oes, properties);
+    case PropertyType::kUInt16:
+      return new DualTypedCsr<uint16_t>(ies, oes, properties);
     case PropertyType::kInt32:
       return new DualTypedCsr<int32_t>(ies, oes, properties);
-    case PropertyType::kDate:
-      return new DualTypedCsr<Date>(ies, oes, properties);
+    case PropertyType::kUInt32:
+      return new DualTypedCsr<uint32_t>(ies, oes, properties);
     case PropertyType::kInt64:
       return new DualTypedCsr<int64_t>(ies, oes, properties);
+    case PropertyType::kUInt64:
+      return new DualTypedCsr<uint64_t>(ies, oes, properties);
+    case PropertyType::kDouble:
+      return new DualTypedCsr<double>(ies, oes, properties);
+    case PropertyType::kFloat:
+      return new DualTypedCsr<float>(ies, oes, properties);
+    case PropertyType::kDate:
+      return new DualTypedCsr<Date>(ies, oes, properties);
     case PropertyType::kString:
     case PropertyType::kStringView:
       return new DualStringCsr(ies, oes, properties);
-      // return new DualTypedCsr<std::string>(ies, oes, properties);
-    case PropertyType::kDouble:
-      return new DualTypedCsr<double>(ies, oes, properties);
+
     default:
       LOG(FATAL) << "Unsupported property type - " << properties[0];
       return nullptr;

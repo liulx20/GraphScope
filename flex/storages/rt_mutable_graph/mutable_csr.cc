@@ -34,8 +34,8 @@ grape::OutArchive& operator>>(grape::OutArchive& out_archive,
   return out_archive;
 }
 
-template <typename EDATA_T, typename PROPERTY_T>
-void MutableCsr<EDATA_T, PROPERTY_T>::Serialize(const std::string& path) {
+template <typename EDATA_T>
+void MutableCsr<EDATA_T>::Serialize(const std::string& path) {
   std::vector<int> size_list;
   for (vid_t i = 0; i < capacity_; ++i) {
     size_list.push_back(adj_lists_[i].size());
@@ -54,8 +54,8 @@ void MutableCsr<EDATA_T, PROPERTY_T>::Serialize(const std::string& path) {
   init_nbr_list_.dump_to_file(path + ".nbr_list", init_nbr_list_.size());
 }
 
-template <typename EDATA_T, typename PROPERTY_T>
-void MutableCsr<EDATA_T, PROPERTY_T>::Deserialize(const std::string& path) {
+template <typename EDATA_T>
+void MutableCsr<EDATA_T>::Deserialize(const std::string& path) {
   size_t size_list_size;
   std::vector<int> size_list;
   {
@@ -198,9 +198,6 @@ void SingleTableMutableCsr::Deserialize(const std::string& path) {
 template class SingleMutableCsr<grape::EmptyType>;
 template class MutableCsr<grape::EmptyType>;
 
-template class SingleMutableCsr<int>;
-template class MutableCsr<int>;
-
 template class SingleMutableCsr<Date>;
 template class MutableCsr<Date>;
 
@@ -210,8 +207,31 @@ template class MutableCsr<std::string>;
 template class SingleMutableCsr<int64_t>;
 template class MutableCsr<int64_t>;
 
+template class SingleMutableCsr<float>;
+template class MutableCsr<float>;
+
 template class SingleMutableCsr<double>;
 template class MutableCsr<double>;
 
+template class SingleMutableCsr<int>;
+template class MutableCsr<int>;
+
 template class MutableCsr<uint32_t>;
+template class SingleMutableCsr<uint32_t>;
+
+template class MutableCsr<int16_t>;
+template class SingleMutableCsr<int16_t>;
+
+template class MutableCsr<uint16_t>;
+template class SingleMutableCsr<uint16_t>;
+
+template class MutableCsr<uint8_t>;
+template class SingleMutableCsr<uint8_t>;
+
+template class MutableCsr<int8_t>;
+template class SingleMutableCsr<int8_t>;
+
+template class MutableCsr<uint64_t>;
+template class SingleMutableCsr<uint64_t>;
+
 }  // namespace gs

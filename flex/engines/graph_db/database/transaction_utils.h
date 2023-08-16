@@ -25,60 +25,10 @@ namespace gs {
 
 inline void serialize_field(grape::InArchive& arc, const gs::Property& prop) {
   arc << prop;
-  /**switch (prop.type()) {
-  case PropertyType::kInt32:
-    arc << prop.get_value<int>();
-    break;
-  case PropertyType::kDate:
-    arc << prop.get_value<gs::Date>().milli_second;
-    break;
-  case PropertyType::kString:
-    arc << prop.get_value<std::string>();
-    break;
-  case PropertyType::kStringView:
-    arc << prop.get_value<std::string_view>();
-    break;
-  case PropertyType::kEmpty:
-    break;
-  case PropertyType::kInt64:
-    arc << prop.get_value<int64_t>();
-    break;
-  case PropertyType::kDouble:
-    arc << prop.get_value<double>();
-    break;
-  default:
-    LOG(FATAL) << "Unexpected property type";
-  }*/
 }
 
 inline void deserialize_field(grape::OutArchive& arc, gs::Property& prop) {
   arc >> prop;
-  /**
-  switch (prop.type()) {
-  case PropertyType::kInt32:
-    arc >> prop.get_value<int>();
-    break;
-  case PropertyType::kDate:
-    arc >> prop.get_value<Date>().milli_second;
-    break;
-  case PropertyType::kString:
-    arc >> prop.get_value<std::string>();
-    break;
-  case PropertyType::kStringView:
-    arc >> prop.get_value<std::string_view>();
-    break;
-  case PropertyType::kEmpty:
-    break;
-  case PropertyType::kInt64:
-    arc >> prop.get_value<int64_t>();
-    break;
-  case PropertyType::kDouble:
-    arc >> prop.get_value<double>();
-    break;
-  default:
-    LOG(FATAL) << "Unexpected property type";
-  }
-  */
 }
 
 }  // namespace gs

@@ -610,13 +610,25 @@ void ParseRecord(const char* line, std::vector<Property>& rec);
 
 void ParseRecord(const char* line, int64_t& id, std::vector<Property>& rec);
 
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int8_t& prop);
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, uint8_t& prop);
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int16_t& prop);
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, uint16_t& prop);
+
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int& prop);
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, uint32_t& prop);
 
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int64_t& prop);
 
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, uint64_t& prop);
+
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst, double& prop);
 
-void ParseRecordX(const char* line, int64_t& src, int64_t& dst, uint32_t& prop);
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, float& prop);
 
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst, Date& prop);
 

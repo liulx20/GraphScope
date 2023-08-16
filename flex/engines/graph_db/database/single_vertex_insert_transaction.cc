@@ -117,9 +117,7 @@ bool SingleVertexInsertTransaction::AddEdge(label_t src_label, oid_t src,
   arc_ << static_cast<uint8_t>(1) << src_label << src << dst_label << dst
        << edge_label;
   arc_ << prop;
-  // serialize_field(arc_,prop);
 
-  // serialize_field(arc_, prop);
   parsed_endpoints_.push_back(src_vid);
   parsed_endpoints_.push_back(dst_vid);
   return true;

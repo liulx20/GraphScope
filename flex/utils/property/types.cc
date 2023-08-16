@@ -109,6 +109,48 @@ void ParseRecord(const char* line, int64_t& id, std::vector<Property>& rec) {
   ParseRecord(cur, rec);
 }
 
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, uint8_t& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%u", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNu8, &src, &dst, &prop);
+#endif
+}
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int8_t& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%d", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNd8, &src, &dst, &prop);
+#endif
+}
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
+                  uint16_t& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%u", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNu16, &src, &dst, &prop);
+#endif
+}
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int16_t& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%d", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNd16, &src, &dst, &prop);
+#endif
+}
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
+                  uint32_t& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%u", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNu32, &src, &dst, &prop);
+#endif
+}
+
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int& prop) {
 #ifdef __APPLE__
   sscanf(line, "%lld|%lld|%d", &src, &dst, &prop);
@@ -122,6 +164,15 @@ void ParseRecordX(const char* line, int64_t& src, int64_t& dst, int64_t& prop) {
   sscanf(line, "%lld|%lld|%lld", &src, &dst, &prop);
 #else
   sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNd64, &src, &dst, &prop);
+#endif
+}
+
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
+                  uint64_t& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%llu", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNu64, &src, &dst, &prop);
 #endif
 }
 
@@ -144,20 +195,19 @@ void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
 #endif
 }
 
+void ParseRecordX(const char* line, int64_t& src, int64_t& dst, float& prop) {
+#ifdef __APPLE__
+  sscanf(line, "%lld|%lld|%f", &src, &dst, &prop);
+#else
+  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%f", &src, &dst, &prop);
+#endif
+}
+
 void ParseRecordX(const char* line, int64_t& src, int64_t& dst, double& prop) {
 #ifdef __APPLE__
   sscanf(line, "%lld|%lld|%lf", &src, &dst, &prop);
 #else
   sscanf(line, "%" SCNd64 "|%" SCNd64 "|%lf", &src, &dst, &prop);
-#endif
-}
-
-void ParseRecordX(const char* line, int64_t& src, int64_t& dst,
-                  uint32_t& prop) {
-#ifdef __APPLE__
-  sscanf(line, "%lld|%lld|%u", &src, &dst, &prop);
-#else
-  sscanf(line, "%" SCNd64 "|%" SCNd64 "|%" SCNu32, &src, &dst, &prop);
 #endif
 }
 

@@ -63,9 +63,11 @@ class MutablePropertyFragment {
 
   const Table& get_vertex_table(label_t vertex_label) const;
 
-  Table& get_edge_table(label_t src_label, label_t dst_label, label_t edge_label);
+  Table& get_edge_table(label_t src_label, label_t dst_label,
+                        label_t edge_label);
 
-  const Table& get_edge_table(label_t src_label,label_t dst_label, label_t edge_label) const;
+  const Table& get_edge_table(label_t src_label, label_t dst_label,
+                              label_t edge_label) const;
 
   vid_t vertex_num(label_t vertex_label) const;
 
@@ -123,8 +125,6 @@ class MutablePropertyFragment {
   std::vector<LFIndexer<vid_t>> lf_indexers_;
   std::vector<MutableCsrBase*> ie_, oe_;
   std::vector<Table> vertex_data_;
-  //std::deque<std::atomic<size_t>> edge_table_index_;
-  //std::vector<Table> edge_data_;
   std::vector<DualCsrBase*> dual_csr_list_;
   size_t vertex_label_num_, edge_label_num_;
 };
