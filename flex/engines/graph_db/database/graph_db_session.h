@@ -63,7 +63,7 @@ class GraphDBSession {
   std::shared_ptr<ColumnBase> get_edge_property_column(uint8_t src_label,
                                                        uint8_t dst_label,
                                                        uint8_t edge_label,
-                                                       int col_id);
+                                                       int col_id = 0);
 
   // Get vertex id column.
   std::shared_ptr<RefColumnBase> get_vertex_id_column(uint8_t label) const;

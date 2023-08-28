@@ -51,11 +51,15 @@ class Table {
 
   const std::shared_ptr<ColumnBase> get_column(const std::string& name) const;
 
+  const ColumnBase* get_column_raw(const std::string& name) const;
+
   Property get_row(size_t row_id) const;
 
   std::vector<Property> get_row_as_vec(size_t row_id) const;
 
   std::shared_ptr<ColumnBase> get_column_by_id(size_t index);
+
+  const ColumnBase* get_column_by_id_raw(size_t index) const;
 
   const std::shared_ptr<ColumnBase> get_column_by_id(size_t index) const;
 
@@ -68,14 +72,14 @@ class Table {
 
   void Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer,
                  const std::string& prefix, size_t row_num);
-  
+
   void Serialize(const std::string& prefix, size_t row_num);
 
   void Deserialize(std::unique_ptr<grape::LocalIOAdaptor>& reader,
                    const std::string& prefix);
 
   void Deserialize(const std::string& prefix);
-  
+
   Property at(size_t row_id, size_t col_id);
 
   Property at(size_t row_id, size_t col_id) const;

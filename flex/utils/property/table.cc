@@ -108,6 +108,17 @@ const std::shared_ptr<ColumnBase> Table::get_column(
   return nullptr;
 }
 
+const ColumnBase* Table::get_column_raw(const std::string& name) const {
+  int col_id;
+  if (col_id_indexer_.get_index(name, col_id)) {
+    if (static_cast<size_t>(col_id) < column_ptrs_.size()) {
+      return column_ptrs_[col_id];
+    }
+  }
+
+  return nullptr;
+}
+
 std::vector<Property> Table::get_row_as_vec(size_t row_id) const {
   std::vector<Property> ret;
   for (auto ptr : columns_) {
@@ -136,6 +147,14 @@ const std::shared_ptr<ColumnBase> Table::get_column_by_id(size_t index) const {
     return nullptr;
   } else {
     return columns_[index];
+  }
+}
+
+const ColumnBase* Table::get_column_by_id_raw(const size_t index) const {
+  if (index >= column_ptrs_.size()) {
+    return nullptr;
+  } else {
+    return column_ptrs_[index];
   }
 }
 
