@@ -63,7 +63,13 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
   void Serialize(const std::string& path) override {}
 
   void Deserialize(const std::string& path) override {}
-
+  
+  void batch_put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
+                              timestamp_t ts = 0) override {}
+  void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
+                        timestamp_t ts, ArenaAllocator& alloc) override{}
+  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
+                                timestamp_t ts, ArenaAllocator& alloc) override{}
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {
     Property value;
