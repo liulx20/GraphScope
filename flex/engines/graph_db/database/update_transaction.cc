@@ -630,7 +630,8 @@ void UpdateTransaction::applyEdgesUpdates() {
           auto& edge_data = updated_edge_data_[oe_csr_index].at(v);
           for (auto u : add_list) {
             auto value = edge_data.at(u);
-            csr->put_generic_edge(v, u, value, timestamp_, alloc_);
+            // fix me
+            //csr->put_generic_edge(v, u, value, timestamp_, alloc_);
           }
         }
       }
@@ -671,7 +672,8 @@ void UpdateTransaction::applyEdgesUpdates() {
           auto& edge_data = updated_edge_data_[ie_csr_index].at(v);
           for (auto u : add_list) {
             auto value = edge_data.at(u);
-            csr->put_generic_edge(v, u, value, timestamp_, alloc_);
+            //fix me
+            //csr->put_generic_edge(v, u, value, timestamp_, alloc_);
           }
         }
       }

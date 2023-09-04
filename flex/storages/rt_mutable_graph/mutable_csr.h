@@ -310,17 +310,9 @@ class MutableCsrBase {
 
   virtual void batch_init(vid_t vnum, const std::vector<int>& degree) = 0;
 
-  virtual void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                                timestamp_t ts, ArenaAllocator& alloc) = 0;
-
   virtual void Serialize(const std::string& path) = 0;
 
   virtual void Deserialize(const std::string& path) = 0;
-
-  virtual void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                           timestamp_t ts, ArenaAllocator& alloc) = 0;
-  virtual void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                                timestamp_t ts, ArenaAllocator& alloc) = 0;
 
   virtual std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
       vid_t v) const = 0;
@@ -397,24 +389,34 @@ class TypedMutableCsrBase : public MutableCsrBase {
 
   virtual void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
                         timestamp_t ts, ArenaAllocator& alloc) = 0;
-  virtual void set_table(Table* table) {}
-  virtual void put_edge_with_index(vid_t src, vid_t dst, size_t index,
-                                   timestamp_t ts, ArenaAllocator& alloc) {}
-  virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
-                                         timestamp_t ts = 0) {}
+
+  virtual void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                           timestamp_t ts, ArenaAllocator& alloc) = 0;
+  virtual void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                                timestamp_t ts, ArenaAllocator& alloc) = 0;
+  virtual void put_generic_edge(vid_t src, vid_t dst, const Property& data,
+                                timestamp_t ts, ArenaAllocator& alloc) = 0;
 };
 
+template<>
+class TypedMutableCsrBase<uint32_t, Property> : public MutableCsrBase {
+  public:
+    using slice_t = MutableNbrSlice<uint32_t>;
+    virtual slice_t get_edges(vid_t i) const = 0;
+    virtual void set_table(Table* table) = 0;
+    virtual void put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                   timestamp_t ts, ArenaAllocator& alloc) = 0;
+    virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                         timestamp_t ts = 0) = 0;
+
+};
 template <>
 class TypedMutableCsrBase<uint32_t, std::string> : public MutableCsrBase {
  public:
   using slice_t = MutableNbrSlice<uint32_t>;
-  virtual void batch_put_edge(vid_t src, vid_t dst, const std::string& data,
-                              timestamp_t ts = 0) = 0;
-
+  
   virtual slice_t get_edges(vid_t i) const = 0;
 
-  virtual void put_edge(vid_t src, vid_t dst, const std::string& data,
-                        timestamp_t ts, ArenaAllocator& alloc) = 0;
   virtual void set_column(StringColumn* column) = 0;
   virtual void put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                    timestamp_t ts, ArenaAllocator& alloc) = 0;
@@ -530,7 +532,7 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
 
 class StringMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
  public:
-  explicit StringMutableCsrConstEdgeIter(const MutableNbrSlice<uint32_t>& slice,
+  StringMutableCsrConstEdgeIter(const MutableNbrSlice<uint32_t>& slice,
                                          const StringColumn* column)
       : nbr_iter_(slice), column_(column) {}
   ~StringMutableCsrConstEdgeIter() = default;
@@ -541,7 +543,7 @@ class StringMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
     Property prop;
     std::string_view sw =
         column_->get_view(nbr_iter_.get_data().get_value<uint32_t>());
-    prop.set_value(std::string(sw.data(), sw.size()));
+    prop.set_value(sw);
     return prop;
   }
 
@@ -561,7 +563,7 @@ class StringMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
   using nbr_t = MutableNbr<uint32_t>;
 
  public:
-  explicit StringMutableCsrEdgeIter(MutableNbrSliceMut<uint32_t> slice,
+  StringMutableCsrEdgeIter(MutableNbrSliceMut<uint32_t> slice,
                                     StringColumn* column)
       : nbr_iter_(slice), column_(column) {}
   ~StringMutableCsrEdgeIter() = default;
@@ -571,7 +573,7 @@ class StringMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
     Property prop;
     std::string_view sw =
         column_->get_view(nbr_iter_.get_data().get_value<uint32_t>());
-    prop.set_value(std::string(sw.data(), sw.size()));
+    prop.set_value(sw);
     return prop;
   }
 
@@ -591,7 +593,7 @@ class StringMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
   StringColumn* column_;
 };
 
-class StringMutableCsr : public TypedMutableCsrBase<unsigned, std::string> {
+class StringMutableCsr : public TypedMutableCsrBase<uint32_t, std::string> {
  public:
   using nbr_t = MutableNbr<uint32_t>;
   using adjlist_t = MutableAdjlist<uint32_t>;
@@ -607,7 +609,6 @@ class StringMutableCsr : public TypedMutableCsrBase<unsigned, std::string> {
   void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
     topology_.batch_init(vnum, degrees);
   }
-
   void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                  timestamp_t ts) {
     topology_.batch_put_edge(src, dst, index, ts);
@@ -618,27 +619,11 @@ class StringMutableCsr : public TypedMutableCsrBase<unsigned, std::string> {
     topology_.put_edge(src, dst, index, ts, alloc);
   }
 
-  void batch_put_edge(vid_t src, vid_t dst, const std::string& prop,
-                      timestamp_t ts) override {
-    LOG(FATAL) << "Not implemented";
-  }
-
-  void put_edge(vid_t src, vid_t dst, const std::string& prop, timestamp_t ts,
-                ArenaAllocator& alloc) override {
-    LOG(FATAL) << "Not implemented";
-  }
 
   int degree(vid_t i) const { return topology_.degree(i); }
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
   mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {}
-  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
 
   void Serialize(const std::string& path) override;
 
@@ -651,7 +636,7 @@ class StringMutableCsr : public TypedMutableCsrBase<unsigned, std::string> {
   }
   MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
     return new StringMutableCsrConstEdgeIter(topology_.get_edges(v),
-                                             column_ptr_);
+                                             column_ptr_);  
   }
   std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
     return std::make_shared<StringMutableCsrEdgeIter>(
@@ -903,28 +888,10 @@ class SingleStringMutableCsr
                            ArenaAllocator& alloc) {
     topology_.put_edge(src, dst, index, ts, alloc);
   }
-
-  void batch_put_edge(vid_t src, vid_t dst, const std::string& prop,
-                      timestamp_t ts) override {
-    LOG(FATAL) << "Not implemented";
-  }
-
-  void put_edge(vid_t src, vid_t dst, const std::string& prop, timestamp_t ts,
-                ArenaAllocator& alloc) override {
-    LOG(FATAL) << "Not implemented";
-  }
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
   mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
   const nbr_t& get_edge(vid_t i) const { return topology_.get_edge(i); }
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {}
-  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
-    // put_edge(src, dst, data, ts, alloc);
-  }
 
   void Serialize(const std::string& path) override;
 
@@ -1133,8 +1100,6 @@ class TableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
   ~TableMutableCsr() {}
   void set_table(Table* table) { table_ptr_ = table; }
 
-  Table& get_table() { return *table_ptr_; }
-  const Table& get_table() const { return *table_ptr_; }
   void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
     topology_.batch_init(vnum, degrees);
   }
@@ -1149,28 +1114,9 @@ class TableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
     topology_.put_edge(src, dst, index, ts, alloc);
   }
 
-  void batch_put_edge(vid_t src, vid_t dst, const Property& prop,
-                      timestamp_t ts = 0) override {
-    LOG(FATAL) << "Not implemented";
-  }
-
-  void put_edge(vid_t src, vid_t dst, const Property& prop, timestamp_t ts,
-                ArenaAllocator& alloc) override {
-    LOG(FATAL) << "Not implemented";
-  }
-
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
   mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {}
-  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
-    put_edge(src, dst, data, ts, alloc);
-  }
 
   int degree(vid_t i) const { return topology_.degree(i); }
 
@@ -1205,8 +1151,6 @@ class SingleTableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
   ~SingleTableMutableCsr() {}
   void set_table(Table* table) { table_ptr_ = table; }
 
-  Table& get_table() { return *table_ptr_; }
-  const Table& get_table() const { return *table_ptr_; }
   void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
     topology_.batch_init(vnum, degrees);
   }
@@ -1221,30 +1165,11 @@ class SingleTableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
     topology_.put_edge(src, dst, index, ts, alloc);
   }
 
-  void batch_put_edge(vid_t src, vid_t dst, const Property& prop,
-                      timestamp_t ts = 0) override {
-    LOG(FATAL) << "Not implemented";
-  }
-
-  void put_edge(vid_t src, vid_t dst, const Property& prop, timestamp_t ts,
-                ArenaAllocator& alloc) override {
-    LOG(FATAL) << "Not implemented";
-  }
-
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
   mut_slice_t get_edges_mut(vid_t i) { return topology_.get_edges_mut(i); }
 
   const nbr_t& get_edge(vid_t i) const { return topology_.get_edge(i); }
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {}
-  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
-    put_edge(src, dst, data, ts, alloc);
-  }
 
   void Serialize(const std::string& path) override;
 

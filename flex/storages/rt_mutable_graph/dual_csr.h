@@ -60,17 +60,9 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
 
   slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
 
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
-
-  void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data, timestamp_t ts,
-                ArenaAllocator& alloc) override {}
   void Serialize(const std::string& path) override {}
 
   void Deserialize(const std::string& path) override {}
-
-  void batch_put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
-                      timestamp_t ts = 0) override {}
 
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {
@@ -97,6 +89,43 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
 };
 
 template <>
+class EmptyCsr<uint32_t, Property>
+    : public TypedMutableCsrBase<uint32_t, Property> {
+  using slice_t = MutableNbrSlice<uint32_t>;
+
+ public:
+  EmptyCsr() = default;
+  ~EmptyCsr() = default;
+  void set_table(Table*) override{};
+  void batch_init(vid_t vnum, const std::vector<int>& degree) override {}
+
+  slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
+
+  void Serialize(const std::string& path) override {}
+
+  void Deserialize(const std::string& path) override {}
+
+  void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                 timestamp_t ts = 0) {}
+  
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                   timestamp_t ts, ArenaAllocator& alloc) {}
+  std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
+      vid_t v) const override {
+    return std::make_shared<TypedMutableCsrConstEdgeIter<unsigned>>(
+        MutableNbrSlice<uint32_t>::empty());
+  }
+  MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
+    return new TypedMutableCsrConstEdgeIter<uint32_t>(
+        MutableNbrSlice<uint32_t>::empty());
+  }
+  std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
+    return std::make_shared<TypedMutableCsrEdgeIter<uint32_t>>(
+        MutableNbrSliceMut<uint32_t>::empty());
+  }
+};
+
+template <>
 class EmptyCsr<uint32_t, std::string>
     : public TypedMutableCsrBase<uint32_t, std::string> {
   using slice_t = MutableNbrSlice<uint32_t>;
@@ -109,30 +138,14 @@ class EmptyCsr<uint32_t, std::string>
 
   slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
 
-  void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override {}
-
-  void put_edge(vid_t src, vid_t dst, const std::string& data, timestamp_t ts,
-                ArenaAllocator& alloc) override {}
   void Serialize(const std::string& path) override {}
 
   void Deserialize(const std::string& path) override {}
 
-  void batch_put_edge(vid_t src, vid_t dst, const std::string& data,
-                      timestamp_t ts = 0) override {}
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {
-    Property value;
-    arc >> value;
-  }
-
-  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        const timestamp_t ts, ArenaAllocator& alloc) override {}
-  void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
-                           ArenaAllocator& alloc) {}
   void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                  timestamp_t ts = 0) {}
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index,
+                                   timestamp_t ts, ArenaAllocator& alloc) {}
   std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
       vid_t v) const override {
     return std::make_shared<TypedMutableCsrConstEdgeIter<unsigned>>(
@@ -531,9 +544,15 @@ class DualStringCsr : public DualCsrBase {
                           ArenaAllocator& alloc) override {
     Property prop;
     oarc >> prop;
-    // string_view??
     size_t row_id = column_index_.fetch_add(1);
-    column_.set_value(row_id, prop.get_value<std::string>());
+    if (prop.type() == PropertyType::kString) {
+      column_.set_value(row_id, prop.get_value<std::string>());
+    } else if (prop.type() == PropertyType::kStringView) {
+      column_.set_value(row_id, prop.get_value<std::string_view>());
+    } else {
+      LOG(FATAL) << "Unexpected property type: " << prop.type()
+                 << ", string or string_view is expected...";
+    }
     in_csr_->put_edge_with_index(dst, src, row_id, timestamp, alloc);
     out_csr_->put_edge_with_index(src, dst, row_id, timestamp, alloc);
   }
