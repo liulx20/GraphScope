@@ -80,7 +80,6 @@ std::vector<char> GraphDBSession::Eval(const std::string& input) {
   uint8_t type = input.back();
   const char* str_data = input.data();
   size_t str_len = input.size() - 1;
-  // printf("Query type: %d\n",type);
   std::vector<char> result_buffer;
   Decoder decoder(str_data, str_len);
   Encoder encoder(result_buffer);

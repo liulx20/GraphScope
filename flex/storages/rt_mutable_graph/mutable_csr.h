@@ -303,6 +303,7 @@ class MutableCsrEdgeIterBase {
   virtual bool is_valid() const = 0;
 };
 
+enum CsrType { TYPED, TABLE, STRING };
 class MutableCsrBase {
  public:
   MutableCsrBase() {}
@@ -320,6 +321,8 @@ class MutableCsrBase {
   virtual MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const = 0;
 
   virtual std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) = 0;
+
+  virtual CsrType get_type() const = 0;
 };
 
 template <typename EDATA_T>
@@ -396,25 +399,26 @@ class TypedMutableCsrBase : public MutableCsrBase {
                                 timestamp_t ts, ArenaAllocator& alloc) = 0;
   virtual void put_generic_edge(vid_t src, vid_t dst, const Property& data,
                                 timestamp_t ts, ArenaAllocator& alloc) = 0;
+  CsrType get_type() const { return CsrType::TYPED; }
 };
 
-template<>
+template <>
 class TypedMutableCsrBase<uint32_t, Property> : public MutableCsrBase {
-  public:
-    using slice_t = MutableNbrSlice<uint32_t>;
-    virtual slice_t get_edges(vid_t i) const = 0;
-    virtual void set_table(Table* table) = 0;
-    virtual void put_edge_with_index(vid_t src, vid_t dst, size_t index,
+ public:
+  using slice_t = MutableNbrSlice<uint32_t>;
+  virtual slice_t get_edges(vid_t i) const = 0;
+  virtual void set_table(Table* table) = 0;
+  virtual void put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                    timestamp_t ts, ArenaAllocator& alloc) = 0;
-    virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
+  virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                          timestamp_t ts = 0) = 0;
-
+  CsrType get_type() const { return CsrType::TABLE; }
 };
 template <>
 class TypedMutableCsrBase<uint32_t, std::string> : public MutableCsrBase {
  public:
   using slice_t = MutableNbrSlice<uint32_t>;
-  
+
   virtual slice_t get_edges(vid_t i) const = 0;
 
   virtual void set_column(StringColumn* column) = 0;
@@ -422,6 +426,7 @@ class TypedMutableCsrBase<uint32_t, std::string> : public MutableCsrBase {
                                    timestamp_t ts, ArenaAllocator& alloc) = 0;
   virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                          timestamp_t ts = 0) = 0;
+  CsrType get_type() const { return CsrType::STRING; }
 };
 
 template <typename EDATA_T>
@@ -533,7 +538,7 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
 class StringMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
  public:
   StringMutableCsrConstEdgeIter(const MutableNbrSlice<uint32_t>& slice,
-                                         const StringColumn* column)
+                                const StringColumn* column)
       : nbr_iter_(slice), column_(column) {}
   ~StringMutableCsrConstEdgeIter() = default;
 
@@ -564,7 +569,7 @@ class StringMutableCsrEdgeIter : public MutableCsrEdgeIterBase {
 
  public:
   StringMutableCsrEdgeIter(MutableNbrSliceMut<uint32_t> slice,
-                                    StringColumn* column)
+                           StringColumn* column)
       : nbr_iter_(slice), column_(column) {}
   ~StringMutableCsrEdgeIter() = default;
 
@@ -619,7 +624,6 @@ class StringMutableCsr : public TypedMutableCsrBase<uint32_t, std::string> {
     topology_.put_edge(src, dst, index, ts, alloc);
   }
 
-
   int degree(vid_t i) const { return topology_.degree(i); }
   slice_t get_edges(vid_t i) const override { return topology_.get_edges(i); }
 
@@ -636,7 +640,7 @@ class StringMutableCsr : public TypedMutableCsrBase<uint32_t, std::string> {
   }
   MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
     return new StringMutableCsrConstEdgeIter(topology_.get_edges(v),
-                                             column_ptr_);  
+                                             column_ptr_);
   }
   std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
     return std::make_shared<StringMutableCsrEdgeIter>(
@@ -1136,6 +1140,7 @@ class TableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
     return std::make_shared<TableMutableCsrEdgeIter>(topology_.get_edges_mut(v),
                                                      table_ptr_);
   }
+  const Table& get_table() const { return *table_ptr_; }
 
  private:
   MutableCsr<uint32_t> topology_;
@@ -1187,6 +1192,8 @@ class SingleTableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
     return std::make_shared<TableMutableCsrEdgeIter>(topology_.get_edges_mut(v),
                                                      table_ptr_);
   }
+
+  const Table& get_table() const { return *table_ptr_; }
 
  private:
   SingleMutableCsr<uint32_t> topology_;

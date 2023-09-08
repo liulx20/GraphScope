@@ -49,6 +49,7 @@ class ColumnBase {
 template <typename T>
 class TypedColumn : public ColumnBase {
  public:
+  TypedColumn() {}
   TypedColumn(StorageStrategy strategy) : strategy_(strategy) {}
   ~TypedColumn() {}
 
@@ -98,6 +99,7 @@ class TypedColumn : public ColumnBase {
 template <>
 class TypedColumn<std::string> : public ColumnBase {
  public:
+  TypedColumn() {}
   TypedColumn(StorageStrategy strategy) : strategy_(strategy) {}
   ~TypedColumn() {}
 

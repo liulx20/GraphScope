@@ -357,6 +357,7 @@ void UpdateTransaction::SetEdgeData(bool dir, label_t label, vid_t v,
   size_t csr_index = dir ? get_out_csr_index(label, neighbor_label, edge_label)
                          : get_in_csr_index(label, neighbor_label, edge_label);
   updated_edge_data_[csr_index][v].emplace(nbr, value);
+  // fix me
   /**if (value.type() == PropertyType::kString) {
     
     size_t loc = sv_vec_.size();

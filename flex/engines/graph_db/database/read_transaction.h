@@ -28,6 +28,182 @@ namespace gs {
 class MutablePropertyFragment;
 class VersionManager;
 
+class AdjListViewBase {
+ public:
+  AdjListViewBase(std::shared_ptr<MutableCsrConstEdgeIterBase> iter,
+                  timestamp_t timestamp)
+      : iter_(iter), timestamp_(timestamp) {}
+  class nbr_iterator {
+   public:
+    nbr_iterator(MutableCsrConstEdgeIterBase& iter, timestamp_t timestamp,
+                 size_t cur)
+        : iter_(iter), timestamp_(timestamp), cur_(cur), siz_(iter.size()) {}
+    std::pair<Property, vid_t> operator*() {
+      return {iter_.get_data(), iter_.get_neighbor()};
+    }
+
+    void next() {
+      iter_.next();
+      cur_++;
+    }
+
+    nbr_iterator& operator++() {
+      next();
+      while (iter_.is_valid() && iter_.get_timestamp() > timestamp_) {
+        next();
+      }
+      return *this;
+    }
+    bool operator==(const nbr_iterator& rhs) const {
+      return (cur_ == rhs.cur_);
+    }
+    bool operator!=(const nbr_iterator& rhs) const {
+      return (cur_ != rhs.cur_);
+    }
+    MutableCsrConstEdgeIterBase& iter_;
+    timestamp_t timestamp_;
+    size_t cur_, siz_;
+  };
+  nbr_iterator begin() const { return nbr_iterator(*iter_, timestamp_, 0); }
+  nbr_iterator end() const {
+    return nbr_iterator(*iter_, timestamp_, iter_->size());
+  }
+
+ private:
+  std::shared_ptr<MutableCsrConstEdgeIterBase> iter_;
+  timestamp_t timestamp_;
+};
+
+template <typename EDATA_T>
+class ProjectedAdjListView {
+ public:
+  class nbr_iterator_base {
+   public:
+    nbr_iterator_base() = default;
+    ~nbr_iterator_base() = default;
+    virtual std::pair<EDATA_T, vid_t> operator*() = 0;
+    virtual nbr_iterator_base& operator++() = 0;
+    virtual bool operator==(const nbr_iterator_base& rhs) const = 0;
+    virtual bool operator!=(const nbr_iterator_base& rhs) const = 0;
+    virtual size_t estimated_degree() const = 0;
+  };
+  ProjectedAdjListView(const std::shared_ptr<nbr_iterator_base>& cur,
+                       const std::shared_ptr<nbr_iterator_base>& end)
+      : cur_(cur), end_(end) {}
+
+  class simple_nbr_iterator : public nbr_iterator_base {
+    using nbr_t = MutableNbr<EDATA_T>;
+
+   public:
+    simple_nbr_iterator(const nbr_t* ptr, const nbr_t* end,
+                        timestamp_t timestamp)
+        : ptr_(ptr), end_(end), timestamp_(timestamp) {
+      while (ptr_->timestamp > timestamp_ && ptr_ != end_) {
+        ++ptr_;
+      }
+    }
+    std::pair<EDATA_T, vid_t> operator*() override {
+      return {ptr_->data, ptr_->neighbor};
+    }
+    size_t estimated_degree() const { return end_ - ptr_; }
+
+    nbr_iterator_base& operator++() override {
+      ++ptr_;
+      while (ptr_ != end_ && ptr_->timestamp > timestamp_) {
+        ++ptr_;
+      }
+      return *this;
+    }
+
+    bool operator==(const nbr_iterator_base& rhs) const override {
+      auto& _rhs = dynamic_cast<const simple_nbr_iterator&>(rhs);
+      return (ptr_ == _rhs.ptr_);
+    }
+
+    bool operator!=(const nbr_iterator_base& rhs) const override {
+      auto& _rhs = dynamic_cast<const simple_nbr_iterator&>(rhs);
+      return (ptr_ != _rhs.ptr_);
+    }
+
+   private:
+    const nbr_t* ptr_;
+    const nbr_t* end_;
+    timestamp_t timestamp_;
+  };
+
+  class column_nbr_iterator : public nbr_iterator_base {
+    using nbr_t = MutableNbr<uint32_t>;
+
+   public:
+    column_nbr_iterator(const nbr_t* ptr, const nbr_t* end,
+                        timestamp_t timestamp,
+                        const TypedColumn<EDATA_T>& column)
+        : ptr_(ptr), end_(end), timestamp_(timestamp), column_(column) {
+      while (ptr_->timestamp > timestamp_ && ptr_ != end_) {
+        ++ptr_;
+      }
+    }
+    std::pair<EDATA_T, vid_t> operator*() override {
+      return {column_.get_view(ptr_->data), ptr_->neighbor};
+    }
+    size_t estimated_degree() const { return end_ - ptr_; }
+    nbr_iterator_base& operator++() override {
+      ++ptr_;
+      while (ptr_ != end_ && ptr_->timestamp > timestamp_) {
+        ++ptr_;
+      }
+      return *this;
+    }
+
+    bool operator==(const nbr_iterator_base& rhs) const override {
+      auto& _rhs = dynamic_cast<const column_nbr_iterator&>(rhs);
+      return (ptr_ == _rhs.ptr_);
+    }
+
+    bool operator!=(const nbr_iterator_base& rhs) const override {
+      auto& _rhs = dynamic_cast<const column_nbr_iterator&>(rhs);
+      return (ptr_ != _rhs.ptr_);
+    }
+
+   private:
+    const nbr_t* ptr_;
+    const nbr_t* end_;
+    timestamp_t timestamp_;
+    const TypedColumn<EDATA_T>& column_;
+  };
+
+  class nbr_iterator {
+   public:
+    nbr_iterator(nbr_iterator_base& iter) : iter_(iter) {}
+    ~nbr_iterator() {}
+
+    std::pair<EDATA_T, vid_t> operator*() { return iter_.operator*(); }
+
+    nbr_iterator& operator++() {
+      iter_.operator++();
+      return *this;
+    }
+
+    bool operator==(const nbr_iterator& rhs) const {
+      return iter_ == rhs.iter_;
+    }
+
+    bool operator!=(const nbr_iterator& rhs) const {
+      return iter_ != rhs.iter_;
+    }
+
+   private:
+    nbr_iterator_base& iter_;
+  };
+  nbr_iterator begin() const { return nbr_iterator(*cur_); }
+  nbr_iterator end() const { return nbr_iterator(*end_); }
+  int estimated_degree() const { return cur_->estimated_degree(); }
+
+ private:
+  std::shared_ptr<nbr_iterator_base> cur_;
+  std::shared_ptr<nbr_iterator_base> end_;
+};
+
 template <typename EDATA_T>
 class AdjListView {
   class nbr_iterator {
@@ -85,6 +261,139 @@ class AdjListView {
  private:
   slice_t edges_;
   timestamp_t timestamp_;
+};
+
+class GraphViewBase {
+ public:
+  GraphViewBase(const MutableCsrBase& csr, timestamp_t timestamp)
+      : csr_(csr), timestamp_(timestamp) {}
+  AdjListViewBase get_edges(vid_t v) {
+    // SingleGraphViewBase ?
+    return AdjListViewBase(csr_.edge_iter(v), timestamp_);
+  }
+
+ private:
+  const MutableCsrBase& csr_;
+  timestamp_t timestamp_;
+};
+template <typename EDATA_T>
+struct GetEdges {
+  static ProjectedAdjListView<EDATA_T> get_edges(const MutableCsrBase& csr,
+                                                 vid_t v, int col_id,
+                                                 int timestamp) {
+    if (csr.get_type() == CsrType::TYPED) {
+      auto slices = dynamic_cast<const MutableCsr<EDATA_T>&>(csr).get_edges(v);
+      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
+          cur(new typename ProjectedAdjListView<EDATA_T>::simple_nbr_iterator(
+              slices.begin(), slices.end(), timestamp));
+      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
+          end(new typename ProjectedAdjListView<EDATA_T>::simple_nbr_iterator(
+              slices.end(), slices.end(), timestamp));
+
+      return ProjectedAdjListView<EDATA_T>(cur, end);
+    } else {
+      const auto& tmp = dynamic_cast<const TableMutableCsr&>(csr);
+      auto slices = tmp.get_edges(v);
+      auto column = *(std::dynamic_pointer_cast<TypedColumn<EDATA_T>>(
+          tmp.get_table().get_column_by_id(col_id)));
+      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
+          cur(new typename ProjectedAdjListView<EDATA_T>::column_nbr_iterator(
+              slices.begin(), slices.end(), timestamp, column));
+      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
+          end(new typename ProjectedAdjListView<EDATA_T>::column_nbr_iterator(
+              slices.end(), slices.end(), timestamp, column));
+
+      return ProjectedAdjListView<EDATA_T>(cur, end);
+    }
+  }
+};
+template <>
+struct GetEdges<std::string_view> {
+  static ProjectedAdjListView<std::string_view> get_edges(
+      const MutableCsrBase& csr, vid_t v, size_t col_id, int timestamp) {
+    const auto& tmp = dynamic_cast<const StringMutableCsr&>(csr);
+    auto slices = tmp.get_edges(v);
+    const auto& column = tmp.get_column();
+    std::shared_ptr<
+        typename ProjectedAdjListView<std::string_view>::nbr_iterator_base>
+        cur(new typename ProjectedAdjListView<
+            std::string_view>::column_nbr_iterator(slices.begin(), slices.end(),
+                                                   timestamp, column));
+    std::shared_ptr<
+        typename ProjectedAdjListView<std::string_view>::nbr_iterator_base>
+        end(new typename ProjectedAdjListView<
+            std::string_view>::column_nbr_iterator(slices.end(), slices.end(),
+                                                   timestamp, column));
+    return ProjectedAdjListView<std::string_view>(cur, end);
+  }
+};
+
+template <typename EDATA_T>
+class ProjectedGraphView {
+ public:
+  ProjectedGraphView(const MutableCsrBase& csr, timestamp_t timestamp,
+                     size_t col_id = 0)
+      : csr_(csr), timestamp_(timestamp), col_id_(col_id) {}
+
+  ProjectedAdjListView<EDATA_T> get_edges(vid_t v) const {
+    return GetEdges<EDATA_T>::get_edges(csr_, v, col_id_, timestamp_);
+  }
+
+ private:
+  const MutableCsrBase& csr_;
+  timestamp_t timestamp_;
+  size_t col_id_;
+};
+
+template <typename EDATA_T>
+class SingleProjectedGraphView {
+ public:
+  SingleProjectedGraphView(const MutableCsrBase& csr, timestamp_t timestamp,
+                           size_t col_id, const TypedColumn<EDATA_T>& column)
+      : csr_(csr), timestamp_(timestamp), col_id_(col_id), column_(column) {}
+
+  bool exist(vid_t v) const {
+    if (csr_.get_type() == CsrType::TYPED) {
+      /**auto ts = dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr_)
+                    .get_edge(v)
+                    .timestamp.load();
+      if (ts > timestamp_ && ts != 4294967295)
+        printf("timestamp: %u %u\n", ts, timestamp_);*/
+      return (dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr_)
+                  .get_edge(v)
+                  .timestamp.load() <= timestamp_);
+    } else if (csr_.get_type() == CsrType::TABLE) {
+      return (dynamic_cast<const SingleTableMutableCsr&>(csr_)
+                  .get_edge(v)
+                  .timestamp.load() <= timestamp_);
+    } else {
+      return (dynamic_cast<const SingleStringMutableCsr&>(csr_)
+                  .get_edge(v)
+                  .timestamp.load() <= timestamp_);
+    }
+  }
+
+  std::pair<EDATA_T, vid_t> get_data(vid_t v) const {
+    if (csr_.get_type() == CsrType::TYPED) {
+      const auto& nbr =
+          dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr_).get_edge(v);
+      return {nbr.data, nbr.neighbor};
+    } else if (csr_.get_type() == CsrType::TABLE) {
+      const auto& nbr =
+          dynamic_cast<const SingleTableMutableCsr&>(csr_).get_edge(v);
+      return {column_.get_view(nbr.data), nbr.neighbor};
+    } else {
+      const auto& nbr =
+          dynamic_cast<const SingleStringMutableCsr&>(csr_).get_edge(v);
+      return {column_.get_view(nbr.data), nbr.neighbor};
+    }
+  }
+
+ private:
+  const MutableCsrBase& csr_;
+  timestamp_t timestamp_;
+  const TypedColumn<EDATA_T>& column_;
+  size_t col_id_;
 };
 
 template <typename EDATA_T>
@@ -275,6 +584,106 @@ class ReadTransaction {
   }
 
   const Schema& schema() const;
+
+  GraphViewBase GetOutgoingGraphViewBase(label_t v_label,
+                                         label_t neighbor_label,
+                                         label_t edge_label) const {
+    auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
+    return GraphViewBase(*csr, timestamp_);
+  }
+
+  GraphViewBase GetIncomingGraphViewBase(label_t v_label,
+                                         label_t neighbor_label,
+                                         label_t edge_label) const {
+    auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
+    return GraphViewBase(*csr, timestamp_);
+  }
+
+  template <typename EDATA_T>
+  ProjectedAdjListView<EDATA_T> GetIncomingProjectedEdges(
+      label_t v_label, vid_t v, label_t neighbor_label, label_t edge_label,
+      size_t col_id = 0) const {
+    auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
+    return GetEdges<EDATA_T>::get_edges(*csr, v, col_id, timestamp_);
+  }
+
+  template <typename EDATA_T>
+  ProjectedAdjListView<EDATA_T> GetOutgoingProjectedEdges(
+      label_t v_label, vid_t v, label_t neighbor_label, label_t edge_label,
+      size_t col_id = 0) const {
+    auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
+    return GetEdges<EDATA_T>::get_edges(*csr, v, col_id, timestamp_);
+  }
+
+  template <typename EDATA_T>
+  ProjectedGraphView<EDATA_T> GetOutgoingProjectedGraphView(
+      label_t v_label, label_t neighbor_label, label_t edge_label,
+      size_t col_id = 0) const {
+    auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
+    return ProjectedGraphView<EDATA_T>(*csr, timestamp_, col_id);
+  }
+
+  template <typename EDATA_T>
+  ProjectedGraphView<EDATA_T> GetIncomingProjectedGraphView(
+      label_t v_label, label_t neighbor_label, label_t edge_label,
+      size_t col_id = 0) const {
+    auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
+    return ProjectedGraphView<EDATA_T>(*csr, timestamp_, col_id);
+  }
+
+  template <typename EDATA_T>
+  SingleProjectedGraphView<EDATA_T> GetIncomingSingleProjectedGraphView(
+      label_t v_label, label_t neighbor_label, label_t edge_label,
+      size_t col_id = 0) const {
+    auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
+    if (csr->get_type() == CsrType::TYPED) {
+      return SingleProjectedGraphView<EDATA_T>(*csr, timestamp_, col_id,
+                                               TypedColumn<EDATA_T>());
+    } else {
+      auto tmp = dynamic_cast<const TableMutableCsr*>(csr);
+      const auto& column = *(std::dynamic_pointer_cast<TypedColumn<EDATA_T>>(
+          tmp->get_table().get_column_by_id(col_id)));
+      return SingleProjectedGraphView<EDATA_T>(*csr, timestamp_, col_id,
+                                               column);
+    }
+  }
+
+  SingleProjectedGraphView<std::string_view>
+  GetIncomingSingleProjectedGraphView(label_t v_label, label_t neighbor_label,
+                                      label_t edge_label,
+                                      size_t col_id = 0) const {
+    auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
+    auto tmp = dynamic_cast<const StringMutableCsr*>(csr);
+    return SingleProjectedGraphView<std::string_view>(*csr, timestamp_, col_id,
+                                                      tmp->get_column());
+  }
+
+  template <typename EDATA_T>
+  SingleProjectedGraphView<EDATA_T> GetOutgoingSingleProjectedGraphView(
+      label_t v_label, label_t neighbor_label, label_t edge_label,
+      size_t col_id = 0) const {
+    auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
+    if (csr->get_type() == CsrType::TYPED) {
+      return SingleProjectedGraphView<EDATA_T>(*csr, timestamp_, col_id,
+                                               TypedColumn<EDATA_T>());
+    } else {
+      auto tmp = dynamic_cast<const TableMutableCsr*>(csr);
+      const auto& column = *(std::dynamic_pointer_cast<TypedColumn<EDATA_T>>(
+          tmp->get_table().get_column_by_id(col_id)));
+      return SingleProjectedGraphView<EDATA_T>(*csr, timestamp_, col_id,
+                                               column);
+    }
+  }
+
+  SingleProjectedGraphView<std::string_view>
+  GetOutgoingSingleProjectedGraphView(label_t v_label, label_t neighbor_label,
+                                      label_t edge_label,
+                                      size_t col_id = 0) const {
+    auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
+    auto tmp = dynamic_cast<const StringMutableCsr*>(csr);
+    return SingleProjectedGraphView<std::string_view>(*csr, timestamp_, col_id,
+                                                      tmp->get_column());
+  }
 
   template <typename EDATA_T>
   GraphView<EDATA_T> GetOutgoingGraphView(label_t v_label,
