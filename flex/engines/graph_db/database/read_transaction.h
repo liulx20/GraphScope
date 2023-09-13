@@ -77,6 +77,89 @@ class AdjListViewBase {
 template <typename EDATA_T>
 class ProjectedAdjListView {
  public:
+  class projected_nbr_iterator {
+   public:
+    projected_nbr_iterator(const void* cur, const void* end, timestamp_t ts,
+                           const EDATA_T* data = nullptr)
+        : cur_(cur), end_(end), timestamp_(ts), data_(data) {
+      if (data_ == nullptr) {
+        auto ptr = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        auto end = static_cast<const MutableNbr<EDATA_T>*>(end_);
+        while (ptr->timestamp > timestamp_ && ptr != end) {
+          ++ptr;
+        }
+        cur_ = ptr;
+      } else {
+        auto ptr = static_cast<const MutableNbr<uint32_t>*>(cur_);
+        auto end = static_cast<const MutableNbr<uint32_t>*>(end_);
+        while (ptr->timestamp > timestamp_ && ptr != end) {
+          ++ptr;
+        }
+        cur_ = ptr;
+      }
+    }
+
+    size_t estimated_degree() const {
+      if (data_ == nullptr) {
+        auto end = static_cast<const MutableNbr<EDATA_T>*>(end_);
+        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        return end - cur;
+      } else {
+        auto end = static_cast<const MutableNbr<uint32_t>*>(end_);
+        auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
+        return end - cur;
+      }
+    }
+
+    projected_nbr_iterator& operator++() {
+      if (data_ == nullptr) {
+        auto end = static_cast<const MutableNbr<EDATA_T>*>(end_);
+        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        ++cur;
+        while (cur != end && cur->timestamp > timestamp_) {
+          ++cur;
+        }
+        cur_ = cur;
+      } else {
+        auto end = static_cast<const MutableNbr<uint32_t>*>(end_);
+        auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
+        ++cur;
+        while (cur != end && cur->timestamp > timestamp_) {
+          ++cur;
+        }
+        cur_ = cur;
+      }
+      return *this;
+    }
+
+    std::pair<EDATA_T, vid_t> operator*() {
+      if (data_ == nullptr) {
+        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        return {cur->data, cur->neighbor};
+      } else {
+        auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
+        return {data_[cur->data], cur->neighbor};
+      }
+    }
+
+    bool operator==(const projected_nbr_iterator& rhs) const {
+      return (cur_ == rhs.cur_);
+    }
+
+    bool operator!=(const projected_nbr_iterator& rhs) const {
+      return (cur_ != rhs.cur_);
+    }
+
+   private:
+    const void* cur_;
+    const void* end_;
+    const EDATA_T* data_;
+    timestamp_t timestamp_;
+  };
+  ProjectedAdjListView(const std::shared_ptr<projected_nbr_iterator>& cur,
+                       const std::shared_ptr<projected_nbr_iterator>& end)
+      : cur_(cur), end_(end) {}
+  /**
   class nbr_iterator_base {
    public:
     nbr_iterator_base() = default;
@@ -195,13 +278,14 @@ class ProjectedAdjListView {
    private:
     nbr_iterator_base& iter_;
   };
-  nbr_iterator begin() const { return nbr_iterator(*cur_); }
-  nbr_iterator end() const { return nbr_iterator(*end_); }
+  */
+  projected_nbr_iterator begin() const { return *cur_; }
+  projected_nbr_iterator end() const { return *end_; }
   int estimated_degree() const { return cur_->estimated_degree(); }
 
  private:
-  std::shared_ptr<nbr_iterator_base> cur_;
-  std::shared_ptr<nbr_iterator_base> end_;
+  std::shared_ptr<projected_nbr_iterator> cur_;
+  std::shared_ptr<projected_nbr_iterator> end_;
 };
 
 template <typename EDATA_T>
@@ -283,12 +367,16 @@ struct GetEdges {
                                                  int timestamp) {
     if (csr.get_type() == CsrType::TYPED) {
       auto slices = dynamic_cast<const MutableCsr<EDATA_T>&>(csr).get_edges(v);
-      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
-          cur(new typename ProjectedAdjListView<EDATA_T>::simple_nbr_iterator(
-              slices.begin(), slices.end(), timestamp));
-      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
-          end(new typename ProjectedAdjListView<EDATA_T>::simple_nbr_iterator(
-              slices.end(), slices.end(), timestamp));
+      std::shared_ptr<
+          typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator>
+          cur(new
+              typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator(
+                  slices.begin(), slices.end(), timestamp));
+      std::shared_ptr<
+          typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator>
+          end(new
+              typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator(
+                  slices.end(), slices.end(), timestamp));
 
       return ProjectedAdjListView<EDATA_T>(cur, end);
     } else {
@@ -296,17 +384,24 @@ struct GetEdges {
       auto slices = tmp.get_edges(v);
       auto column = *(std::dynamic_pointer_cast<TypedColumn<EDATA_T>>(
           tmp.get_table().get_column_by_id(col_id)));
-      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
-          cur(new typename ProjectedAdjListView<EDATA_T>::column_nbr_iterator(
-              slices.begin(), slices.end(), timestamp, column));
-      std::shared_ptr<typename ProjectedAdjListView<EDATA_T>::nbr_iterator_base>
-          end(new typename ProjectedAdjListView<EDATA_T>::column_nbr_iterator(
-              slices.end(), slices.end(), timestamp, column));
+      std::shared_ptr<
+          typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator>
+          cur(new
+              typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator(
+                  slices.begin(), slices.end(), timestamp,
+                  column.buffer().data()));
+      std::shared_ptr<
+          typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator>
+          end(new
+              typename ProjectedAdjListView<EDATA_T>::projected_nbr_iterator(
+                  slices.end(), slices.end(), timestamp,
+                  column.buffer().data()));
 
       return ProjectedAdjListView<EDATA_T>(cur, end);
     }
   }
 };
+/**
 template <>
 struct GetEdges<std::string_view> {
   static ProjectedAdjListView<std::string_view> get_edges(
@@ -315,18 +410,21 @@ struct GetEdges<std::string_view> {
     auto slices = tmp.get_edges(v);
     const auto& column = tmp.get_column();
     std::shared_ptr<
-        typename ProjectedAdjListView<std::string_view>::nbr_iterator_base>
+        typename ProjectedAdjListView<std::string_view>::projected_nbr_iterator>
         cur(new typename ProjectedAdjListView<
-            std::string_view>::column_nbr_iterator(slices.begin(), slices.end(),
-                                                   timestamp, column));
+            std::string_view>::projected_nbr_iterator(slices.begin(),
+                                                      slices.end(), timestamp,
+                                                      nullptr));
     std::shared_ptr<
-        typename ProjectedAdjListView<std::string_view>::nbr_iterator_base>
+        typename ProjectedAdjListView<std::string_view>::projected_nbr_iterator>
         end(new typename ProjectedAdjListView<
-            std::string_view>::column_nbr_iterator(slices.end(), slices.end(),
-                                                   timestamp, column));
+            std::string_view>::projected_nbr_iterator(slices.end(),
+                                                      slices.end(), timestamp,
+                                                      nullptr));
+
     return ProjectedAdjListView<std::string_view>(cur, end);
   }
-};
+};*/
 
 template <typename EDATA_T>
 class ProjectedGraphView {
