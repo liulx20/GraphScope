@@ -132,15 +132,27 @@ class ProjectedAdjListView {
       return *this;
     }
 
-    std::pair<EDATA_T, vid_t> operator*() {
+    vid_t neighbor() const {
       if (data_ == nullptr) {
         auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
-        return {cur->data, cur->neighbor};
+        return cur->neighbor;
       } else {
         auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
-        return {data_[cur->data], cur->neighbor};
+        return cur->neighbor;
       }
     }
+
+    const EDATA_T& data() const {
+      if (data_ == nullptr) {
+        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        return cur->data;
+      } else {
+        auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
+        return data_[cur->data];
+      }
+    }
+
+    projected_nbr_iterator& operator*() { return *this; }
 
     bool operator==(const projected_nbr_iterator& rhs) const {
       return (cur_ == rhs.cur_);
@@ -470,24 +482,47 @@ class SingleProjectedGraphView {
                   .timestamp.load() <= timestamp_);
     }
   }
-
-  std::pair<EDATA_T, vid_t> get_data(vid_t v) const {
+  struct NBR {
+    NBR() {}
+    NBR(const void* cur, const TypedColumn<EDATA_T>* column)
+        : cur_(cur), column_(column) {}
+    const void* cur_;
+    const TypedColumn<EDATA_T>* column_;
+    vid_t neighbor() const {
+      if (column_ == nullptr) {
+        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        return cur->neighbor;
+      }
+      auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
+      return cur->neighbor;
+    }
+    const EDATA_T& data() const {
+      if (column_ == nullptr) {
+        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
+        return cur->data;
+      }
+      auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
+      return column_[cur->data];
+    }
+  };
+  const NBR& get_edge(vid_t v) const {
     if (csr_.get_type() == CsrType::TYPED) {
       const auto& nbr =
           dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr_).get_edge(v);
-      return {nbr.data, nbr.neighbor};
+      return nbr_ = NBR(&nbr, nullptr);
     } else if (csr_.get_type() == CsrType::TABLE) {
       const auto& nbr =
           dynamic_cast<const SingleTableMutableCsr&>(csr_).get_edge(v);
-      return {column_.get_view(nbr.data), nbr.neighbor};
+      return nbr_ = NBR(&nbr, &column_);
     } else {
       const auto& nbr =
           dynamic_cast<const SingleStringMutableCsr&>(csr_).get_edge(v);
-      return {column_.get_view(nbr.data), nbr.neighbor};
+      return nbr_ = NBR(&nbr, &column_);
     }
   }
 
  private:
+  mutable NBR nbr_;
   const MutableCsrBase& csr_;
   timestamp_t timestamp_;
   const TypedColumn<EDATA_T>& column_;
