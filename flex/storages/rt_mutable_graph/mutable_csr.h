@@ -39,7 +39,8 @@ struct MutableNbr {
         timestamp(rhs.timestamp.load()),
         data(rhs.data) {}
   ~MutableNbr() = default;
-
+  const EDATA_T& get_data() const { return data; }
+  vid_t get_neighbor() const { return neighbor; }
   vid_t neighbor;
   std::atomic<timestamp_t> timestamp;
   EDATA_T data;
@@ -51,6 +52,8 @@ struct MutableNbr<grape::EmptyType> {
   MutableNbr(const MutableNbr& rhs)
       : neighbor(rhs.neighbor), timestamp(rhs.timestamp.load()) {}
   ~MutableNbr() = default;
+  const grape::EmptyType& get_data() const { return data; }
+  vid_t get_neighbor() const { return neighbor; }
 
   vid_t neighbor;
   union {
@@ -303,7 +306,16 @@ class MutableCsrEdgeIterBase {
   virtual bool is_valid() const = 0;
 };
 
-enum CsrType { TYPED, TABLE, STRING };
+enum class CsrType {
+  SINGLE_TYPED,
+  MULTIPLE_TYPED,
+  SINGLE_TABLE,
+  MULTIPLE_TABLE,
+  SINGLE_STRING,
+  MULTIPLE_STRING,
+  NONE
+};
+
 class MutableCsrBase {
  public:
   MutableCsrBase() {}
@@ -399,7 +411,6 @@ class TypedMutableCsrBase : public MutableCsrBase {
                                 timestamp_t ts, ArenaAllocator& alloc) = 0;
   virtual void put_generic_edge(vid_t src, vid_t dst, const Property& data,
                                 timestamp_t ts, ArenaAllocator& alloc) = 0;
-  CsrType get_type() const { return CsrType::TYPED; }
 };
 
 template <>
@@ -412,7 +423,7 @@ class TypedMutableCsrBase<uint32_t, Property> : public MutableCsrBase {
                                    timestamp_t ts, ArenaAllocator& alloc) = 0;
   virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                          timestamp_t ts = 0) = 0;
-  CsrType get_type() const { return CsrType::TABLE; }
+  virtual const Table* get_table() const = 0;
 };
 template <>
 class TypedMutableCsrBase<uint32_t, std::string> : public MutableCsrBase {
@@ -426,7 +437,7 @@ class TypedMutableCsrBase<uint32_t, std::string> : public MutableCsrBase {
                                    timestamp_t ts, ArenaAllocator& alloc) = 0;
   virtual void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                          timestamp_t ts = 0) = 0;
-  CsrType get_type() const { return CsrType::STRING; }
+  virtual const StringColumn* get_column() const = 0;
 };
 
 template <typename EDATA_T>
@@ -527,6 +538,7 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
   std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
     return std::make_shared<TypedMutableCsrEdgeIter<EDATA_T>>(get_edges_mut(v));
   }
+  CsrType get_type() const override { return CsrType::MULTIPLE_TYPED; }
 
  private:
   adjlist_t* adj_lists_;
@@ -544,7 +556,6 @@ class StringMutableCsrConstEdgeIter : public MutableCsrConstEdgeIterBase {
 
   vid_t get_neighbor() const { return nbr_iter_.get_neighbor(); }
   Property get_data() const {
-    // TODO?
     Property prop;
     std::string_view sw =
         column_->get_view(nbr_iter_.get_data().get_value<uint32_t>());
@@ -609,7 +620,7 @@ class StringMutableCsr : public TypedMutableCsrBase<uint32_t, std::string> {
 
   void set_column(StringColumn* col) { column_ptr_ = col; }
   StringColumn& get_column() { return *column_ptr_; }
-  const StringColumn& get_column() const { return *column_ptr_; }
+  const StringColumn* get_column() const override { return column_ptr_; }
 
   void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
     topology_.batch_init(vnum, degrees);
@@ -642,11 +653,15 @@ class StringMutableCsr : public TypedMutableCsrBase<uint32_t, std::string> {
     return new StringMutableCsrConstEdgeIter(topology_.get_edges(v),
                                              column_ptr_);
   }
+
+  const MutableCsr<uint32_t>& get_index_csr() const { return topology_; }
   std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
     return std::make_shared<StringMutableCsrEdgeIter>(
         topology_.get_edges_mut(v), column_ptr_);
   }
+  CsrType get_type() const override { return CsrType::MULTIPLE_STRING; }
 
+ private:
   StringColumn* column_ptr_;
   MutableCsr<uint32_t> topology_;
 };
@@ -751,6 +766,7 @@ class MutableCsr<std::string> : public TypedMutableCsrBase<std::string> {
     return std::make_shared<TypedMutableCsrEdgeIter<std::string>>(
         get_edges_mut(v));
   }
+  CsrType get_type() const override { return CsrType::MULTIPLE_TYPED; }
 
  private:
   adjlist_t* adj_lists_;
@@ -810,9 +826,9 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
                          std::numeric_limits<timestamp_t>::max()
                      ? 0
                      : 1);
-    if (ret.size() != 0) {
-      ret.set_begin(&nbr_list_[i]);
-    }
+    // if (ret.size() != 0) {
+    ret.set_begin(&nbr_list_[i]);
+    //}
     return ret;
   }
 
@@ -822,9 +838,9 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
                          std::numeric_limits<timestamp_t>::max()
                      ? 0
                      : 1);
-    if (ret.size() != 0) {
-      ret.set_begin(&nbr_list_[i]);
-    }
+    // if (ret.size() != 0) {
+    ret.set_begin(&nbr_list_[i]);
+    //}
     return ret;
   }
 
@@ -862,6 +878,8 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
     return std::make_shared<TypedMutableCsrEdgeIter<EDATA_T>>(get_edges_mut(v));
   }
 
+  CsrType get_type() const override { return CsrType::SINGLE_TYPED; }
+
  private:
   mmap_array<nbr_t> nbr_list_;
 };
@@ -877,7 +895,7 @@ class SingleStringMutableCsr
 
   void set_column(StringColumn* col) { column_ptr_ = col; }
   StringColumn& get_column() { return *column_ptr_; }
-  const StringColumn& get_column() const { return *column_ptr_; }
+  const StringColumn* get_column() const { return column_ptr_; }
 
   void batch_init(vid_t vnum, const std::vector<int>& degrees) override {
     topology_.batch_init(vnum, degrees);
@@ -916,6 +934,8 @@ class SingleStringMutableCsr
     return std::make_shared<StringMutableCsrEdgeIter>(
         topology_.get_edges_mut(v), column_ptr_);
   }
+  const SingleMutableCsr<uint32_t>& get_index_csr() const { return topology_; }
+  CsrType get_type() const override { return CsrType::SINGLE_STRING; }
 
  private:
   StringColumn* column_ptr_;
@@ -1025,6 +1045,7 @@ class SingleMutableCsr<std::string> : public TypedMutableCsrBase<std::string> {
     return std::make_shared<TypedMutableCsrEdgeIter<std::string>>(
         get_edges_mut(v));
   }
+  CsrType get_type() const override { return CsrType::SINGLE_TYPED; }
 
  private:
   mmap_array<nbr_t> nbr_list_;
@@ -1140,7 +1161,9 @@ class TableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
     return std::make_shared<TableMutableCsrEdgeIter>(topology_.get_edges_mut(v),
                                                      table_ptr_);
   }
-  const Table& get_table() const { return *table_ptr_; }
+  const Table* get_table() const override { return table_ptr_; }
+  const MutableCsr<uint32_t>& get_index_csr() const { return topology_; }
+  CsrType get_type() const override { return CsrType::MULTIPLE_TABLE; }
 
  private:
   MutableCsr<uint32_t> topology_;
@@ -1193,7 +1216,9 @@ class SingleTableMutableCsr : public TypedMutableCsrBase<uint32_t, Property> {
                                                      table_ptr_);
   }
 
-  const Table& get_table() const { return *table_ptr_; }
+  const Table* get_table() const override { return table_ptr_; }
+  const SingleMutableCsr<uint32_t>& get_index_csr() const { return topology_; }
+  CsrType get_type() const override { return CsrType::SINGLE_TABLE; }
 
  private:
   SingleMutableCsr<uint32_t> topology_;

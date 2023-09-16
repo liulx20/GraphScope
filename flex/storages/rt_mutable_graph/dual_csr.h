@@ -63,13 +63,13 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
   void Serialize(const std::string& path) override {}
 
   void Deserialize(const std::string& path) override {}
-  
+
   void batch_put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
-                              timestamp_t ts = 0) override {}
-  void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data,
-                        timestamp_t ts, ArenaAllocator& alloc) override{}
+                      timestamp_t ts = 0) override {}
+  void put_edge(vid_t src, vid_t dst, const PROPERTY_T& data, timestamp_t ts,
+                ArenaAllocator& alloc) override {}
   void put_generic_edge(vid_t src, vid_t dst, const Property& data,
-                                timestamp_t ts, ArenaAllocator& alloc) override{}
+                        timestamp_t ts, ArenaAllocator& alloc) override {}
   void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
                    ArenaAllocator& alloc) override {
     Property value;
@@ -92,6 +92,7 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T, PROPERTY_T> {
     return std::make_shared<TypedMutableCsrEdgeIter<EDATA_T>>(
         MutableNbrSliceMut<EDATA_T>::empty());
   }
+  CsrType get_type() const override { return CsrType::NONE; }
 };
 
 template <>
@@ -103,6 +104,7 @@ class EmptyCsr<uint32_t, Property>
   EmptyCsr() = default;
   ~EmptyCsr() = default;
   void set_table(Table*) override{};
+  const Table* get_table() const override { return nullptr; }
   void batch_init(vid_t vnum, const std::vector<int>& degree) override {}
 
   slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
@@ -113,9 +115,9 @@ class EmptyCsr<uint32_t, Property>
 
   void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                  timestamp_t ts = 0) {}
-  
-  void put_edge_with_index(vid_t src, vid_t dst, size_t index,
-                                   timestamp_t ts, ArenaAllocator& alloc) {}
+
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
+                           ArenaAllocator& alloc) {}
   std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
       vid_t v) const override {
     return std::make_shared<TypedMutableCsrConstEdgeIter<unsigned>>(
@@ -129,6 +131,7 @@ class EmptyCsr<uint32_t, Property>
     return std::make_shared<TypedMutableCsrEdgeIter<uint32_t>>(
         MutableNbrSliceMut<uint32_t>::empty());
   }
+  CsrType get_type() const override { return CsrType::NONE; }
 };
 
 template <>
@@ -150,8 +153,8 @@ class EmptyCsr<uint32_t, std::string>
 
   void batch_put_edge_with_index(vid_t src, vid_t dst, size_t index,
                                  timestamp_t ts = 0) {}
-  void put_edge_with_index(vid_t src, vid_t dst, size_t index,
-                                   timestamp_t ts, ArenaAllocator& alloc) {}
+  void put_edge_with_index(vid_t src, vid_t dst, size_t index, timestamp_t ts,
+                           ArenaAllocator& alloc) {}
   std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
       vid_t v) const override {
     return std::make_shared<TypedMutableCsrConstEdgeIter<unsigned>>(
@@ -165,6 +168,8 @@ class EmptyCsr<uint32_t, std::string>
     return std::make_shared<TypedMutableCsrEdgeIter<uint32_t>>(
         MutableNbrSliceMut<uint32_t>::empty());
   }
+  CsrType get_type() const override { return CsrType::NONE; }
+  const StringColumn* get_column() const override { return nullptr; }
 };
 
 inline void preprocess_line(char* line) {

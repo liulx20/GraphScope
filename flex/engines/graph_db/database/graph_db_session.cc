@@ -78,6 +78,7 @@ std::shared_ptr<RefColumnBase> GraphDBSession::get_vertex_id_column(
 
 std::vector<char> GraphDBSession::Eval(const std::string& input) {
   uint8_t type = input.back();
+  // printf("Query Type: %d\n", int(type));
   const char* str_data = input.data();
   size_t str_len = input.size() - 1;
   std::vector<char> result_buffer;

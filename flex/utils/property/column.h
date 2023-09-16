@@ -61,7 +61,7 @@ class TypedColumn : public ColumnBase {
     CHECK_EQ(value.type(), type());
     set_value(index, value.get_value<T>());
   }
-
+  const T& operator[](size_t index) const { return buffer_[index]; }
   T get_view(size_t index) const { return buffer_[index]; }
 
   PropertyType type() const override { return AnyConverter<T>::type; }
