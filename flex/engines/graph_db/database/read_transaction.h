@@ -324,19 +324,21 @@ class GenericGraphView {
 
 template <typename EDATA_T>
 struct GetEdges {
-  static AdjListViewBase<EDATA_T> get_edges(const MutableCsrBase& csr, vid_t v,
-                                            int col_id, int timestamp) {
+  static AdjListViewBase<EDATA_T> get_edges(vid_t v, int col_id, int timestamp,
+                                            const CsrType& csr_type,
+                                            const void* csr_ptr) {
     using nbr_iterator =
         typename AdjListViewBase<EDATA_T>::projected_nbr_iterator;
-    if (csr.get_type() == CsrType::MULTIPLE_TYPED) {
-      auto slices = dynamic_cast<const MutableCsr<EDATA_T>&>(csr).get_edges(v);
+    if (csr_type == CsrType::MULTIPLE_TYPED) {
+      auto slices =
+          static_cast<const MutableCsr<EDATA_T>*>(csr_ptr)->get_edges(v);
       nbr_iterator cur(slices.begin(), slices.end(), timestamp);
       nbr_iterator end(slices.end(), slices.end(), timestamp);
 
       return AdjListViewBase<EDATA_T>(std::move(cur), std::move(end));
-    } else if (csr.get_type() == CsrType::SINGLE_TYPED) {
+    } else if (csr_type == CsrType::SINGLE_TYPED) {
       auto slices =
-          dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr).get_edges(v);
+          static_cast<const SingleMutableCsr<EDATA_T>*>(csr_ptr)->get_edges(v);
       nbr_iterator cur(slices.begin(), slices.end(), timestamp);
       nbr_iterator end(slices.end(), slices.end(), timestamp);
 
@@ -344,13 +346,20 @@ struct GetEdges {
 
     }
 
-    else if (csr.get_type() == CsrType::MULTIPLE_TABLE ||
-             csr.get_type() == CsrType::SINGLE_TABLE) {
-      const auto& tmp =
-          dynamic_cast<const TypedMutableCsrBase<uint32_t, Property>&>(csr);
-      auto slices = tmp.get_edges(v);
+    else if (csr_type == CsrType::MULTIPLE_TABLE) {
+      const auto& tmp = static_cast<const TableMutableCsr*>(csr_ptr);
+      auto slices = tmp->get_edges(v);
       auto column = (dynamic_cast<const TypedColumn<EDATA_T>*>(
-          tmp.get_table()->get_column_by_id_raw(col_id)));
+          tmp->get_table()->get_column_by_id_raw(col_id)));
+      nbr_iterator cur(slices.begin(), slices.end(), timestamp, column);
+      nbr_iterator end(slices.end(), slices.end(), timestamp, column);
+
+      return AdjListViewBase<EDATA_T>(std::move(cur), std::move(end));
+    } else if (csr_type == CsrType::SINGLE_TABLE) {
+      const auto& tmp = static_cast<const SingleTableMutableCsr*>(csr_ptr);
+      auto slices = tmp->get_edges(v);
+      auto column = (dynamic_cast<const TypedColumn<EDATA_T>*>(
+          tmp->get_table()->get_column_by_id_raw(col_id)));
       nbr_iterator cur(slices.begin(), slices.end(), timestamp, column);
       nbr_iterator end(slices.end(), slices.end(), timestamp, column);
 
@@ -362,28 +371,41 @@ struct GetEdges {
 
 template <>
 struct GetEdges<std::string_view> {
-  static AdjListViewBase<std::string_view> get_edges(const MutableCsrBase& csr,
-                                                     vid_t v, size_t col_id,
-                                                     int timestamp) {
+  static AdjListViewBase<std::string_view> get_edges(vid_t v, size_t col_id,
+                                                     int timestamp,
+                                                     const CsrType& csr_type,
+                                                     const void* csr_ptr) {
     using nbr_iterator =
         typename AdjListViewBase<std::string_view>::projected_nbr_iterator;
-    if (csr.get_type() == CsrType::MULTIPLE_STRING ||
-        csr.get_type() == CsrType::SINGLE_STRING) {
-      const auto& tmp =
-          dynamic_cast<const TypedMutableCsrBase<uint32_t, std::string>&>(csr);
-      auto slices = tmp.get_edges(v);
-      const auto column = tmp.get_column();
+    if (csr_type == CsrType::MULTIPLE_STRING) {
+      const auto& tmp = static_cast<const StringMutableCsr*>(csr_ptr);
+      auto slices = tmp->get_edges(v);
+      const auto column = tmp->get_column();
       nbr_iterator cur(slices.begin(), slices.end(), timestamp, column);
       nbr_iterator end(slices.end(), slices.end(), timestamp, column);
 
       return AdjListViewBase<std::string_view>(std::move(cur), std::move(end));
-    } else if (csr.get_type() == CsrType::MULTIPLE_TABLE ||
-               csr.get_type() == CsrType::SINGLE_TABLE) {
-      const auto& tmp =
-          dynamic_cast<const TypedMutableCsrBase<uint32_t, Property>&>(csr);
-      auto slices = tmp.get_edges(v);
+    } else if (csr_type == CsrType::SINGLE_STRING) {
+      const auto& tmp = static_cast<const StringMutableCsr*>(csr_ptr);
+      auto slices = tmp->get_edges(v);
+      const auto column = tmp->get_column();
+      nbr_iterator cur(slices.begin(), slices.end(), timestamp, column);
+      nbr_iterator end(slices.end(), slices.end(), timestamp, column);
+
+    } else if (csr_type == CsrType::MULTIPLE_TABLE) {
+      const auto& tmp = static_cast<const TableMutableCsr*>(csr_ptr);
+      auto slices = tmp->get_edges(v);
       const auto* column = dynamic_cast<const TypedColumn<std::string_view>*>(
-          tmp.get_table()->get_column_by_id_raw(col_id));
+          tmp->get_table()->get_column_by_id_raw(col_id));
+      nbr_iterator cur(slices.begin(), slices.end(), timestamp, column);
+      nbr_iterator end(slices.end(), slices.end(), timestamp, column);
+
+      return AdjListViewBase<std::string_view>(std::move(cur), std::move(end));
+    } else if (csr_type == CsrType::SINGLE_TABLE) {
+      const auto& tmp = static_cast<const SingleTableMutableCsr*>(csr_ptr);
+      auto slices = tmp->get_edges(v);
+      const auto* column = dynamic_cast<const TypedColumn<std::string_view>*>(
+          tmp->get_table()->get_column_by_id_raw(col_id));
       nbr_iterator cur(slices.begin(), slices.end(), timestamp, column);
       nbr_iterator end(slices.end(), slices.end(), timestamp, column);
 
@@ -398,10 +420,39 @@ class GraphViewBase {
  public:
   GraphViewBase(const MutableCsrBase& csr, timestamp_t timestamp,
                 size_t col_id = 0)
-      : csr_(csr), timestamp_(timestamp), col_id_(col_id) {}
+      : csr_(csr),
+        csr_type_(csr_.get_type()),
+        timestamp_(timestamp),
+        col_id_(col_id) {
+    init();
+  }
+  void init() {
+    switch (csr_type_) {
+    case CsrType::MULTIPLE_TYPED:
+      csr_ptr_ = dynamic_cast<const MutableCsr<EDATA_T>*>(&csr_);
+      break;
+    case CsrType::SINGLE_TYPED:
+      csr_ptr_ = dynamic_cast<const SingleMutableCsr<EDATA_T>*>(&csr_);
+      break;
+    case CsrType::MULTIPLE_STRING:
+      csr_ptr_ = dynamic_cast<const StringMutableCsr*>(&csr_);
+      break;
+    case CsrType::SINGLE_STRING:
+      csr_ptr_ = dynamic_cast<const SingleStringMutableCsr*>(&csr_);
+      break;
+
+    case CsrType::MULTIPLE_TABLE:
+      csr_ptr_ = dynamic_cast<const TableMutableCsr*>(&csr_);
+      break;
+    case CsrType::SINGLE_TABLE:
+      csr_ptr_ = dynamic_cast<const SingleTableMutableCsr*>(&csr_);
+      break;
+    }
+  }
 
   AdjListViewBase<EDATA_T> get_edges(vid_t v) const {
-    return GetEdges<EDATA_T>::get_edges(csr_, v, col_id_, timestamp_);
+    return GetEdges<EDATA_T>::get_edges(v, col_id_, timestamp_, csr_type_,
+                                        csr_ptr_);
   }
 
   bool exist(vid_t v) const {
@@ -415,79 +466,11 @@ class GraphViewBase {
 
  protected:
   const MutableCsrBase& csr_;
+  CsrType csr_type_;
   timestamp_t timestamp_;
   size_t col_id_;
+  const void* csr_ptr_;
 };
-/**
-template <typename EDATA_T>
-class SingleGraphViewBase {
- public:
-  SingleGraphViewBase(const MutableCsrBase& csr, timestamp_t timestamp,
-                      size_t col_id, const TypedColumn<EDATA_T>* column)
-      : csr_(csr), timestamp_(timestamp), col_id_(col_id), column_(column) {}
-
-  bool exist(vid_t v) const {
-    if (csr_.get_type() == CsrType::TYPED) {
-      return (dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr_)
-                  .get_edge(v)
-                  .timestamp.load() <= timestamp_);
-    } else if (csr_.get_type() == CsrType::TABLE) {
-      return (dynamic_cast<const SingleTableMutableCsr&>(csr_)
-                  .get_edge(v)
-                  .timestamp.load() <= timestamp_);
-    } else {
-      return (dynamic_cast<const SingleStringMutableCsr&>(csr_)
-                  .get_edge(v)
-                  .timestamp.load() <= timestamp_);
-    }
-  }
-  struct NBR {
-    NBR() {}
-    NBR(const void* cur, const TypedColumn<EDATA_T>* column)
-        : cur_(cur), column_(column) {}
-    const void* cur_;
-    const TypedColumn<EDATA_T>* column_;
-    vid_t neighbor() const {
-      if (column_ == nullptr) {
-        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
-        return cur->neighbor;
-      }
-      auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
-      return cur->neighbor;
-    }
-    const EDATA_T& data() const {
-      if (column_ == nullptr) {
-        auto cur = static_cast<const MutableNbr<EDATA_T>*>(cur_);
-        return cur->data;
-      }
-      auto cur = static_cast<const MutableNbr<uint32_t>*>(cur_);
-      return (*column_)[cur->data];
-    }
-  };
-  const NBR& get_edge(vid_t v) const {
-    if (csr_.get_type() == CsrType::TYPED) {
-      const auto& nbr =
-          dynamic_cast<const SingleMutableCsr<EDATA_T>&>(csr_).get_edge(v);
-      return nbr_ = NBR(&nbr, nullptr);
-    } else if (csr_.get_type() == CsrType::TABLE) {
-      const auto& nbr =
-          dynamic_cast<const SingleTableMutableCsr&>(csr_).get_edge(v);
-      return nbr_ = NBR(&nbr, column_);
-    } else {
-      const auto& nbr =
-          dynamic_cast<const SingleStringMutableCsr&>(csr_).get_edge(v);
-      return nbr_ = NBR(&nbr, column_);
-    }
-  }
-
- private:
-  mutable NBR nbr_;
-  const MutableCsrBase& csr_;
-  timestamp_t timestamp_;
-  const TypedColumn<EDATA_T>* column_;
-  size_t col_id_;
-};
-*/
 
 template <typename EDATA_T>
 class SimpleGraphView : public GraphViewBase<EDATA_T> {
@@ -868,7 +851,31 @@ class ReadTransaction {
                                             label_t edge_label,
                                             size_t col_id = 0) const {
     auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
-    return GetEdges<EDATA_T>::get_edges(*csr, v, col_id, timestamp_);
+    if (csr->get_type() == CsrType::MULTIPLE_TYPED) {
+      auto csr_ptr = dynamic_cast<const MutableCsr<EDATA_T>*>(csr);
+      return GetEdges<EDATA_T>::get_edges(v, col_id, timestamp_,
+                                          CsrType::MULTIPLE_TYPED, csr);
+    } else {
+      auto csr_ptr = dynamic_cast<const TableMutableCsr*>(csr);
+      return GetEdges<EDATA_T>::get_edges(v, col_id, timestamp_,
+                                          CsrType::MULTIPLE_TABLE, csr);
+    }
+  }
+
+  AdjListViewBase<std::string_view> GetIncomingEdges(label_t v_label, vid_t v,
+                                                     label_t neighbor_label,
+                                                     label_t edge_label,
+                                                     size_t col_id = 0) const {
+    auto csr = graph_.get_ie_csr(v_label, neighbor_label, edge_label);
+    if (csr->get_type() == CsrType::MULTIPLE_STRING) {
+      auto csr_ptr = dynamic_cast<const StringMutableCsr*>(csr);
+      return GetEdges<std::string_view>::get_edges(
+          v, col_id, timestamp_, CsrType::MULTIPLE_TYPED, csr);
+    } else {
+      auto csr_ptr = dynamic_cast<const TableMutableCsr*>(csr);
+      return GetEdges<std::string_view>::get_edges(
+          v, col_id, timestamp_, CsrType::MULTIPLE_TABLE, csr);
+    }
   }
 
   template <typename EDATA_T>
@@ -877,7 +884,31 @@ class ReadTransaction {
                                             label_t edge_label,
                                             size_t col_id = 0) const {
     auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
-    return GetEdges<EDATA_T>::get_edges(*csr, v, col_id, timestamp_);
+    if (csr->get_type() == CsrType::MULTIPLE_TYPED) {
+      auto csr_ptr = dynamic_cast<const MutableCsr<EDATA_T>*>(csr);
+      return GetEdges<EDATA_T>::get_edges(v, col_id, timestamp_,
+                                          CsrType::MULTIPLE_TYPED, csr);
+    } else {
+      auto csr_ptr = dynamic_cast<const TableMutableCsr*>(csr);
+      return GetEdges<EDATA_T>::get_edges(v, col_id, timestamp_,
+                                          CsrType::MULTIPLE_TABLE, csr);
+    }
+  }
+
+  AdjListViewBase<std::string_view> GetOutgoingEdges(label_t v_label, vid_t v,
+                                                     label_t neighbor_label,
+                                                     label_t edge_label,
+                                                     size_t col_id = 0) const {
+    auto csr = graph_.get_oe_csr(v_label, neighbor_label, edge_label);
+    if (csr->get_type() == CsrType::MULTIPLE_STRING) {
+      auto csr_ptr = dynamic_cast<const StringMutableCsr*>(csr);
+      return GetEdges<std::string_view>::get_edges(
+          v, col_id, timestamp_, CsrType::MULTIPLE_TYPED, csr);
+    } else {
+      auto csr_ptr = dynamic_cast<const TableMutableCsr*>(csr);
+      return GetEdges<std::string_view>::get_edges(
+          v, col_id, timestamp_, CsrType::MULTIPLE_TABLE, csr);
+    }
   }
 
   template <typename EDATA_T>
