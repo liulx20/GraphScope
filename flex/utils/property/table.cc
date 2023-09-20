@@ -20,10 +20,10 @@ namespace gs {
 Table::Table() {}
 Table::~Table() {}
 
-void Table::init(const std::vector<std::string>& col_name,
+void Table::init(const std::string& prefix,
+                 const std::vector<std::string>& col_name,
                  const std::vector<PropertyType>& property_types,
-                 const std::vector<StorageStrategy>& strategies_,
-                 size_t max_row_num) {
+                 const std::vector<StorageStrategy>& strategies_) {
   size_t col_num = col_name.size();
   columns_.resize(col_num);
   auto strategies = strategies_;
@@ -33,10 +33,49 @@ void Table::init(const std::vector<std::string>& col_name,
     int col_id;
     col_id_indexer_.add(col_name[i], col_id);
     columns_[col_id] = CreateColumn(property_types[i], strategies[i]);
-    columns_[col_id]->init(max_row_num);
   }
   columns_.resize(col_id_indexer_.size());
+  for (size_t i = 0; i < columns_.size(); ++i) {
+    columns_[i]->open(prefix + ".col_" + std::to_string(i));
+  }
 
+  buildColumnPtrs();
+
+  grape::InArchive arc;
+  arc << col_name << property_types << strategies;
+  FILE* fp = fopen((prefix + ".meta").c_str(), "wb");
+  fwrite(arc.GetBuffer(), 1, arc.GetSize(), fp);
+  fclose(fp);
+}
+
+void Table::open(const std::string& prefix) {
+  std::vector<std::string> col_name;
+  std::vector<PropertyType> property_types;
+  std::vector<StorageStrategy> strategies;
+
+  grape::OutArchive arc;
+  FILE* fp = fopen((prefix + ".meta").c_str(), "rb");
+  fseek(fp, 0, SEEK_END);
+  size_t file_size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  std::vector<char> buf(file_size);
+  fread(buf.data(), 1, file_size, fp);
+  fclose(fp);
+  arc.SetSlice(buf.data(), file_size);
+  arc >> col_name >> property_types >> strategies;
+
+  size_t col_num = col_name.size();
+  columns_.resize(col_num);
+
+  for (size_t i = 0; i < col_num; ++i) {
+    int col_id;
+    col_id_indexer_.add(col_name[i], col_id);
+    columns_[col_id] = CreateColumn(property_types[i], strategies[i]);
+  }
+  columns_.resize(col_id_indexer_.size());
+  for (size_t i = 0; i < columns_.size(); ++i) {
+    columns_[i]->open(prefix + ".col_" + std::to_string(i));
+  }
   buildColumnPtrs();
 }
 
@@ -160,50 +199,10 @@ void Table::insert(size_t index, const std::vector<Any>& values,
   }
 }
 
-void Table::Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer,
-                      const std::string& prefix, size_t row_num) {
-  col_id_indexer_.Serialize(writer);
-  std::vector<PropertyType> types;
-  std::vector<StorageStrategy> stategies;
+void Table::resize(size_t row_num) {
   for (auto col : columns_) {
-    types.push_back(col->type());
-    stategies.push_back(col->storage_strategy());
+    col->resize(row_num);
   }
-  CHECK_EQ(types.size(), col_id_indexer_.size());
-  if (types.empty()) {
-    return;
-  }
-  CHECK(writer->Write(types.data(), sizeof(PropertyType) * types.size()));
-  CHECK(writer->Write(stategies.data(),
-                      sizeof(StorageStrategy) * stategies.size()));
-  size_t col_id = 0;
-  for (auto col : columns_) {
-    col->Serialize(prefix + ".col_" + std::to_string(col_id), row_num);
-    ++col_id;
-  }
-}
-
-void Table::Deserialize(std::unique_ptr<grape::LocalIOAdaptor>& reader,
-                        const std::string& prefix) {
-  col_id_indexer_.Deserialize(reader);
-  std::vector<PropertyType> types(col_id_indexer_.size());
-  std::vector<StorageStrategy> strategies(col_id_indexer_.size());
-  if (types.empty()) {
-    return;
-  }
-  CHECK(reader->Read(types.data(), sizeof(PropertyType) * types.size()));
-  CHECK(reader->Read(strategies.data(),
-                     sizeof(StorageStrategy) * strategies.size()));
-  columns_.resize(types.size());
-  for (size_t i = 0; i < types.size(); ++i) {
-    auto type = types[i];
-    auto strategy = strategies[i];
-    auto ptr = CreateColumn(type, strategy);
-    ptr->Deserialize(prefix + ".col_" + std::to_string(i));
-    columns_[i] = ptr;
-  }
-
-  buildColumnPtrs();
 }
 
 Any Table::at(size_t row_id, size_t col_id) {

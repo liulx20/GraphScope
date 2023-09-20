@@ -29,13 +29,11 @@ namespace gs {
 
 class GraphDB;
 class WalWriter;
-class ArenaAllocator;
 
 class GraphDBSession {
  public:
-  GraphDBSession(GraphDB& db, ArenaAllocator& alloc, WalWriter& logger,
-                 int thread_id)
-      : db_(db), alloc_(alloc), logger_(logger), thread_id_(thread_id) {
+  GraphDBSession(GraphDB& db, WalWriter& logger, int thread_id)
+      : db_(db), logger_(logger), thread_id_(thread_id) {
     for (auto& app : apps_) {
       app = nullptr;
     }
@@ -71,7 +69,6 @@ class GraphDBSession {
 
  private:
   GraphDB& db_;
-  ArenaAllocator& alloc_;
   WalWriter& logger_;
   int thread_id_;
 

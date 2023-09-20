@@ -22,13 +22,9 @@
 namespace gs {
 
 InsertTransaction::InsertTransaction(MutablePropertyFragment& graph,
-                                     ArenaAllocator& alloc, WalWriter& logger,
-                                     VersionManager& vm, timestamp_t timestamp)
-    : graph_(graph),
-      alloc_(alloc),
-      logger_(logger),
-      vm_(vm),
-      timestamp_(timestamp) {
+                                     WalWriter& logger, VersionManager& vm,
+                                     timestamp_t timestamp)
+    : graph_(graph), logger_(logger), vm_(vm), timestamp_(timestamp) {
   arc_.Resize(sizeof(WalHeader));
 }
 
@@ -117,7 +113,7 @@ void InsertTransaction::Commit() {
 
   logger_.append(arc_.GetBuffer(), arc_.GetSize());
   IngestWal(graph_, timestamp_, arc_.GetBuffer() + sizeof(WalHeader),
-            header->length, alloc_);
+            header->length);
 
   vm_.release_insert_timestamp(timestamp_);
   clear();
@@ -134,8 +130,8 @@ void InsertTransaction::Abort() {
 timestamp_t InsertTransaction::timestamp() const { return timestamp_; }
 
 void InsertTransaction::IngestWal(MutablePropertyFragment& graph,
-                                  uint32_t timestamp, char* data, size_t length,
-                                  ArenaAllocator& alloc) {
+                                  uint32_t timestamp, char* data,
+                                  size_t length) {
   grape::OutArchive arc;
   arc.SetSlice(data, length);
   while (!arc.Empty()) {
@@ -159,7 +155,7 @@ void InsertTransaction::IngestWal(MutablePropertyFragment& graph,
       CHECK(get_vertex_with_retries(graph, dst_label, dst, dst_lid));
 
       graph.IngestEdge(src_label, src_lid, dst_label, dst_lid, edge_label,
-                       timestamp, arc, alloc);
+                       timestamp, arc);
     } else {
       LOG(FATAL) << "Unexpected op-" << static_cast<int>(op_type);
     }

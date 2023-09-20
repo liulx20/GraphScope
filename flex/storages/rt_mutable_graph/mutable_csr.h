@@ -58,11 +58,6 @@ struct MutableNbr<grape::EmptyType> {
   };
 };
 
-grape::InArchive& operator<<(grape::InArchive& in_archive,
-                             const MutableNbr<std::string>& value);
-grape::OutArchive& operator>>(grape::OutArchive& out_archive,
-                              MutableNbr<std::string>& value);
-
 template <typename EDATA_T>
 class MutableNbrSlice {
  public:
@@ -124,147 +119,69 @@ struct UninitializedUtils {
   }
 };
 
-template <>
-struct UninitializedUtils<MutableNbr<std::string>> {
-  using T = MutableNbr<std::string>;
-  static void copy(T* new_buffer, T* old_buffer, size_t len) {
-    while (len--) {
-      new_buffer->neighbor = old_buffer->neighbor;
-      new_buffer->data = old_buffer->data;
-      new_buffer->timestamp.store(old_buffer->timestamp);
-      ++new_buffer;
-      ++old_buffer;
-    }
-  }
-};
-
 template <typename EDATA_T>
 class MutableAdjlist {
  public:
   using nbr_t = MutableNbr<EDATA_T>;
   using slice_t = MutableNbrSlice<EDATA_T>;
   using mut_slice_t = MutableNbrSliceMut<EDATA_T>;
-  MutableAdjlist() : buffer_(nullptr), size_(0), capacity_(0) {}
+  MutableAdjlist() : offset_(0), size_(0), capacity_(0) {}
   ~MutableAdjlist() {}
 
-  void init(nbr_t* ptr, int cap, int size) {
-    buffer_ = ptr;
+  void init(size_t offset, int cap, int size) {
+    offset_ = offset;
     capacity_ = cap;
     size_ = size;
   }
 
-  void batch_put_edge(vid_t neighbor, const EDATA_T& data, timestamp_t ts = 0) {
+  void batch_put_edge(mmap_array<nbr_t>& nbr_list, vid_t neighbor,
+                      const EDATA_T& data, timestamp_t ts = 0) {
     CHECK_LT(size_, capacity_);
-    auto& nbr = buffer_[size_++];
+    auto& nbr = nbr_list[offset_ + size_];
     nbr.neighbor = neighbor;
     nbr.data = data;
     nbr.timestamp.store(ts);
+    ++size_;
   }
 
-  void put_edge(vid_t neighbor, const EDATA_T& data, timestamp_t ts,
-                ArenaAllocator& allocator) {
+  void put_edge(mmap_array<nbr_t>& nbr_list, std::atomic<size_t>& size,
+                vid_t neighbor, const EDATA_T& data, timestamp_t ts) {
     if (size_ == capacity_) {
       capacity_ += (((capacity_) >> 1) + 1);
-      auto* new_buffer =
-          static_cast<nbr_t*>(allocator.allocate(capacity_ * sizeof(nbr_t)));
-      UninitializedUtils<nbr_t>::copy(new_buffer, buffer_, size_);
-      buffer_ = new_buffer;
+      size_t new_offset = size.fetch_add(capacity_);
+      UninitializedUtils<nbr_t>::copy(nbr_list.data() + new_offset,
+                                      nbr_list.data() + offset_, size_);
+      offset_ = new_offset;
     }
-    auto& nbr = buffer_[size_.fetch_add(1)];
+    auto& nbr = nbr_list[offset_ + size_.fetch_add(1)];
     nbr.neighbor = neighbor;
     nbr.data = data;
     nbr.timestamp.store(ts);
   }
 
-  slice_t get_edges() const {
+  slice_t get_edges(const mmap_array<nbr_t>& nbr_list) const {
     slice_t ret;
     ret.set_size(size_.load(std::memory_order_acquire));
-    ret.set_begin(buffer_);
+    ret.set_begin(nbr_list.data() + offset_);
     return ret;
   }
 
-  mut_slice_t get_edges_mut() {
+  mut_slice_t get_edges_mut(mmap_array<nbr_t>& nbr_list) {
     mut_slice_t ret;
     ret.set_size(size_.load());
-    ret.set_begin(buffer_);
+    ret.set_begin(nbr_list.data() + offset_);
     return ret;
   }
 
   int capacity() const { return capacity_; }
   int size() const { return size_; }
-  const nbr_t* data() const { return buffer_; }
-  nbr_t* data() { return buffer_; }
+  const nbr_t* data(const mmap_array<nbr_t>& nbr_list) const {
+    return nbr_list.data() + offset_;
+  }
+  nbr_t* data(mmap_array<nbr_t>& nbr_list) { return nbr_list.data() + offset_; }
 
  private:
-  nbr_t* buffer_;
-  std::atomic<int> size_;
-  int capacity_;
-};
-
-template <>
-class MutableAdjlist<std::string> {
- public:
-  using nbr_t = MutableNbr<std::string>;
-  using slice_t = MutableNbrSlice<std::string>;
-  using mut_slice_t = MutableNbrSliceMut<std::string>;
-  MutableAdjlist() : buffer_(nullptr), size_(0), capacity_(0) {}
-  ~MutableAdjlist() {}
-
-  void init(nbr_t* ptr, int cap, int size) {
-    buffer_ = ptr;
-    capacity_ = cap;
-    size_ = size;
-  }
-
-  void batch_put_edge(vid_t neighbor, const std::string& data,
-                      timestamp_t ts = 0) {
-    CHECK_LT(size_, capacity_);
-    auto& nbr = buffer_[size_++];
-    nbr.neighbor = neighbor;
-    nbr.data = data;
-    nbr.timestamp.store(ts);
-  }
-
-  void put_edge(vid_t neighbor, const std::string& data, timestamp_t ts,
-                ArenaAllocator& allocator) {
-    if (size_ == capacity_) {
-      capacity_ += (((capacity_) >> 1) + 1);
-      auto* new_buffer = static_cast<nbr_t*>(allocator.allocate_typed(
-          sizeof(nbr_t), capacity_,
-          [](void* ptr) { static_cast<nbr_t*>(ptr)->~nbr_t(); }));
-      for (int i = 0; i < capacity_; ++i) {
-        new (&new_buffer[i]) nbr_t();
-      }
-      UninitializedUtils<nbr_t>::copy(new_buffer, buffer_, size_);
-      buffer_ = new_buffer;
-    }
-    auto& nbr = buffer_[size_.fetch_add(1)];
-    nbr.neighbor = neighbor;
-    nbr.data = data;
-    nbr.timestamp.store(ts);
-  }
-
-  slice_t get_edges() const {
-    slice_t ret;
-    ret.set_size(size_.load());
-    ret.set_begin(buffer_);
-    return ret;
-  }
-
-  mut_slice_t get_edges_mut() {
-    mut_slice_t ret;
-    ret.set_size(size_.load());
-    ret.set_begin(buffer_);
-    return ret;
-  }
-
-  int capacity() const { return capacity_; }
-  int size() const { return size_; }
-  const nbr_t* data() const { return buffer_; }
-  nbr_t* data() { return buffer_; }
-
- private:
-  nbr_t* buffer_;
+  size_t offset_;
   std::atomic<int> size_;
   int capacity_;
 };
@@ -302,19 +219,20 @@ class MutableCsrBase {
   MutableCsrBase() {}
   virtual ~MutableCsrBase() {}
 
-  virtual void batch_init(vid_t vnum, const std::vector<int>& degree) = 0;
+  virtual void batch_init(const std::string& filename, vid_t vnum,
+                          const std::vector<int>& degree) = 0;
+
+  virtual void open(const std::string& filename) = 0;
+
+  virtual void resize(vid_t vnum) = 0;
 
   virtual void put_generic_edge(vid_t src, vid_t dst, const Any& data,
-                                timestamp_t ts, ArenaAllocator& alloc) = 0;
-
-  virtual void Serialize(const std::string& path) = 0;
-
-  virtual void Deserialize(const std::string& path) = 0;
+                                timestamp_t ts) = 0;
 
   virtual void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                           timestamp_t ts, ArenaAllocator& alloc) = 0;
+                           timestamp_t ts) = 0;
   virtual void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                                timestamp_t ts, ArenaAllocator& alloc) = 0;
+                                timestamp_t ts) = 0;
 
   virtual std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
       vid_t v) const = 0;
@@ -390,84 +308,127 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
   using slice_t = MutableNbrSlice<EDATA_T>;
   using mut_slice_t = MutableNbrSliceMut<EDATA_T>;
 
-  MutableCsr() : adj_lists_(nullptr), locks_(nullptr), capacity_(0) {}
+  MutableCsr() : locks_(nullptr) {}
   ~MutableCsr() {
-    if (adj_lists_ != nullptr) {
-      free(adj_lists_);
-    }
     if (locks_ != nullptr) {
       delete[] locks_;
     }
+    nbr_list_.resize(nbr_list_size_.load());
   }
 
-  void batch_init(vid_t vnum, const std::vector<int>& degree) override {
-    capacity_ = vnum + (vnum + 3) / 4;
-    if (capacity_ == 0) {
-      capacity_ = 1024;
+  void batch_init(const std::string& prefix, vid_t vnum,
+                  const std::vector<int>& degree) override {
+    size_t vertex_capacity = vnum + (vnum + 3) / 4;
+    if (vertex_capacity == 0) {
+      vertex_capacity = 1024;
     }
+    adj_lists_.open(prefix + ".adj");
+    adj_lists_.resize(vertex_capacity);
 
-    adj_lists_ = static_cast<adjlist_t*>(malloc(sizeof(adjlist_t) * capacity_));
-    locks_ = new grape::SpinLock[capacity_];
+    locks_ = new grape::SpinLock[vertex_capacity];
+
     size_t edge_capacity = 0;
     for (auto d : degree) {
       edge_capacity += (d + (d + 4) / 5);
     }
-    init_nbr_list_.resize(edge_capacity);
+    nbr_list_size_.store(edge_capacity);
+    edge_capacity += (edge_capacity >> 2) + 1;
+    nbr_list_.open(prefix + ".nbr");
+    nbr_list_.resize(edge_capacity);
+    nbr_list_capacity_ = edge_capacity;
 
-    nbr_t* ptr = init_nbr_list_.data();
+    size_t offset = 0;
     for (vid_t i = 0; i < vnum; ++i) {
       size_t cur_cap = degree[i] + (degree[i] + 4) / 5;
-      adj_lists_[i].init(ptr, cur_cap, 0);
-      ptr += cur_cap;
+      adj_lists_[i].init(offset, cur_cap, 0);
+      offset += cur_cap;
     }
-    for (vid_t i = vnum; i < capacity_; ++i) {
-      adj_lists_[i].init(ptr, 0, 0);
+    for (vid_t i = vnum; i < vertex_capacity; ++i) {
+      adj_lists_[i].init(offset, 0, 0);
+    }
+  }
+
+  void open(const std::string& prefix) override {
+    adj_lists_.open(prefix + ".adj");
+    size_t size = adj_lists_.size();
+    size_t capacity = size;
+    capacity += (capacity >> 2);
+    adj_lists_.resize(capacity);
+
+    locks_ = new grape::SpinLock[capacity];
+    nbr_list_.open(prefix + ".nbr");
+    nbr_list_size_.store(nbr_list_.size());
+    nbr_list_capacity_ = nbr_list_size_.load();
+    nbr_list_capacity_ += (nbr_list_capacity_ >> 2);
+    nbr_list_.resize(nbr_list_capacity_);
+
+    for (size_t k = size; k != capacity; ++k) {
+      adj_lists_[k].init(nbr_list_size_.load(), 0, 0);
+    }
+  }
+
+  void resize(vid_t vnum) override {
+    if (vnum > adj_lists_.size()) {
+      size_t old_size = adj_lists_.size();
+      adj_lists_.resize(vnum);
+      for (size_t k = old_size; k != vnum; ++k) {
+        adj_lists_[k].init(nbr_list_size_.load(), 0, 0);
+      }
+
+      size_t edge_capacity = nbr_list_size_.load();
+      edge_capacity += (edge_capacity >> 2);
+
+      if (edge_capacity > nbr_list_capacity_) {
+        nbr_list_.resize(edge_capacity);
+        nbr_list_capacity_ = edge_capacity;
+      }
+    } else {
+      adj_lists_.resize(vnum);
+      nbr_list_.resize(nbr_list_size_.load());
+      nbr_list_capacity_ = nbr_list_size_.load();
     }
   }
 
   void batch_put_edge(vid_t src, vid_t dst, const EDATA_T& data,
                       timestamp_t ts = 0) override {
-    adj_lists_[src].batch_put_edge(dst, data, ts);
+    adj_lists_[src].batch_put_edge(nbr_list_, dst, data, ts);
   }
 
-  void put_generic_edge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
-                        ArenaAllocator& alloc) override {
+  void put_generic_edge(vid_t src, vid_t dst, const Any& data,
+                        timestamp_t ts) override {
     EDATA_T value;
     ConvertAny<EDATA_T>::to(data, value);
-    put_edge(src, dst, value, ts, alloc);
+    put_edge(src, dst, value, ts);
   }
 
-  void put_edge(vid_t src, vid_t dst, const EDATA_T& data, timestamp_t ts,
-                ArenaAllocator& allocator) {
-    CHECK_LT(src, capacity_);
+  void put_edge(vid_t src, vid_t dst, const EDATA_T& data, timestamp_t ts) {
+    CHECK_LT(src, adj_lists_.size());
     locks_[src].lock();
-    adj_lists_[src].put_edge(dst, data, ts, allocator);
+    adj_lists_[src].put_edge(nbr_list_, nbr_list_size_, dst, data, ts);
     locks_[src].unlock();
   }
 
   int degree(vid_t i) const { return adj_lists_[i].size(); }
 
   slice_t get_edges(vid_t i) const override {
-    return adj_lists_[i].get_edges();
+    return adj_lists_[i].get_edges(nbr_list_);
   }
-  mut_slice_t get_edges_mut(vid_t i) { return adj_lists_[i].get_edges_mut(); }
+  mut_slice_t get_edges_mut(vid_t i) {
+    return adj_lists_[i].get_edges_mut(nbr_list_);
+  }
 
-  void Serialize(const std::string& path) override;
-
-  void Deserialize(const std::string& path) override;
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {
+  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                   timestamp_t ts) override {
     EDATA_T value;
     arc >> value;
-    put_edge(src, dst, value, ts, alloc);
+    put_edge(src, dst, value, ts);
   }
 
   void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
+                        timestamp_t ts) override {
     EDATA_T value;
     arc.Peek<EDATA_T>(value);
-    put_edge(src, dst, value, ts, alloc);
+    put_edge(src, dst, value, ts);
   }
 
   std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
@@ -484,119 +445,11 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
   }
 
  private:
-  adjlist_t* adj_lists_;
   grape::SpinLock* locks_;
-  vid_t capacity_;
-  mmap_array<nbr_t> init_nbr_list_;
-};
-
-template <>
-class MutableCsr<std::string> : public TypedMutableCsrBase<std::string> {
- public:
-  using nbr_t = MutableNbr<std::string>;
-  using adjlist_t = MutableAdjlist<std::string>;
-  using slice_t = MutableNbrSlice<std::string>;
-  using mut_slice_t = MutableNbrSliceMut<std::string>;
-
-  MutableCsr() : adj_lists_(nullptr), locks_(nullptr), capacity_(0) {}
-  ~MutableCsr() {
-    if (adj_lists_ != nullptr) {
-      free(adj_lists_);
-    }
-    if (locks_ != nullptr) {
-      delete[] locks_;
-    }
-  }
-
-  void batch_init(vid_t vnum, const std::vector<int>& degree) override {
-    capacity_ = vnum + (vnum + 3) / 4;
-    if (capacity_ == 0) {
-      capacity_ = 1024;
-    }
-
-    adj_lists_ = static_cast<adjlist_t*>(malloc(sizeof(adjlist_t) * capacity_));
-    locks_ = new grape::SpinLock[capacity_];
-    size_t edge_capacity = 0;
-    for (auto d : degree) {
-      edge_capacity += (d + (d + 4) / 5);
-    }
-    nbr_list_.resize(edge_capacity);
-
-    nbr_t* ptr = nbr_list_.data();
-    for (vid_t i = 0; i < vnum; ++i) {
-      size_t cur_cap = degree[i] + (degree[i] + 4) / 5;
-      adj_lists_[i].init(ptr, cur_cap, 0);
-      ptr += cur_cap;
-    }
-    for (vid_t i = vnum; i < capacity_; ++i) {
-      adj_lists_[i].init(NULL, 0, 0);
-    }
-  }
-
-  void batch_put_edge(vid_t src, vid_t dst, const std::string& data,
-                      timestamp_t ts = 0) override {
-    adj_lists_[src].batch_put_edge(dst, data, ts);
-  }
-
-  void put_generic_edge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
-                        ArenaAllocator& alloc) override {
-    std::string value(data.value.s);
-    put_edge(src, dst, value, ts, alloc);
-  }
-
-  void put_edge(vid_t src, vid_t dst, const std::string& data, timestamp_t ts,
-                ArenaAllocator& allocator) {
-    CHECK_LT(src, capacity_);
-    locks_[src].lock();
-    adj_lists_[src].put_edge(dst, data, ts, allocator);
-    locks_[src].unlock();
-  }
-
-  int degree(vid_t i) const { return adj_lists_[i].size(); }
-
-  slice_t get_edges(vid_t i) const override {
-    return adj_lists_[i].get_edges();
-  }
-  mut_slice_t get_edges_mut(vid_t i) { return adj_lists_[i].get_edges_mut(); }
-
-  void Serialize(const std::string& path) override;
-
-  void Deserialize(const std::string& path) override;
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {
-    std::string value;
-    arc >> value;
-    put_edge(src, dst, value, ts, alloc);
-  }
-
-  void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
-    std::string value;
-    arc.Peek<std::string>(value);
-    put_edge(src, dst, value, ts, alloc);
-  }
-
-  std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
-      vid_t v) const override {
-    return std::make_shared<TypedMutableCsrConstEdgeIter<std::string>>(
-        get_edges(v));
-  }
-
-  MutableCsrConstEdgeIterBase* edge_iter_raw(vid_t v) const override {
-    return new TypedMutableCsrConstEdgeIter<std::string>(get_edges(v));
-  }
-
-  std::shared_ptr<MutableCsrEdgeIterBase> edge_iter_mut(vid_t v) override {
-    return std::make_shared<TypedMutableCsrEdgeIter<std::string>>(
-        get_edges_mut(v));
-  }
-
- private:
-  adjlist_t* adj_lists_;
-  std::vector<nbr_t> nbr_list_;
-  grape::SpinLock* locks_;
-  vid_t capacity_;
+  mmap_array<adjlist_t> adj_lists_;
+  mmap_array<nbr_t> nbr_list_;
+  std::atomic<size_t> nbr_list_size_;
+  size_t nbr_list_capacity_;
 };
 
 template <typename EDATA_T>
@@ -609,11 +462,37 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
   SingleMutableCsr() {}
   ~SingleMutableCsr() {}
 
-  void batch_init(vid_t vnum, const std::vector<int>& degree) override {
+  void batch_init(const std::string& prefix, vid_t vnum,
+                  const std::vector<int>& degree) override {
     vid_t capacity = vnum + (vnum + 3) / 4;
+    nbr_list_.open(prefix + ".nbr");
     nbr_list_.resize(capacity);
     for (vid_t i = 0; i < capacity; ++i) {
       nbr_list_[i].timestamp.store(std::numeric_limits<timestamp_t>::max());
+    }
+  }
+
+  void open(const std::string& prefix) override {
+    nbr_list_.open(prefix + ".nbr");
+    size_t size = nbr_list_.size();
+    size_t capacity = size;
+    capacity += (capacity >> 2);
+
+    nbr_list_.resize(capacity);
+    for (size_t k = size; k != capacity; ++k) {
+      nbr_list_[k].timestamp.store(std::numeric_limits<timestamp_t>::max());
+    }
+  }
+
+  void resize(vid_t vnum) override {
+    if (vnum > nbr_list_.size()) {
+      size_t old_size = nbr_list_.size();
+      nbr_list_.resize(vnum);
+      for (size_t k = old_size; k != vnum; ++k) {
+        nbr_list_[k].timestamp.store(std::numeric_limits<timestamp_t>::max());
+      }
+    } else {
+      nbr_list_.resize(vnum);
     }
   }
 
@@ -626,8 +505,8 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
     nbr_list_[src].timestamp.store(ts);
   }
 
-  void put_generic_edge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
-                        ArenaAllocator&) override {
+  void put_generic_edge(vid_t src, vid_t dst, const Any& data,
+                        timestamp_t ts) override {
     EDATA_T value;
     ConvertAny<EDATA_T>::to(data, value);
     put_edge(src, dst, value, ts);
@@ -667,19 +546,15 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
 
   const nbr_t& get_edge(vid_t i) const { return nbr_list_[i]; }
 
-  void Serialize(const std::string& path) override;
-
-  void Deserialize(const std::string& path) override;
-
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {
+  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                   timestamp_t ts) override {
     EDATA_T value;
     arc >> value;
     put_edge(src, dst, value, ts);
   }
 
   void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        timestamp_t ts, ArenaAllocator& alloc) override {
+                        timestamp_t ts) override {
     EDATA_T value;
     arc.Peek<EDATA_T>(value);
     put_edge(src, dst, value, ts);
@@ -711,28 +586,29 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T> {
   EmptyCsr() = default;
   ~EmptyCsr() = default;
 
-  void batch_init(vid_t vnum, const std::vector<int>& degree) override {}
+  void batch_init(const std::string& filename, vid_t vnum,
+                  const std::vector<int>& degree) override {}
+
+  void open(const std::string& prefix) override {}
+
+  void resize(vid_t vnum) override {}
 
   slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
 
-  void put_generic_edge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
-                        ArenaAllocator& alloc) override {}
-
-  void Serialize(const std::string& path) override {}
-
-  void Deserialize(const std::string& path) override {}
+  void put_generic_edge(vid_t src, vid_t dst, const Any& data,
+                        timestamp_t ts) override {}
 
   void batch_put_edge(vid_t src, vid_t dst, const EDATA_T& data,
                       timestamp_t ts = 0) override {}
 
-  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc, timestamp_t ts,
-                   ArenaAllocator& alloc) override {
+  void ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
+                   timestamp_t ts) override {
     EDATA_T value;
     arc >> value;
   }
 
   void peek_ingest_edge(vid_t src, vid_t dst, grape::OutArchive& arc,
-                        const timestamp_t ts, ArenaAllocator& alloc) override {}
+                        const timestamp_t ts) override {}
 
   std::shared_ptr<MutableCsrConstEdgeIterBase> edge_iter(
       vid_t v) const override {

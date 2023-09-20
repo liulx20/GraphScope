@@ -25,13 +25,9 @@
 namespace gs {
 
 SingleEdgeInsertTransaction::SingleEdgeInsertTransaction(
-    MutablePropertyFragment& graph, ArenaAllocator& alloc, WalWriter& logger,
-    VersionManager& vm, timestamp_t timestamp)
-    : graph_(graph),
-      alloc_(alloc),
-      logger_(logger),
-      vm_(vm),
-      timestamp_(timestamp) {
+    MutablePropertyFragment& graph, WalWriter& logger, VersionManager& vm,
+    timestamp_t timestamp)
+    : graph_(graph), logger_(logger), vm_(vm), timestamp_(timestamp) {
   arc_.Resize(sizeof(WalHeader));
 }
 
@@ -96,7 +92,7 @@ void SingleEdgeInsertTransaction::Commit() {
   arc.SetSlice(arc_.GetBuffer() + sizeof(WalHeader) + 20,
                arc_.GetSize() - sizeof(WalHeader) - 20);
   graph_.IngestEdge(src_label_, src_vid_, dst_label_, dst_vid_, edge_label_,
-                    timestamp_, arc, alloc_);
+                    timestamp_, arc);
   vm_.release_insert_timestamp(timestamp_);
   clear();
 }

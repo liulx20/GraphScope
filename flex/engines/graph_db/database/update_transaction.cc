@@ -25,10 +25,9 @@
 namespace gs {
 
 UpdateTransaction::UpdateTransaction(MutablePropertyFragment& graph,
-                                     ArenaAllocator& alloc, WalWriter& logger,
-                                     VersionManager& vm, timestamp_t timestamp)
+                                     WalWriter& logger, VersionManager& vm,
+                                     timestamp_t timestamp)
     : graph_(graph),
-      alloc_(alloc),
       logger_(logger),
       vm_(vm),
       timestamp_(timestamp),
@@ -48,8 +47,11 @@ UpdateTransaction::UpdateTransaction(MutablePropertyFragment& graph,
   extra_vertex_properties_.resize(vertex_label_num_);
   for (size_t i = 0; i < vertex_label_num_; ++i) {
     const Table& table = graph_.get_vertex_table(i);
-    extra_vertex_properties_[i].init(table.column_names(), table.column_types(),
-                                     {}, 4096);
+    char tmp_table_name[L_tmpnam];
+    tmpnam(tmp_table_name);
+    extra_vertex_properties_[i].init(tmp_table_name, table.column_names(),
+                                     table.column_types(), {});
+    extra_vertex_properties_[i].resize(4096);
   }
 
   size_t csr_num = 2 * vertex_label_num_ * vertex_label_num_ * edge_label_num_;
@@ -394,8 +396,8 @@ bool UpdateTransaction::GetUpdatedEdgeData(bool dir, label_t label, vid_t v,
 }
 
 void UpdateTransaction::IngestWal(MutablePropertyFragment& graph,
-                                  uint32_t timestamp, char* data, size_t length,
-                                  ArenaAllocator& alloc) {
+                                  uint32_t timestamp, char* data,
+                                  size_t length) {
   std::vector<IdIndexer<oid_t, vid_t>> added_vertices;
   std::vector<vid_t> added_vertices_base;
   std::vector<vid_t> vertex_nums;
@@ -419,8 +421,11 @@ void UpdateTransaction::IngestWal(MutablePropertyFragment& graph,
   extra_vertex_properties.resize(vertex_label_num);
   for (size_t i = 0; i < vertex_label_num; ++i) {
     const Table& table = graph.get_vertex_table(i);
-    extra_vertex_properties[i].init(table.column_names(), table.column_types(),
-                                    {}, 4096);
+    char tmp_table_name[L_tmpnam];
+    tmpnam(tmp_table_name);
+    extra_vertex_properties[i].init(tmp_table_name, table.column_names(),
+                                    table.column_types(), {});
+    extra_vertex_properties[i].resize(4096);
   }
 
   size_t csr_num = 2 * vertex_label_num * vertex_label_num * edge_label_num;
@@ -451,7 +456,7 @@ void UpdateTransaction::IngestWal(MutablePropertyFragment& graph,
       CHECK(graph.get_lid(src_label, src, src_vid));
       CHECK(graph.get_lid(dst_label, dst, dst_vid));
       graph.IngestEdge(src_label, src_vid, dst_label, dst_vid, edge_label,
-                       timestamp, arc, alloc);
+                       timestamp, arc);
     } else if (op_type == 2) {
       label_t label;
       oid_t oid;
@@ -627,7 +632,7 @@ void UpdateTransaction::applyEdgesUpdates() {
           auto& edge_data = updated_edge_data_[oe_csr_index].at(v);
           for (auto u : add_list) {
             auto value = edge_data.at(u);
-            csr->put_generic_edge(v, u, value, timestamp_, alloc_);
+            csr->put_generic_edge(v, u, value, timestamp_);
           }
         }
       }
@@ -668,7 +673,7 @@ void UpdateTransaction::applyEdgesUpdates() {
           auto& edge_data = updated_edge_data_[ie_csr_index].at(v);
           for (auto u : add_list) {
             auto value = edge_data.at(u);
-            csr->put_generic_edge(v, u, value, timestamp_, alloc_);
+            csr->put_generic_edge(v, u, value, timestamp_);
           }
         }
       }

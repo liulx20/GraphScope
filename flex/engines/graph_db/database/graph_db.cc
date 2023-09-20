@@ -23,7 +23,7 @@ namespace gs {
 
 struct SessionLocalContext {
   SessionLocalContext(GraphDB& db, int thread_id)
-      : session(db, allocator, logger, thread_id) {}
+      : session(db, logger, thread_id) {}
   ~SessionLocalContext() { logger.close(); }
 
   ArenaAllocator allocator;
@@ -48,46 +48,18 @@ GraphDB& GraphDB::get() {
   return db;
 }
 
-void GraphDB::Init(const Schema& schema, const LoadingConfig& load_config,
-                   const std::string& data_dir, int thread_num) {
+void GraphDB::Init(const Schema& schema, const std::string& data_dir,
+                   int thread_num) {
   std::filesystem::path data_dir_path(data_dir);
   if (!std::filesystem::exists(data_dir_path)) {
-    std::filesystem::create_directory(data_dir_path);
+    LOG(FATAL) << "Data directory does not exist";
   }
 
-  std::filesystem::path serial_path = data_dir_path / "init_snapshot.bin";
-  if (!std::filesystem::exists(serial_path)) {
-    if (!load_config.GetVertexLoadingMeta().empty() ||
-        !load_config.GetEdgeLoadingMeta().empty()) {
-      LOG(INFO) << "Initializing graph db through bulk loading";
-      {
-        MutablePropertyFragment graph;
-        auto loader = LoaderFactory::CreateFragmentLoader(schema, load_config,
-                                                          thread_num);
-        loader->LoadFragment(graph);
-        graph.Serialize(data_dir_path.string());
-      }
-      graph_.Deserialize(data_dir_path.string());
-    } else {
-      LOG(INFO) << "Initializing empty graph db";
-      auto loader =
-          LoaderFactory::CreateFragmentLoader(schema, load_config, thread_num);
-      loader->LoadFragment(graph_);
-      graph_.Serialize(data_dir_path.string());
-    }
-  } else {
-    LOG(INFO) << "Initializing graph db from data files of work directory";
-    if (!load_config.GetVertexLoadingMeta().empty() ||
-        !load_config.GetEdgeLoadingMeta().empty()) {
-      LOG(WARNING) << "Bulk loading is ignored because data files of work "
-                      "directory exist";
-    }
-    graph_.Deserialize(data_dir_path.string());
-    if (!graph_.schema().Equals(schema)) {
-      LOG(FATAL)
-          << "Schema of work directory is not compatible with the given schema";
-    }
+  std::filesystem::path schema_path = data_dir_path / "schema";
+  if (!std::filesystem::exists(schema_path)) {
+    LOG(FATAL) << "Schema file does not exist";
   }
+  graph_.Open(data_dir_path.string());
 
   std::filesystem::path wal_dir = data_dir_path / "wal";
   if (!std::filesystem::exists(wal_dir)) {
@@ -195,15 +167,13 @@ static void IngestWalRange(SessionLocalContext* contexts,
   for (int i = 0; i < thread_num; ++i) {
     threads[i] = std::thread(
         [&](int tid) {
-          auto& alloc = contexts[tid].allocator;
           while (true) {
             uint32_t got_ts = cur_ts.fetch_add(1);
             if (got_ts >= to) {
               break;
             }
             const auto& unit = parser.get_insert_wal(got_ts);
-            InsertTransaction::IngestWal(graph, got_ts, unit.ptr, unit.size,
-                                         alloc);
+            InsertTransaction::IngestWal(graph, got_ts, unit.ptr, unit.size);
             if (got_ts % 1000000 == 0) {
               LOG(INFO) << "Ingested " << got_ts << " WALs";
             }
@@ -224,8 +194,8 @@ void GraphDB::ingestWals(const std::vector<std::string>& wals, int thread_num) {
     if (from_ts < to_ts) {
       IngestWalRange(contexts_, graph_, parser, from_ts, to_ts, thread_num);
     }
-    UpdateTransaction::IngestWal(graph_, to_ts, update_wal.ptr, update_wal.size,
-                                 contexts_[0].allocator);
+    UpdateTransaction::IngestWal(graph_, to_ts, update_wal.ptr,
+                                 update_wal.size);
     from_ts = to_ts + 1;
   }
   if (from_ts <= parser.last_ts()) {

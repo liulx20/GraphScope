@@ -18,8 +18,10 @@
 
 namespace gs {
 
-BasicFragmentLoader::BasicFragmentLoader(const Schema& schema)
+BasicFragmentLoader::BasicFragmentLoader(const Schema& schema,
+                                         const std::string& prefix)
     : schema_(schema),
+      work_dir_(prefix),
       vertex_label_num_(schema_.vertex_label_num()),
       edge_label_num_(schema_.edge_label_num()) {
   vertex_data_.resize(vertex_label_num_);
@@ -27,18 +29,20 @@ BasicFragmentLoader::BasicFragmentLoader(const Schema& schema)
   oe_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
   lf_indexers_.resize(vertex_label_num_);
 
-  init_vertex_data();
+  std::filesystem::create_directories(prefix + "/data");
+  init_vertex_data(prefix + "/data");
 }
 
-void BasicFragmentLoader::init_vertex_data() {
+void BasicFragmentLoader::init_vertex_data(const std::string& prefix) {
   for (label_t v_label = 0; v_label < vertex_label_num_; v_label++) {
     auto& v_data = vertex_data_[v_label];
     auto label_name = schema_.get_vertex_label_name(v_label);
     auto& property_types = schema_.get_vertex_properties(v_label);
     auto& property_names = schema_.get_vertex_property_names(v_label);
-    v_data.init(property_names, property_types,
-                schema_.get_vertex_storage_strategies(label_name),
-                schema_.get_max_vnum(label_name));
+    v_data.init(prefix + "/vtable_" + std::to_string(v_label), property_names,
+                property_types,
+                schema_.get_vertex_storage_strategies(label_name));
+    v_data.resize(schema_.get_max_vnum(label_name));
   }
   VLOG(10) << "Finish init vertex data";
 }
@@ -81,9 +85,10 @@ void BasicFragmentLoader::AddVertexBatch(
 }
 
 void BasicFragmentLoader::FinishAddingVertex(
-    label_t v_label, const IdIndexer<oid_t, vid_t>& indexer) {
+    label_t v_label, const std::string& filename,
+    const IdIndexer<oid_t, vid_t>& indexer) {
   CHECK(v_label < vertex_label_num_);
-  build_lf_indexer(indexer, lf_indexers_[v_label]);
+  build_lf_indexer(indexer, filename, lf_indexers_[v_label]);
 }
 
 const LFIndexer<vid_t>& BasicFragmentLoader::GetLFIndexer(

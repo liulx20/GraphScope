@@ -225,7 +225,6 @@ int main(int argc, char** argv) {
                                    "codegen binary path")(
       "graph-config,g", bpo::value<std::string>(), "graph schema config file")(
       "data-path,a", bpo::value<std::string>(), "data directory path")(
-      "bulk-load,l", bpo::value<std::string>(), "bulk-load config file")(
       "plugin-dir,p", bpo::value<std::string>(), "plugin directory path")(
       "gie-home,h", bpo::value<std::string>(), "path to gie home")(
       "ir-compiler-prop,i", bpo::value<std::string>(),
@@ -249,7 +248,6 @@ int main(int argc, char** argv) {
   uint32_t http_port;
   std::string graph_schema_path;
   std::string data_path;
-  std::string bulk_load_config_path;
   std::string plugin_dir;
 
   if (vm.count("server-config") != 0) {
@@ -277,17 +275,12 @@ int main(int argc, char** argv) {
     return -1;
   }
   data_path = vm["data-path"].as<std::string>();
-  if (vm.count("bulk-load")) {
-    bulk_load_config_path = vm["bulk-load"].as<std::string>();
-  }
 
   double t0 = -grape::GetCurrentTime();
   auto& db = gs::GraphDB::get();
 
   auto schema = gs::Schema::LoadFromYaml(graph_schema_path);
-  auto loading_config =
-      gs::LoadingConfig::ParseFromYaml(schema, bulk_load_config_path);
-  db.Init(schema, loading_config, data_path, shard_num);
+  db.Init(schema, data_path, shard_num);
 
   t0 += grape::GetCurrentTime();
 

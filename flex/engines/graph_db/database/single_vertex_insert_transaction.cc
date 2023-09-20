@@ -25,13 +25,9 @@
 namespace gs {
 
 SingleVertexInsertTransaction::SingleVertexInsertTransaction(
-    MutablePropertyFragment& graph, ArenaAllocator& alloc, WalWriter& logger,
-    VersionManager& vm, timestamp_t timestamp)
-    : graph_(graph),
-      alloc_(alloc),
-      logger_(logger),
-      vm_(vm),
-      timestamp_(timestamp) {
+    MutablePropertyFragment& graph, WalWriter& logger, VersionManager& vm,
+    timestamp_t timestamp)
+    : graph_(graph), logger_(logger), vm_(vm), timestamp_(timestamp) {
   arc_.Resize(sizeof(WalHeader));
 }
 SingleVertexInsertTransaction::~SingleVertexInsertTransaction() { Abort(); }
@@ -185,7 +181,7 @@ void SingleVertexInsertTransaction::ingestWal() {
       }
 
       graph_.IngestEdge(src_label, src_vid, dst_label, dst_vid, edge_label,
-                        timestamp_, arc, alloc_);
+                        timestamp_, arc);
     } else {
       LOG(FATAL) << "Unexpected op-" << static_cast<int>(op_type);
     }

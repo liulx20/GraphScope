@@ -29,7 +29,9 @@ class ColumnBase {
  public:
   virtual ~ColumnBase() {}
 
-  virtual void init(size_t max_vnum) = 0;
+  virtual void open(const std::string& filename) = 0;
+
+  virtual void resize(size_t size) = 0;
 
   virtual PropertyType type() const = 0;
 
@@ -38,10 +40,6 @@ class ColumnBase {
   virtual Any get(size_t index) const = 0;
 
   virtual void ingest(uint32_t index, grape::OutArchive& arc) = 0;
-
-  virtual void Serialize(const std::string& filename, size_t size) = 0;
-
-  virtual void Deserialize(const std::string& filename) = 0;
 
   virtual StorageStrategy storage_strategy() const = 0;
 };
@@ -52,28 +50,22 @@ class TypedColumn : public ColumnBase {
   TypedColumn(StorageStrategy strategy) : strategy_(strategy) {}
   ~TypedColumn() {}
 
-  void init(size_t max_size) override { buffer_.resize(max_size); }
+  void open(const std::string& filename) override { buffer_.open(filename); }
 
-  void set_value(size_t index, const T& val) { buffer_.insert(index, val); }
+  void resize(size_t size) override { buffer_.resize(size); }
+
+  PropertyType type() const override { return AnyConverter<T>::type; }
+
+  void set_value(size_t index, const T& val) { buffer_.set(index, val); }
 
   void set_any(size_t index, const Any& value) override {
     set_value(index, AnyConverter<T>::from_any(value));
   }
 
-  T get_view(size_t index) const { return buffer_[index]; }
-
-  PropertyType type() const override { return AnyConverter<T>::type; }
+  T get_view(size_t index) const { return buffer_.get(index); }
 
   Any get(size_t index) const override {
-    return AnyConverter<T>::to_any(buffer_[index]);
-  }
-
-  void Serialize(const std::string& path, size_t size) override {
-    buffer_.dump_to_file(path, size);
-  }
-
-  void Deserialize(const std::string& path) override {
-    buffer_.open_for_read(path);
+    return AnyConverter<T>::to_any(buffer_.get(index));
   }
 
   void ingest(uint32_t index, grape::OutArchive& arc) override {
@@ -85,7 +77,6 @@ class TypedColumn : public ColumnBase {
   StorageStrategy storage_strategy() const override { return strategy_; }
 
   const mmap_array<T>& buffer() const { return buffer_; }
-  mmap_array<T>& buffer() { return buffer_; }
 
  private:
   mmap_array<T> buffer_;
@@ -95,8 +86,60 @@ class TypedColumn : public ColumnBase {
 using IntColumn = TypedColumn<int>;
 using LongColumn = TypedColumn<int64_t>;
 using DateColumn = TypedColumn<Date>;
-using StringColumn = TypedColumn<std::string_view>;
-using DoubleColumn = TypedColumn<double>;
+
+class StringColumn : public ColumnBase {
+ public:
+  StringColumn(StorageStrategy strategy, size_t width = 1024) : width_(width) {}
+  ~StringColumn() {}
+
+  void open(const std::string& filename) override {
+    buffer_.open(filename);
+    pos_.store(buffer_.data_size());
+  }
+
+  void resize(size_t size) override {
+    if (size > buffer_.size()) {
+      buffer_.resize(size, width_ * size);
+    } else {
+      buffer_.resize(size, pos_.load());
+    }
+  }
+
+  PropertyType type() const override {
+    return AnyConverter<std::string_view>::type;
+  }
+
+  void set_value(size_t idx, const std::string_view& val) {
+    size_t offset = pos_.fetch_add(val.size());
+    buffer_.set(idx, offset, val);
+  }
+
+  void set_any(size_t idx, const Any& value) override {
+    set_value(idx, AnyConverter<std::string_view>::from_any(value));
+  }
+
+  Any get(size_t idx) const override {
+    return AnyConverter<std::string_view>::to_any(buffer_.get(idx));
+  }
+
+  std::string_view get_view(size_t idx) const { return buffer_.get(idx); }
+
+  void ingest(uint32_t index, grape::OutArchive& arc) override {
+    std::string_view val;
+    arc >> val;
+    set_value(index, val);
+  }
+
+  StorageStrategy storage_strategy() const override { return strategy_; }
+
+  const mmap_array<std::string_view>& buffer() const { return buffer_; }
+
+ private:
+  mmap_array<std::string_view> buffer_;
+  std::atomic<size_t> pos_;
+  StorageStrategy strategy_;
+  size_t width_;
+};
 
 std::shared_ptr<ColumnBase> CreateColumn(
     PropertyType type, StorageStrategy strategy = StorageStrategy::kMem);
@@ -119,7 +162,7 @@ class TypedRefColumn : public RefColumnBase {
       : buffer_(column.buffer()), strategy_(column.storage_strategy()) {}
   ~TypedRefColumn() {}
 
-  inline T get_view(size_t index) const { return buffer_[index]; }
+  inline T get_view(size_t index) const { return buffer_.get(index); }
 
  private:
   const mmap_array<T>& buffer_;

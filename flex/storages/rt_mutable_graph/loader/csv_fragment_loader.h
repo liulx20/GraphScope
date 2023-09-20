@@ -34,18 +34,13 @@ namespace gs {
 // LoadFragment for csv files.
 class CSVFragmentLoader : public IFragmentLoader {
  public:
-  CSVFragmentLoader(const Schema& schema, const LoadingConfig& loading_config,
-                    int32_t thread_num)
+  CSVFragmentLoader(const std::string& work_dir, const Schema& schema,
+                    const LoadingConfig& loading_config, int32_t thread_num)
       : loading_config_(loading_config),
         schema_(schema),
+        work_dir_(work_dir),
         thread_num_(thread_num),
-        basic_fragment_loader_(schema_),
-        read_vertex_table_time_(0),
-        read_edge_table_time_(0),
-        convert_to_internal_vertex_time_(0),
-        convert_to_internal_edge_time_(0),
-        basic_frag_loader_vertex_time_(0),
-        basic_frag_loader_edge_time_(0) {
+        basic_fragment_loader_(schema_, work_dir) {
     vertex_label_num_ = schema_.vertex_label_num();
     edge_label_num_ = schema_.edge_label_num();
   }
@@ -69,23 +64,10 @@ class CSVFragmentLoader : public IFragmentLoader {
                        const std::vector<std::string> v_file,
                        IdIndexer<oid_t, vid_t>& indexer);
 
-  void addVerticesImplWithStreamReader(const std::string& filename,
-                                       label_t v_label_id,
-                                       IdIndexer<oid_t, vid_t>& indexer);
-
-  void addVerticesImplWithTableReader(const std::string& filename,
-                                      label_t v_label_id,
-                                      IdIndexer<oid_t, vid_t>& indexer);
-
   void addVertexBatch(
       label_t v_label_id, IdIndexer<oid_t, vid_t>& indexer,
       std::shared_ptr<arrow::Array>& primary_key_col,
       const std::vector<std::shared_ptr<arrow::Array>>& property_cols);
-
-  void addVertexBatch(
-      label_t v_label_id, IdIndexer<oid_t, vid_t>& indexer,
-      std::shared_ptr<arrow::ChunkedArray>& primary_key_col,
-      const std::vector<std::shared_ptr<arrow::ChunkedArray>>& property_cols);
 
   void addEdges(label_t src_label_id, label_t dst_label_id, label_t e_label_id,
                 const std::vector<std::string>& e_files);
@@ -95,57 +77,13 @@ class CSVFragmentLoader : public IFragmentLoader {
                     label_t e_label_id,
                     const std::vector<std::string>& e_files);
 
-  template <typename EDATA_T>
-  void addEdgesImplWithStreamReader(
-      const std::string& file_name, label_t src_label_id, label_t dst_label_id,
-      label_t e_label_id, std::vector<int32_t>& ie_degree,
-      std::vector<int32_t>& oe_degree,
-      std::vector<std::tuple<vid_t, vid_t, EDATA_T>>& edges);
-
-  template <typename EDATA_T>
-  void addEdgesImplWithTableReader(
-      const std::string& filename, label_t src_label_id, label_t dst_label_id,
-      label_t e_label_id, std::vector<int32_t>& ie_degree,
-      std::vector<int32_t>& oe_degree,
-      std::vector<std::tuple<vid_t, vid_t, EDATA_T>>& edges);
-
-  std::shared_ptr<arrow::csv::StreamingReader> createVertexStreamReader(
-      label_t v_label, const std::string& v_file);
-
-  std::shared_ptr<arrow::csv::TableReader> createVertexTableReader(
-      label_t v_label, const std::string& v_file);
-
-  std::shared_ptr<arrow::csv::StreamingReader> createEdgeStreamReader(
-      label_t src_label_id, label_t dst_label_id, label_t e_label,
-      const std::string& e_file);
-
-  std::shared_ptr<arrow::csv::TableReader> createEdgeTableReader(
-      label_t src_label_id, label_t dst_label_id, label_t e_label,
-      const std::string& e_file);
-
-  void fillEdgeReaderMeta(arrow::csv::ReadOptions& read_options,
-                          arrow::csv::ParseOptions& parse_options,
-                          arrow::csv::ConvertOptions& convert_options,
-                          const std::string& e_file, label_t src_label_id,
-                          label_t dst_label_id, label_t label_id) const;
-
-  void fillVertexReaderMeta(arrow::csv::ReadOptions& read_options,
-                            arrow::csv::ParseOptions& parse_options,
-                            arrow::csv::ConvertOptions& convert_options,
-                            const std::string& v_file, label_t v_label) const;
-
   const LoadingConfig& loading_config_;
   const Schema& schema_;
+  std::string work_dir_;
   size_t vertex_label_num_, edge_label_num_;
   int32_t thread_num_;
 
   mutable BasicFragmentLoader basic_fragment_loader_;
-
-  std::atomic<double> read_vertex_table_time_, read_edge_table_time_;
-  std::atomic<double> convert_to_internal_vertex_time_,
-      convert_to_internal_edge_time_;
-  std::atomic<double> basic_frag_loader_vertex_time_,
-      basic_frag_loader_edge_time_;
 };
 
 }  // namespace gs

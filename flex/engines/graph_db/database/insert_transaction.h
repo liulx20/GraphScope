@@ -25,15 +25,13 @@
 namespace gs {
 
 class MutablePropertyFragment;
-class ArenaAllocator;
 class WalWriter;
 class VersionManager;
 
 class InsertTransaction {
  public:
-  InsertTransaction(MutablePropertyFragment& graph, ArenaAllocator& alloc,
-                    WalWriter& logger, VersionManager& vm,
-                    timestamp_t timestamp);
+  InsertTransaction(MutablePropertyFragment& graph, WalWriter& logger,
+                    VersionManager& vm, timestamp_t timestamp);
 
   ~InsertTransaction();
 
@@ -49,7 +47,7 @@ class InsertTransaction {
   timestamp_t timestamp() const;
 
   static void IngestWal(MutablePropertyFragment& graph, uint32_t timestamp,
-                        char* data, size_t length, ArenaAllocator& alloc);
+                        char* data, size_t length);
 
  private:
   void clear();
@@ -62,7 +60,6 @@ class InsertTransaction {
   std::set<std::pair<label_t, oid_t>> added_vertices_;
 
   MutablePropertyFragment& graph_;
-  ArenaAllocator& alloc_;
   WalWriter& logger_;
   VersionManager& vm_;
   timestamp_t timestamp_;

@@ -32,10 +32,12 @@ class Table {
   Table();
   ~Table();
 
-  void init(const std::vector<std::string>& col_name,
+  void init(const std::string& filename,
+            const std::vector<std::string>& col_name,
             const std::vector<PropertyType>& types,
-            const std::vector<StorageStrategy>& strategies_,
-            size_t max_row_num);
+            const std::vector<StorageStrategy>& strategies_);
+
+  void open(const std::string& filename);
 
   void reset_header(const std::vector<std::string>& col_name);
 
@@ -69,11 +71,7 @@ class Table {
   void insert(size_t index, const std::vector<Any>& values,
               const std::vector<int32_t>& col_ind_mapping);
 
-  void Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer,
-                 const std::string& prefix, size_t row_num);
-
-  void Deserialize(std::unique_ptr<grape::LocalIOAdaptor>& reader,
-                   const std::string& prefix);
+  void resize(size_t row_num);
 
   Any at(size_t row_id, size_t col_id);
 

@@ -30,15 +30,13 @@
 namespace gs {
 
 class MutablePropertyFragment;
-class ArenaAllocator;
 class WalWriter;
 class VersionManager;
 
 class UpdateTransaction {
  public:
-  UpdateTransaction(MutablePropertyFragment& graph, ArenaAllocator& alloc,
-                    WalWriter& logger, VersionManager& vm,
-                    timestamp_t timestamp);
+  UpdateTransaction(MutablePropertyFragment& graph, WalWriter& logger,
+                    VersionManager& vm, timestamp_t timestamp);
 
   ~UpdateTransaction();
 
@@ -137,7 +135,7 @@ class UpdateTransaction {
                           Any& ret) const;
 
   static void IngestWal(MutablePropertyFragment& graph, uint32_t timestamp,
-                        char* data, size_t length, ArenaAllocator& alloc);
+                        char* data, size_t length);
 
  private:
   size_t get_in_csr_index(label_t src_label, label_t dst_label,
@@ -157,7 +155,6 @@ class UpdateTransaction {
   void applyEdgesUpdates();
 
   MutablePropertyFragment& graph_;
-  ArenaAllocator& alloc_;
   WalWriter& logger_;
   VersionManager& vm_;
   timestamp_t timestamp_;

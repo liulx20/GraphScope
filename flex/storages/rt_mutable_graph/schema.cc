@@ -617,18 +617,6 @@ static bool parse_edge_schema(YAML::Node node, Schema& schema) {
                              property_types, prop_names)) {
     return false;
   }
-  EdgeStrategy ie = EdgeStrategy::kMultiple;
-  EdgeStrategy oe = EdgeStrategy::kMultiple;
-  {
-    auto csr_node = node["x_csr_params"];
-    std::string ie_str, oe_str;
-    if (get_scalar(node, "outgoing_edge_strategy", oe_str)) {
-      oe = StringToEdgeStrategy(oe_str);
-    }
-    if (get_scalar(node, "incoming_edge_strategy", ie_str)) {
-      ie = StringToEdgeStrategy(ie_str);
-    }
-  }
 
   // get vertex type pair relation
   auto vertex_type_pair_node = node["vertex_type_pair_relations"];
@@ -660,6 +648,17 @@ static bool parse_edge_schema(YAML::Node node, Schema& schema) {
       LOG(ERROR) << "Edge [" << edge_label_name << "] from [" << src_label_name
                  << "] to [" << dst_label_name << "] already exists";
       return false;
+    }
+    EdgeStrategy ie = EdgeStrategy::kMultiple;
+    EdgeStrategy oe = EdgeStrategy::kMultiple;
+    {
+      std::string ie_str, oe_str;
+      if (get_scalar(cur_node, "outgoing_edge_strategy", oe_str)) {
+        oe = StringToEdgeStrategy(oe_str);
+      }
+      if (get_scalar(cur_node, "incoming_edge_strategy", ie_str)) {
+        ie = StringToEdgeStrategy(ie_str);
+      }
     }
     VLOG(10) << "edge " << edge_label_name << " from " << src_label_name
              << " to " << dst_label_name << " with " << property_types.size()

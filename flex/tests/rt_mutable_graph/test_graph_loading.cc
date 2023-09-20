@@ -44,10 +44,22 @@ int main(int argc, char** argv) {
   auto schema = gs::Schema::LoadFromYaml(schema_file);
   auto bulk_load_config =
       gs::LoadingConfig::ParseFromYaml(schema, bulk_load_config_path);
-  db.Init(schema, bulk_load_config, data_path, thread_num);
 
-  t0 += grape::GetCurrentTime();
-  auto& graph = db.graph();
+  std::filesystem::path data_dir_path(data_path);
+  if (!std::filesystem::exists(data_dir_path)) {
+    std::filesystem::create_directory(data_dir_path);
+  }
+  std::filesystem::path serial_path = data_dir_path / "schema";
+  if (std::filesystem::exists(serial_path)) {
+    LOG(ERROR) << "data directory is not empty";
+    return -1;
+  }
+
+  gs::MutablePropertyFragment graph;
+  auto loader = gs::LoaderFactory::CreateFragmentLoader(
+      data_dir_path.string(), schema, bulk_load_config, thread_num);
+  loader->LoadFragment(graph);
+
   LOG(INFO) << "graph num vertex labels: " << graph.schema().vertex_label_num();
   LOG(INFO) << "graph num edge labels: " << graph.schema().edge_label_num();
   for (auto i = 0; i < graph.schema().vertex_label_num(); ++i) {

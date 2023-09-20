@@ -31,7 +31,6 @@
 #include "flex/engines/graph_db/database/update_transaction.h"
 #include "flex/engines/graph_db/database/version_manager.h"
 #include "flex/storages/rt_mutable_graph/loader/loader_factory.h"
-#include "flex/storages/rt_mutable_graph/loading_config.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
 
 namespace gs {
@@ -47,8 +46,8 @@ class GraphDB {
 
   static GraphDB& get();
 
-  void Init(const Schema& schema, const LoadingConfig& config,
-            const std::string& data_dir, int thread_num = 1);
+  void Init(const Schema& schema, const std::string& data_dir,
+            int thread_num = 1);
 
   /** @brief Create a transaction to read vertices and edges.
    *

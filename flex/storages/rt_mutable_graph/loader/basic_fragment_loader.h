@@ -37,7 +37,7 @@ TypedMutableCsrBase<EDATA_T>* create_typed_csr(EdgeStrategy es) {
 // mutable_csr_fragment.
 class BasicFragmentLoader {
  public:
-  BasicFragmentLoader(const Schema& schema);
+  BasicFragmentLoader(const Schema& schema, const std::string& prefix);
 
   void LoadFragment(MutablePropertyFragment& res_fragment);
 
@@ -53,12 +53,13 @@ class BasicFragmentLoader {
     dst_columns[col_ind]->set_any(vid, prop);
   }
 
-  void FinishAddingVertex(label_t v_label,
+  void FinishAddingVertex(label_t v_label, const std::string& filename,
                           const IdIndexer<oid_t, vid_t>& indexer);
 
   template <typename EDATA_T>
   void AddNoPropEdgeBatch(label_t src_label_id, label_t dst_label_id,
                           label_t edge_label_id) {
+    std::string data_dir = work_dir_ + "/data";
     size_t index = src_label_id * vertex_label_num_ * edge_label_num_ +
                    dst_label_id * edge_label_num_ + edge_label_id;
     CHECK(ie_[index] == NULL);
@@ -72,8 +73,12 @@ class BasicFragmentLoader {
         src_label_name, dst_label_name, edge_label_name);
     ie_[index] = create_typed_csr<EDATA_T>(ie_strategy);
     oe_[index] = create_typed_csr<EDATA_T>(oe_strategy);
-    ie_[index]->batch_init(0, {});
-    oe_[index]->batch_init(0, {});
+    ie_[index]->batch_init(data_dir + "/ie_" + src_label_name + "_" +
+                               dst_label_name + "_" + edge_label_name,
+                           0, {});
+    oe_[index]->batch_init(data_dir + "/oe_" + src_label_name + "_" +
+                               dst_label_name + "_" + edge_label_name,
+                           0, {});
   }
 
   template <typename EDATA_T>
@@ -82,6 +87,7 @@ class BasicFragmentLoader {
                 const std::vector<std::tuple<vid_t, vid_t, EDATA_T>>& edges,
                 const std::vector<int32_t>& ie_degree,
                 const std::vector<int32_t>& oe_degree) {
+    std::string data_dir = work_dir_ + "/data";
     size_t index = src_label_id * vertex_label_num_ * edge_label_num_ +
                    dst_label_id * edge_label_num_ + edge_label_id;
     auto& src_indexer = lf_indexers_[src_label_id];
@@ -100,8 +106,12 @@ class BasicFragmentLoader {
     CHECK(ie_degree.size() == dst_indexer.size());
     CHECK(oe_degree.size() == src_indexer.size());
 
-    ie_csr->batch_init(dst_indexer.size(), ie_degree);
-    oe_csr->batch_init(src_indexer.size(), oe_degree);
+    ie_csr->batch_init(data_dir + "/ie_" + src_label_name + "_" +
+                           dst_label_name + "_" + edge_label_name,
+                       dst_indexer.size(), ie_degree);
+    oe_csr->batch_init(data_dir + "/oe_" + src_label_name + "_" +
+                           dst_label_name + "_" + edge_label_name,
+                       src_indexer.size(), oe_degree);
 
     for (auto& edge : edges) {
       ie_csr->batch_put_edge(std::get<1>(edge), std::get<0>(edge),
@@ -123,8 +133,9 @@ class BasicFragmentLoader {
   const LFIndexer<vid_t>& GetLFIndexer(label_t v_label) const;
 
  private:
-  void init_vertex_data();
+  void init_vertex_data(const std::string& prefix);
   const Schema& schema_;
+  std::string work_dir_;
   size_t vertex_label_num_, edge_label_num_;
   std::vector<LFIndexer<vid_t>> lf_indexers_;
   std::vector<MutableCsrBase*> ie_, oe_;

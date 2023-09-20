@@ -94,6 +94,13 @@ auto make_vertex_set_d() {
 // 1,5,10
 auto make_sample_context() {}
 
+void init_column(std::shared_ptr<gs::ColumnBase> column, size_t limit) {
+  char fname[L_tmpnam];
+  tmpnam(fname);
+  column->open(fname);
+  column->resize(limit);
+}
+
 int main() {
   // test join
 
@@ -150,9 +157,9 @@ int main() {
     auto col1 =
         std::make_shared<gs::TypedColumn<int32_t>>(gs::StorageStrategy::kMem);
 
-    col1->init(limit);
+    init_column(col1, limit);
     for (int i = 0; i < limit; ++i) {
-      col1->set_value(i, (int32_t)(i));
+      col1->set_value(i, (int32_t) (i));
     }
     {
       int32_t res = 0;
@@ -202,10 +209,10 @@ int main() {
     auto col2 =
         std::make_shared<gs::TypedColumn<int64_t>>(gs::StorageStrategy::kMem);
 
-    col1->init(limit);
-    col2->init(limit);
+    init_column(col1, limit);
+    init_column(col2, limit);
     for (int i = 0; i < limit; ++i) {
-      col1->set_value(i, (int32_t)(i));
+      col1->set_value(i, (int32_t) (i));
       col2->set_value(i, (int64_t) i);
     }
     {
@@ -302,13 +309,13 @@ int main() {
       auto col2 =
           std::make_shared<gs::TypedColumn<int32_t>>(gs::StorageStrategy::kMem);
 
-      col1->init(limit);
-      col2->init(limit);
+      init_column(col1, limit);
+      init_column(col2, limit);
       for (int i = 0; i < limit; i += 2) {
-        col1->set_value(i, (int32_t)(i));
+        col1->set_value(i, (int32_t) (i));
       }
       for (int i = 1; i < limit; i += 2) {
-        col2->set_value(i, (int32_t)(i));
+        col2->set_value(i, (int32_t) (i));
       }
       // test two label vertex set prop getter.
       auto ref_col1 = std::make_shared<gs::TypedRefColumn<int32_t>>(*col1);
