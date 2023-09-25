@@ -166,7 +166,8 @@ int main(int argc, char** argv) {
       "warmup-num,w", bpo::value<uint32_t>()->default_value(0),
       "num of warmup reqs")("benchmark-num,b",
                             bpo::value<uint32_t>()->default_value(0),
-                            "num of benchmark reqs");
+                            "num of benchmark reqs")(
+      "req-file,r", bpo::value<std::string>(), "requests file");
 
   google::InitGoogleLogging(argv[0]);
   FLAGS_logtostderr = true;
@@ -219,7 +220,8 @@ int main(int argc, char** argv) {
   t0 += grape::GetCurrentTime();
 
   LOG(INFO) << "Finished loading graph, elapsed " << t0 << " s";
-  Req::get().load("/data/query/ic.bin");
+  std::string req_file = vm["req-file"].as<std::string>();
+  Req::get().load(req_file);
   Req::get().init(warmup_num, benchmark_num);
   hiactor::actor_app app;
 
