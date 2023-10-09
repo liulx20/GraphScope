@@ -47,21 +47,20 @@ void BasicFragmentLoader::init_vertex_data(const std::string& prefix) {
   VLOG(10) << "Finish init vertex data";
 }
 
-void BasicFragmentLoader::LoadFragment(MutablePropertyFragment& res_fragment) {
-  CHECK(res_fragment.ie_.empty()) << "Fragment is not empty";
-  CHECK(res_fragment.oe_.empty()) << "Fragment is not empty";
-  CHECK(res_fragment.vertex_data_.empty()) << "Fragment is not empty";
+void BasicFragmentLoader::LoadFragment() {
+  std::string schema_path = work_dir_ + "/schema";
+  auto io_adaptor = std::unique_ptr<grape::LocalIOAdaptor>(
+      new grape::LocalIOAdaptor(schema_path));
+  io_adaptor->Open("wb");
+  schema_.Serialize(io_adaptor);
+  io_adaptor->Close();
 
-  res_fragment.schema_ = schema_;
-  res_fragment.vertex_label_num_ = vertex_label_num_;
-  res_fragment.edge_label_num_ = edge_label_num_;
-  res_fragment.ie_.swap(ie_);
-  res_fragment.oe_.swap(oe_);
-  res_fragment.vertex_data_.swap(vertex_data_);
-  res_fragment.lf_indexers_.swap(lf_indexers_);
-  VLOG(10) << "Finish Building Fragment, " << res_fragment.vertex_label_num_
-           << " vertices labels, " << res_fragment.edge_label_num_
-           << " edges labels";
+  std::string version_path = work_dir_ + "/snapshots/VERSION";
+  FILE* version_file = fopen(version_path.c_str(), "wb");
+  uint32_t version = 0;
+  fwrite(&version, sizeof(uint32_t), 1, version_file);
+  fflush(version_file);
+  fclose(version_file);
 }
 
 void BasicFragmentLoader::AddVertexBatch(

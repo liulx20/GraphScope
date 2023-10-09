@@ -51,7 +51,7 @@ class CSVFragmentLoader : public IFragmentLoader {
     return FragmentLoaderType::kCSVFragmentLoader;
   }
 
-  void LoadFragment(MutablePropertyFragment& fragment) override;
+  void LoadFragment() override;
 
  private:
   void loadVertices();

@@ -589,12 +589,11 @@ void CSVFragmentLoader::loadEdges() {
   }
 }
 
-void CSVFragmentLoader::LoadFragment(MutablePropertyFragment& fragment) {
+void CSVFragmentLoader::LoadFragment() {
   loadVertices();
   loadEdges();
 
-  basic_fragment_loader_.LoadFragment(fragment);
-  fragment.DumpSchema(work_dir_ + "/schema");
+  basic_fragment_loader_.LoadFragment();
 }
 
 }  // namespace gs
