@@ -25,12 +25,13 @@ class MutablePropertyFragment;
 class WalWriter;
 class VersionManager;
 class Any;
+class MMapAllocator;
 
 class SingleVertexInsertTransaction {
  public:
   SingleVertexInsertTransaction(MutablePropertyFragment& graph,
-                                WalWriter& logger, VersionManager& vm,
-                                timestamp_t timestamp);
+                                MMapAllocator& alloc, WalWriter& logger,
+                                VersionManager& vm, timestamp_t timestamp);
   ~SingleVertexInsertTransaction();
 
   bool AddVertex(label_t label, oid_t id, const std::vector<Any>& props);
@@ -57,6 +58,7 @@ class SingleVertexInsertTransaction {
   std::vector<vid_t> parsed_endpoints_;
 
   MutablePropertyFragment& graph_;
+  MMapAllocator& alloc_;
   WalWriter& logger_;
   VersionManager& vm_;
   timestamp_t timestamp_;

@@ -30,7 +30,7 @@ BasicFragmentLoader::BasicFragmentLoader(const Schema& schema,
   lf_indexers_.resize(vertex_label_num_);
 
   std::filesystem::create_directories(prefix + "/data");
-  init_vertex_data(prefix + "/data");
+  init_vertex_data(prefix + "/work");
 }
 
 void BasicFragmentLoader::init_vertex_data(const std::string& prefix) {
@@ -39,7 +39,7 @@ void BasicFragmentLoader::init_vertex_data(const std::string& prefix) {
     auto label_name = schema_.get_vertex_label_name(v_label);
     auto& property_types = schema_.get_vertex_properties(v_label);
     auto& property_names = schema_.get_vertex_property_names(v_label);
-    v_data.init(prefix + "/vtable_" + std::to_string(v_label), property_names,
+    v_data.init("vtable_" + std::to_string(v_label), prefix, property_names,
                 property_types,
                 schema_.get_vertex_storage_strategies(label_name));
     v_data.resize(schema_.get_max_vnum(label_name));

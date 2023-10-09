@@ -18,8 +18,11 @@
 
 #include <stdlib.h>
 
-#include <vector>
 #include <functional>
+#include <string>
+#include <vector>
+
+#include "flex/utils/mmap_array.h"
 
 namespace gs {
 
@@ -86,6 +89,45 @@ class ArenaAllocator {
 
   std::vector<std::tuple<void*, size_t, size_t, std::function<void(void*)>>>
       typed_allocations_;
+};
+
+class MMapAllocator {
+  static constexpr size_t batch_size = 4096;
+
+ public:
+  MMapAllocator() : prefix_("/dev/null"), cur_loc_(0), cur_size_(0) {}
+  ~MMapAllocator() {}
+
+  void set_prefix(const std::string& prefix) { prefix_ = prefix; }
+
+  void reserve(size_t cap) {
+    if (cur_size_ - cur_loc_ >= cap) {
+      return;
+    }
+    mmap_array<char>* buf = new mmap_array<char>();
+    buf->open(prefix_ + std::to_string(buffers_.size()), false);
+    cap = (cap + batch_size - 1) ^ (batch_size - 1);
+    buf->resize(cap);
+    buffers_.push_back(buf);
+    cur_buffer_ = static_cast<void*>(buf->data());
+    cur_loc_ = 0;
+    cur_size_ = cap;
+  }
+
+  void* allocate(size_t size) {
+    reserve(size);
+    void* ret = (char*) cur_buffer_ + cur_loc_;
+    cur_loc_ += size;
+    return ret;
+  }
+
+ private:
+  std::string prefix_;
+  std::vector<mmap_array<char>*> buffers_;
+
+  void* cur_buffer_;
+  size_t cur_loc_;
+  size_t cur_size_;
 };
 
 }  // namespace gs

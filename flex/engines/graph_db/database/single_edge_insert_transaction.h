@@ -25,10 +25,12 @@ class MutablePropertyFragment;
 class WalWriter;
 class VersionManager;
 class Any;
+class MMapAllocator;
 
 class SingleEdgeInsertTransaction {
  public:
-  SingleEdgeInsertTransaction(MutablePropertyFragment& graph, WalWriter& logger,
+  SingleEdgeInsertTransaction(MutablePropertyFragment& graph,
+                              MMapAllocator& alloc, WalWriter& logger,
                               VersionManager& vm, timestamp_t timestamp);
   ~SingleEdgeInsertTransaction();
 
@@ -53,6 +55,7 @@ class SingleEdgeInsertTransaction {
   grape::InArchive arc_;
 
   MutablePropertyFragment& graph_;
+  MMapAllocator& alloc_;
   WalWriter& logger_;
   VersionManager& vm_;
   timestamp_t timestamp_;

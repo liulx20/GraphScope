@@ -233,9 +233,12 @@ class LFIndexer {
 
   int64_t get_key(const INDEX_T& index) const { return keys_.get(index); }
 
-  void open(const std::string& prefix) {
-    keys_.open(prefix + ".keys");
-    indices_.open(prefix + ".indices");
+  void open(const std::string& name, const std::string& snapshot_dir,
+            const std::string& work_dir) {
+    keys_.open(snapshot_dir + "/" + name + ".keys", true);
+    keys_.touch(work_dir + "/" + name + ".keys");
+    indices_.open(snapshot_dir + "/" + name + ".indices", true);
+    indices_.touch(work_dir + "/" + name + ".indices");
     indices_size_ = indices_.size();
 
     for (size_t k = keys_.size() - 1; k >= 0; --k) {
@@ -245,7 +248,13 @@ class LFIndexer {
       }
     }
 
-    load_meta(prefix + ".meta");
+    load_meta(snapshot_dir + "/" + name + ".meta");
+  }
+
+  void dump(const std::string& name, const std::string& snapshot_dir) {
+    keys_.dump(snapshot_dir + "/" + name + ".keys");
+    indices_.dump(snapshot_dir + "/" + name + ".indices");
+    dump_meta(snapshot_dir + "/" + name + ".meta");
   }
 
   void dump_meta(const std::string& filename) const {
@@ -676,7 +685,7 @@ void build_lf_indexer(const IdIndexer<int64_t, INDEX_T>& input,
   size_t lf_size = static_cast<double>(size) / rate + 1;
   lf_size = std::max(lf_size, static_cast<size_t>(1024));
 
-  lf.keys_.open(filename + ".keys");
+  lf.keys_.open(filename + ".keys", false);
   lf.keys_.resize(lf_size);
   memcpy(lf.keys_.data(), input.keys_.data(), sizeof(int64_t) * size);
   for (size_t k = size; k != lf_size; ++k) {
@@ -685,7 +694,7 @@ void build_lf_indexer(const IdIndexer<int64_t, INDEX_T>& input,
 
   lf.num_elements_.store(size);
 
-  lf.indices_.open(filename + ".indices");
+  lf.indices_.open(filename + ".indices", false);
   lf.indices_.resize(input.indices_.size());
   for (size_t k = 0; k != input.indices_.size(); ++k) {
     lf.indices_[k] = std::numeric_limits<INDEX_T>::max();

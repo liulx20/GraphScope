@@ -31,6 +31,7 @@ TypedMutableCsrBase<EDATA_T>* create_typed_csr(EdgeStrategy es) {
     return new EmptyCsr<EDATA_T>();
   }
   LOG(FATAL) << "not support edge strategy or edge data type";
+  return nullptr;
 }
 
 // FragmentLoader should use this BasicFragmentLoader to construct
@@ -106,12 +107,12 @@ class BasicFragmentLoader {
     CHECK(ie_degree.size() == dst_indexer.size());
     CHECK(oe_degree.size() == src_indexer.size());
 
-    ie_csr->batch_init(data_dir + "/ie_" + src_label_name + "_" +
-                           dst_label_name + "_" + edge_label_name,
-                       dst_indexer.size(), ie_degree);
-    oe_csr->batch_init(data_dir + "/oe_" + src_label_name + "_" +
-                           dst_label_name + "_" + edge_label_name,
-                       src_indexer.size(), oe_degree);
+    ie_csr->batch_init(
+        "ie_" + src_label_name + "_" + dst_label_name + "_" + edge_label_name,
+        data_dir, ie_degree);
+    oe_csr->batch_init(
+        "oe_" + src_label_name + "_" + dst_label_name + "_" + edge_label_name,
+        data_dir, oe_degree);
 
     for (auto& edge : edges) {
       ie_csr->batch_put_edge(std::get<1>(edge), std::get<0>(edge),

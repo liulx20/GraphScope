@@ -103,7 +103,8 @@ class GraphDB {
  private:
   void registerApp(const std::string& path, uint8_t index = 0);
 
-  void ingestWals(const std::vector<std::string>& wals, int thread_num);
+  void ingestWals(const std::vector<std::string>& wals,
+                  const std::string& work_dir, int thread_num);
 
   void initApps(const std::vector<std::string>& plugins);
 

@@ -18,13 +18,18 @@
 #include "flex/engines/graph_db/database/version_manager.h"
 #include "flex/engines/graph_db/database/wal.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
+#include "flex/utils/allocators.h"
 
 namespace gs {
 
 InsertTransaction::InsertTransaction(MutablePropertyFragment& graph,
-                                     WalWriter& logger, VersionManager& vm,
-                                     timestamp_t timestamp)
-    : graph_(graph), logger_(logger), vm_(vm), timestamp_(timestamp) {
+                                     MMapAllocator& alloc, WalWriter& logger,
+                                     VersionManager& vm, timestamp_t timestamp)
+    : graph_(graph),
+      alloc_(alloc),
+      logger_(logger),
+      vm_(vm),
+      timestamp_(timestamp) {
   arc_.Resize(sizeof(WalHeader));
 }
 
@@ -113,7 +118,7 @@ void InsertTransaction::Commit() {
 
   logger_.append(arc_.GetBuffer(), arc_.GetSize());
   IngestWal(graph_, timestamp_, arc_.GetBuffer() + sizeof(WalHeader),
-            header->length);
+            header->length, alloc_);
 
   vm_.release_insert_timestamp(timestamp_);
   clear();
@@ -130,8 +135,8 @@ void InsertTransaction::Abort() {
 timestamp_t InsertTransaction::timestamp() const { return timestamp_; }
 
 void InsertTransaction::IngestWal(MutablePropertyFragment& graph,
-                                  uint32_t timestamp, char* data,
-                                  size_t length) {
+                                  uint32_t timestamp, char* data, size_t length,
+                                  MMapAllocator& alloc) {
   grape::OutArchive arc;
   arc.SetSlice(data, length);
   while (!arc.Empty()) {
@@ -155,7 +160,7 @@ void InsertTransaction::IngestWal(MutablePropertyFragment& graph,
       CHECK(get_vertex_with_retries(graph, dst_label, dst, dst_lid));
 
       graph.IngestEdge(src_label, src_lid, dst_label, dst_lid, edge_label,
-                       timestamp, arc);
+                       timestamp, arc, alloc);
     } else {
       LOG(FATAL) << "Unexpected op-" << static_cast<int>(op_type);
     }

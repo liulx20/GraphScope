@@ -32,12 +32,20 @@ class Table {
   Table();
   ~Table();
 
-  void init(const std::string& filename,
+  void init(const std::string& name, const std::string& work_dir,
             const std::vector<std::string>& col_name,
             const std::vector<PropertyType>& types,
             const std::vector<StorageStrategy>& strategies_);
 
-  void open(const std::string& filename);
+  void open(const std::string& name, const std::string& snapshot_dir,
+            const std::string& work_dir,
+            const std::vector<std::string>& col_name,
+            const std::vector<PropertyType>& property_types,
+            const std::vector<StorageStrategy>& strategies_);
+
+  void touch(const std::string& name, const std::string& work_dir);
+
+  void dump(const std::string& name, const std::string& snapshot_dir);
 
   void reset_header(const std::vector<std::string>& col_name);
 
@@ -81,11 +89,16 @@ class Table {
 
  private:
   void buildColumnPtrs();
+  void initColumns(const std::vector<std::string>& col_name,
+                   const std::vector<PropertyType>& types,
+                   const std::vector<StorageStrategy>& strategies_);
 
-  std::vector<std::shared_ptr<ColumnBase>> columns_;
   IdIndexer<std::string, int> col_id_indexer_;
 
+  std::vector<std::shared_ptr<ColumnBase>> columns_;
   std::vector<ColumnBase*> column_ptrs_;
+
+  bool touched_;
 };
 
 }  // namespace gs

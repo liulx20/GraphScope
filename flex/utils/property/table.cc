@@ -17,15 +17,15 @@
 
 namespace gs {
 
-Table::Table() {}
+Table::Table() : touched_(false) {}
 Table::~Table() {}
 
-void Table::init(const std::string& prefix,
-                 const std::vector<std::string>& col_name,
-                 const std::vector<PropertyType>& property_types,
-                 const std::vector<StorageStrategy>& strategies_) {
+void Table::initColumns(const std::vector<std::string>& col_name,
+                        const std::vector<PropertyType>& property_types,
+                        const std::vector<StorageStrategy>& strategies_) {
   size_t col_num = col_name.size();
-  columns_.resize(col_num);
+  columns_.clear();
+  columns_.resize(col_num, nullptr);
   auto strategies = strategies_;
   strategies.resize(col_num, StorageStrategy::kMem);
 
@@ -35,48 +35,53 @@ void Table::init(const std::string& prefix,
     columns_[col_id] = CreateColumn(property_types[i], strategies[i]);
   }
   columns_.resize(col_id_indexer_.size());
-  for (size_t i = 0; i < columns_.size(); ++i) {
-    columns_[i]->open(prefix + ".col_" + std::to_string(i));
-  }
-
-  buildColumnPtrs();
-
-  grape::InArchive arc;
-  arc << col_name << property_types << strategies;
-  FILE* fp = fopen((prefix + ".meta").c_str(), "wb");
-  fwrite(arc.GetBuffer(), 1, arc.GetSize(), fp);
-  fclose(fp);
 }
 
-void Table::open(const std::string& prefix) {
-  std::vector<std::string> col_name;
-  std::vector<PropertyType> property_types;
-  std::vector<StorageStrategy> strategies;
-
-  grape::OutArchive arc;
-  FILE* fp = fopen((prefix + ".meta").c_str(), "rb");
-  fseek(fp, 0, SEEK_END);
-  size_t file_size = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
-  std::vector<char> buf(file_size);
-  fread(buf.data(), 1, file_size, fp);
-  fclose(fp);
-  arc.SetSlice(buf.data(), file_size);
-  arc >> col_name >> property_types >> strategies;
-
-  size_t col_num = col_name.size();
-  columns_.resize(col_num);
-
-  for (size_t i = 0; i < col_num; ++i) {
-    int col_id;
-    col_id_indexer_.add(col_name[i], col_id);
-    columns_[col_id] = CreateColumn(property_types[i], strategies[i]);
-  }
-  columns_.resize(col_id_indexer_.size());
+void Table::init(const std::string& name, const std::string& work_dir,
+                 const std::vector<std::string>& col_name,
+                 const std::vector<PropertyType>& property_types,
+                 const std::vector<StorageStrategy>& strategies_) {
+  initColumns(col_name, property_types, strategies_);
   for (size_t i = 0; i < columns_.size(); ++i) {
-    columns_[i]->open(prefix + ".col_" + std::to_string(i));
+    columns_[i]->open(name + ".col_" + std::to_string(i), "", work_dir);
   }
+  touched_ = true;
   buildColumnPtrs();
+}
+
+void Table::open(const std::string& name, const std::string& snapshot_dir,
+                 const std::string& work_dir,
+                 const std::vector<std::string>& col_name,
+                 const std::vector<PropertyType>& property_types,
+                 const std::vector<StorageStrategy>& strategies_) {
+  initColumns(col_name, property_types, strategies_);
+  for (size_t i = 0; i < columns_.size(); ++i) {
+    columns_[i]->open(name + ".col_" + std::to_string(i), snapshot_dir,
+                      work_dir);
+  }
+  touched_ = false;
+  buildColumnPtrs();
+}
+
+void Table::touch(const std::string& name, const std::string& work_dir) {
+  if (touched_) {
+    LOG(ERROR) << "Table " << name << " has been touched before";
+    return;
+  }
+  int i = 0;
+  for (auto col : columns_) {
+    col->touch(work_dir + "/" + name + ".col_" + std::to_string(i++));
+  }
+  touched_ = true;
+}
+
+void Table::dump(const std::string& name, const std::string& snapshot_dir) {
+  int i = 0;
+  for (auto col : columns_) {
+    col->dump(snapshot_dir + "/" + name + ".col_" + std::to_string(i++));
+  }
+  columns_.clear();
+  column_ptrs_.clear();
 }
 
 void Table::reset_header(const std::vector<std::string>& col_name) {

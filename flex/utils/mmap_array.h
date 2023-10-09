@@ -36,11 +36,13 @@ namespace gs {
 template <typename T>
 class mmap_array {
  public:
-  mmap_array() : fd_(-1), data_(NULL), size_(0) {}
+  mmap_array()
+      : filename_(""), fd_(-1), data_(NULL), size_(0), read_only_(true) {}
   mmap_array(mmap_array&& rhs) : mmap_array() { swap(rhs); }
   ~mmap_array() {}
 
   void reset() {
+    filename_ = "";
     if (data_ != NULL) {
       munmap(data_, size_);
       data_ = NULL;
@@ -49,19 +51,55 @@ class mmap_array {
       close(fd_);
       fd_ = -1;
     }
+    read_only_ = true;
   }
 
-  void open(const std::string& filename) {
+  void open(const std::string& filename, bool read_only) {
     reset();
-    fd_ = ::open(filename.c_str(), O_RDWR | O_CREAT);
-    size_t file_size = std::filesystem::file_size(filename);
-    size_ = file_size / sizeof(T);
-    if (size_ == 0) {
-      data_ = NULL;
+    filename_ = filename;
+    read_only_ = read_only;
+    if (read_only) {
+      if (!std::filesystem::exists(filename)) {
+        LOG(ERROR) << "file not exists: " << filename;
+        fd_ = 1;
+        size_ = 0;
+        data_ = NULL;
+      } else {
+        fd_ = ::open(filename.c_str(), O_RDONLY);
+        size_t file_size = std::filesystem::file_size(filename);
+        size_ = file_size / sizeof(T);
+        if (size_ == 0) {
+          data_ = NULL;
+        } else {
+          data_ = reinterpret_cast<T*>(
+              mmap(NULL, size_ * sizeof(T), PROT_READ, MAP_PRIVATE, fd_, 0));
+          assert(data_ != MAP_FAILED);
+        }
+      }
     } else {
-      data_ = reinterpret_cast<T*>(mmap(
-          NULL, size_ * sizeof(T), PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
-      assert(data_ != MAP_FAILED);
+      fd_ = ::open(filename.c_str(), O_RDWR | O_CREAT);
+      size_t file_size = std::filesystem::file_size(filename);
+      size_ = file_size / sizeof(T);
+      if (size_ == 0) {
+        data_ = NULL;
+      } else {
+        data_ = reinterpret_cast<T*>(mmap(NULL, size_ * sizeof(T),
+                                          PROT_READ | PROT_WRITE, MAP_SHARED,
+                                          fd_, 0));
+        assert(data_ != MAP_FAILED);
+      }
+    }
+  }
+
+  void dump(const std::string& filename) {
+    assert(!filename_.empty());
+    assert(std::filesystem::exists(filename_));
+    std::string old_filename = filename_;
+    reset();
+    if (read_only_) {
+      std::filesystem::create_hard_link(old_filename, filename);
+    } else {
+      std::filesystem::rename(old_filename, filename);
     }
   }
 
@@ -72,17 +110,48 @@ class mmap_array {
       return;
     }
 
-    if (data_ != NULL) {
-      munmap(data_, size_ * sizeof(T));
-    }
-    ftruncate(fd_, size * sizeof(T));
-    if (size == 0) {
-      data_ = NULL;
+    if (read_only_) {
+      if (size < size_) {
+        munmap(data_, size_ * sizeof(T));
+        size_ = size;
+        data_ = reinterpret_cast<T*>(
+            mmap(NULL, size_ * sizeof(T), PROT_READ, MAP_PRIVATE, fd_, 0));
+      } else if (size * sizeof(T) < std::filesystem::file_size(filename_)) {
+        munmap(data_, size_ * sizeof(T));
+        size_ = size;
+        data_ = reinterpret_cast<T*>(
+            mmap(NULL, size_ * sizeof(T), PROT_READ, MAP_PRIVATE, fd_, 0));
+      } else {
+        LOG(FATAL)
+            << "cannot resize read-only mmap_array to larger size than file";
+      }
     } else {
-      data_ = static_cast<T*>(::mmap(
-          NULL, size * sizeof(T), PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+      if (data_ != NULL) {
+        munmap(data_, size_ * sizeof(T));
+      }
+      ftruncate(fd_, size * sizeof(T));
+      if (size == 0) {
+        data_ = NULL;
+      } else {
+        data_ =
+            static_cast<T*>(::mmap(NULL, size * sizeof(T),
+                                   PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+      }
+      size_ = size;
     }
-    size_ = size;
+  }
+
+  bool read_only() const { return read_only_; }
+
+  void touch(const std::string& filename) {
+    {
+      FILE* fout = fopen(filename.c_str(), "wb");
+      fwrite(data_, sizeof(T), size_, fout);
+      fflush(fout);
+      fclose(fout);
+    }
+
+    open(filename, false);
   }
 
   T* data() { return data_; }
@@ -98,15 +167,21 @@ class mmap_array {
   size_t size() const { return size_; }
 
   void swap(mmap_array<T>& rhs) {
+    std::swap(filename_, rhs.filename_);
     std::swap(fd_, rhs.fd_);
     std::swap(data_, rhs.data_);
     std::swap(size_, rhs.size_);
   }
 
+  const std::string& filename() const { return filename_; }
+
  private:
+  std::string filename_;
   int fd_;
   T* data_;
   size_t size_;
+
+  bool read_only_;
 };
 
 struct string_item {
@@ -126,9 +201,21 @@ class mmap_array<std::string_view> {
     data_.reset();
   }
 
-  void open(const std::string& filename) {
-    items_.open(filename + ".items");
-    data_.open(filename + ".data");
+  void open(const std::string& filename, bool read_only) {
+    items_.open(filename + ".items", read_only);
+    data_.open(filename + ".data", read_only);
+  }
+
+  bool read_only() const { return items_.read_only(); }
+
+  void touch(const std::string& filename) {
+    items_.touch(filename + ".items");
+    data_.touch(filename + ".data");
+  }
+
+  void dump(const std::string& filename) {
+    items_.dump(filename + ".items");
+    data_.dump(filename + ".data");
   }
 
   void resize(size_t size, size_t data_size) {

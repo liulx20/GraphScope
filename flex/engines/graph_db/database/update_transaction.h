@@ -35,7 +35,8 @@ class VersionManager;
 
 class UpdateTransaction {
  public:
-  UpdateTransaction(MutablePropertyFragment& graph, WalWriter& logger,
+  UpdateTransaction(MutablePropertyFragment& graph, MMapAllocator& alloc,
+                    const std::string& work_dir, WalWriter& logger,
                     VersionManager& vm, timestamp_t timestamp);
 
   ~UpdateTransaction();
@@ -134,8 +135,9 @@ class UpdateTransaction {
                           label_t neighbor_label, vid_t nbr, label_t edge_label,
                           Any& ret) const;
 
-  static void IngestWal(MutablePropertyFragment& graph, uint32_t timestamp,
-                        char* data, size_t length);
+  static void IngestWal(MutablePropertyFragment& graph,
+                        const std::string& work_dir, uint32_t timestamp,
+                        char* data, size_t length, MMapAllocator& alloc);
 
  private:
   size_t get_in_csr_index(label_t src_label, label_t dst_label,
@@ -155,6 +157,7 @@ class UpdateTransaction {
   void applyEdgesUpdates();
 
   MutablePropertyFragment& graph_;
+  MMapAllocator& alloc_;
   WalWriter& logger_;
   VersionManager& vm_;
   timestamp_t timestamp_;

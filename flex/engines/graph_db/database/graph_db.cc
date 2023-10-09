@@ -22,14 +22,14 @@
 namespace gs {
 
 struct SessionLocalContext {
-  SessionLocalContext(GraphDB& db, int thread_id)
-      : session(db, logger, thread_id) {}
+  SessionLocalContext(GraphDB& db, const std::string& work_dir, int thread_id)
+      : session(db, allocator, logger, work_dir, thread_id) {}
   ~SessionLocalContext() { logger.close(); }
 
-  ArenaAllocator allocator;
-  char _padding0[128 - sizeof(ArenaAllocator) % 128];
+  MMapAllocator allocator;
+  char _padding0[128 - sizeof(MMapAllocator) % 128];
   WalWriter logger;
-  char _padding1[4096 - sizeof(WalWriter) - sizeof(ArenaAllocator) -
+  char _padding1[4096 - sizeof(WalWriter) - sizeof(MMapAllocator) -
                  sizeof(_padding0)];
   GraphDBSession session;
   char _padding2[4096 - sizeof(GraphDBSession) % 4096];
@@ -73,10 +73,11 @@ void GraphDB::Init(const Schema& schema, const std::string& data_dir,
   thread_num_ = thread_num;
   contexts_ = static_cast<SessionLocalContext*>(
       aligned_alloc(4096, sizeof(SessionLocalContext) * thread_num));
+  std::filesystem::path work_dir = data_dir_path / "work";
   for (int i = 0; i < thread_num_; ++i) {
-    new (&contexts_[i]) SessionLocalContext(*this, i);
+    new (&contexts_[i]) SessionLocalContext(*this, work_dir.string(), i);
   }
-  ingestWals(wal_files, thread_num_);
+  ingestWals(wal_files, work_dir.string(), thread_num_);
 
   for (int i = 0; i < thread_num_; ++i) {
     contexts_[i].logger.open(wal_dir.string(), i);
@@ -167,13 +168,15 @@ static void IngestWalRange(SessionLocalContext* contexts,
   for (int i = 0; i < thread_num; ++i) {
     threads[i] = std::thread(
         [&](int tid) {
+          auto& alloc = contexts[tid].allocator;
           while (true) {
             uint32_t got_ts = cur_ts.fetch_add(1);
             if (got_ts >= to) {
               break;
             }
             const auto& unit = parser.get_insert_wal(got_ts);
-            InsertTransaction::IngestWal(graph, got_ts, unit.ptr, unit.size);
+            InsertTransaction::IngestWal(graph, got_ts, unit.ptr, unit.size,
+                                         alloc);
             if (got_ts % 1000000 == 0) {
               LOG(INFO) << "Ingested " << got_ts << " WALs";
             }
@@ -186,7 +189,8 @@ static void IngestWalRange(SessionLocalContext* contexts,
   }
 }
 
-void GraphDB::ingestWals(const std::vector<std::string>& wals, int thread_num) {
+void GraphDB::ingestWals(const std::vector<std::string>& wals,
+                         const std::string& work_dir, int thread_num) {
   WalsParser parser(wals);
   uint32_t from_ts = 1;
   for (auto& update_wal : parser.update_wals()) {
@@ -194,8 +198,8 @@ void GraphDB::ingestWals(const std::vector<std::string>& wals, int thread_num) {
     if (from_ts < to_ts) {
       IngestWalRange(contexts_, graph_, parser, from_ts, to_ts, thread_num);
     }
-    UpdateTransaction::IngestWal(graph_, to_ts, update_wal.ptr,
-                                 update_wal.size);
+    UpdateTransaction::IngestWal(graph_, work_dir, to_ts, update_wal.ptr,
+                                 update_wal.size, contexts_[0].allocator);
     from_ts = to_ts + 1;
   }
   if (from_ts <= parser.last_ts()) {

@@ -108,6 +108,16 @@ inline MutableCsrBase* create_csr(EdgeStrategy es,
   return nullptr;
 }
 
+std::string get_latest_snapshot(const std::string& work_dir) {
+  std::string snapshots_dir = work_dir + "/snapshots";
+  uint32_t version;
+  {
+    FILE* fin = fopen((snapshots_dir + "/VERSION").c_str(), "r");
+    fread(&version, sizeof(uint32_t), 1, fin);
+  }
+  return snapshots_dir + "/" + std::to_string(version);
+}
+
 void MutablePropertyFragment::Open(const std::string& work_dir) {
   loadSchema(work_dir + "/schema");
   vertex_label_num_ = schema_.vertex_label_num();
@@ -115,9 +125,17 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
 
   lf_indexers_.resize(vertex_label_num_);
   vertex_data_.resize(vertex_label_num_);
+  std::string snapshot_dir = get_latest_snapshot(work_dir);
+  std::string w_dir = work_dir + "/work";
   for (size_t i = 0; i < vertex_label_num_; ++i) {
-    lf_indexers_[i].open(work_dir + "/data/indexer_" + std::to_string(i));
-    vertex_data_[i].open(work_dir + "/data/vtable_" + std::to_string(i));
+    lf_indexers_[i].open("indexer_" + std::to_string(i), snapshot_dir, w_dir);
+    vertex_data_[i].open("vtable_" + std::to_string(i), snapshot_dir, w_dir,
+                         schema_.get_vertex_property_names(i),
+                         schema_.get_vertex_properties(i),
+                         schema_.get_vertex_storage_strategies(
+                             schema_.get_vertex_label_name(i)));
+    // lf_indexers_[i].open(work_dir + "/data/indexer_" + std::to_string(i));
+    // vertex_data_[i].open(work_dir + "/data/vtable_" + std::to_string(i));
     size_t vertex_num = lf_indexers_[i].size();
     size_t vertex_capacity = vertex_num;
     vertex_capacity += vertex_capacity >> 2;
@@ -151,10 +169,10 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
             src_label, dst_label, edge_label);
         ie_[index] = create_csr(ie_strategy, properties);
         oe_[index] = create_csr(oe_strategy, properties);
-        ie_[index]->open(work_dir + "/data/ie_" + src_label + "_" + dst_label +
-                         "_" + edge_label);
-        oe_[index]->open(work_dir + "/data/oe_" + src_label + "_" + dst_label +
-                         "_" + edge_label);
+        ie_[index]->open("ie_" + src_label + "_" + dst_label + "_" + edge_label,
+                         snapshot_dir, w_dir);
+        oe_[index]->open("oe_" + src_label + "_" + dst_label + "_" + edge_label,
+                         snapshot_dir, w_dir);
       }
     }
   }
@@ -163,11 +181,12 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
 void MutablePropertyFragment::IngestEdge(label_t src_label, vid_t src_lid,
                                          label_t dst_label, vid_t dst_lid,
                                          label_t edge_label, timestamp_t ts,
-                                         grape::OutArchive& arc) {
+                                         grape::OutArchive& arc,
+                                         MMapAllocator& alloc) {
   size_t index = src_label * vertex_label_num_ * edge_label_num_ +
                  dst_label * edge_label_num_ + edge_label;
-  ie_[index]->peek_ingest_edge(dst_lid, src_lid, arc, ts);
-  oe_[index]->ingest_edge(src_lid, dst_lid, arc, ts);
+  ie_[index]->peek_ingest_edge(dst_lid, src_lid, arc, ts, alloc);
+  oe_[index]->ingest_edge(src_lid, dst_lid, arc, ts, alloc);
 }
 
 const Schema& MutablePropertyFragment::schema() const { return schema_; }

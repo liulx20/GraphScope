@@ -26,7 +26,10 @@ class TypedEmptyColumn : public ColumnBase {
   TypedEmptyColumn() {}
   ~TypedEmptyColumn() {}
 
-  void open(const std::string& filename) override {}
+  void open(const std::string& name, const std::string& snapshot_dir,
+            const std::string& work_dir) override {}
+  void touch(const std::string& filename) override {}
+  void dump(const std::string& filename) override {}
   void resize(size_t size) override {}
 
   PropertyType type() const override { return AnyConverter<T>::type; }
