@@ -26,6 +26,7 @@ std::shared_ptr<IFragmentLoader> LoaderFactory::CreateFragmentLoader(
   } else {
     LOG(FATAL) << "Unsupported format: " << loading_config.GetFormat();
   }
+  return nullptr;
 }
 
 }  // namespace gs

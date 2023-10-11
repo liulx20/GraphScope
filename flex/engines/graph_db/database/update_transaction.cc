@@ -13,6 +13,8 @@
  * limitations under the License.
  */
 
+#include <filesystem>
+
 #include "grape/serialization/in_archive.h"
 #include "grape/serialization/out_archive.h"
 
@@ -20,6 +22,7 @@
 #include "flex/engines/graph_db/database/update_transaction.h"
 #include "flex/engines/graph_db/database/version_manager.h"
 #include "flex/engines/graph_db/database/wal.h"
+#include "flex/storages/rt_mutable_graph/file_names.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
 
 namespace gs {
@@ -48,13 +51,14 @@ UpdateTransaction::UpdateTransaction(MutablePropertyFragment& graph,
   }
   vertex_offsets_.resize(vertex_label_num_);
   extra_vertex_properties_.resize(vertex_label_num_);
+  std::string txn_work_dir = update_txn_dir(work_dir, timestamp_);
+  std::filesystem::create_directories(txn_work_dir);
   for (size_t i = 0; i < vertex_label_num_; ++i) {
     const Table& table = graph_.get_vertex_table(i);
-    char tmp_table_name[L_tmpnam];
-    tmpnam(tmp_table_name);
-    extra_vertex_properties_[i].init(tmp_table_name, work_dir,
-                                     table.column_names(), table.column_types(),
-                                     {});
+    std::string v_label = graph_.schema().get_vertex_label_name(i);
+    std::string table_prefix = vertex_table_prefix(v_label);
+    extra_vertex_properties_[i].init(
+        table_prefix, work_dir, table.column_names(), table.column_types(), {});
     extra_vertex_properties_[i].resize(4096);
   }
 
@@ -424,13 +428,14 @@ void UpdateTransaction::IngestWal(MutablePropertyFragment& graph,
   }
   vertex_offsets.resize(vertex_label_num);
   extra_vertex_properties.resize(vertex_label_num);
+  std::string txn_work_dir = update_txn_dir(work_dir, timestamp);
+  std::filesystem::create_directories(txn_work_dir);
   for (size_t i = 0; i < vertex_label_num; ++i) {
     const Table& table = graph.get_vertex_table(i);
-    char tmp_table_name[L_tmpnam];
-    tmpnam(tmp_table_name);
-    extra_vertex_properties[i].init(tmp_table_name, work_dir,
-                                    table.column_names(), table.column_types(),
-                                    {});
+    std::string v_label = graph.schema().get_vertex_label_name(i);
+    std::string table_prefix = vertex_table_prefix(v_label);
+    extra_vertex_properties[i].init(
+        table_prefix, work_dir, table.column_names(), table.column_types(), {});
     extra_vertex_properties[i].resize(4096);
   }
 

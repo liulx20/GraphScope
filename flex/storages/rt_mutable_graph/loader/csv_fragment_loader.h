@@ -38,7 +38,6 @@ class CSVFragmentLoader : public IFragmentLoader {
                     const LoadingConfig& loading_config, int32_t thread_num)
       : loading_config_(loading_config),
         schema_(schema),
-        work_dir_(work_dir),
         thread_num_(thread_num),
         basic_fragment_loader_(schema_, work_dir) {
     vertex_label_num_ = schema_.vertex_label_num();
@@ -79,7 +78,6 @@ class CSVFragmentLoader : public IFragmentLoader {
 
   const LoadingConfig& loading_config_;
   const Schema& schema_;
-  std::string work_dir_;
   size_t vertex_label_num_, edge_label_num_;
   int32_t thread_num_;
 

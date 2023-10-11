@@ -23,7 +23,8 @@ namespace gs {
 
 struct SessionLocalContext {
   SessionLocalContext(GraphDB& db, const std::string& work_dir, int thread_id)
-      : session(db, allocator, logger, work_dir, thread_id) {}
+      : allocator(thread_local_allocator_prefix(work_dir, thread_id)),
+        session(db, allocator, logger, work_dir, thread_id) {}
   ~SessionLocalContext() { logger.close(); }
 
   MMapAllocator allocator;
@@ -50,37 +51,37 @@ GraphDB& GraphDB::get() {
 
 void GraphDB::Init(const Schema& schema, const std::string& data_dir,
                    int thread_num) {
-  std::filesystem::path data_dir_path(data_dir);
-  if (!std::filesystem::exists(data_dir_path)) {
+  if (!std::filesystem::exists(data_dir)) {
     LOG(FATAL) << "Data directory does not exist";
   }
 
-  std::filesystem::path schema_path = data_dir_path / "schema";
-  if (!std::filesystem::exists(schema_path)) {
+  std::string schema_file = schema_path(data_dir);
+  if (!std::filesystem::exists(schema_file)) {
     LOG(FATAL) << "Schema file does not exist";
   }
-  graph_.Open(data_dir_path.string());
+  graph_.Open(data_dir);
 
-  std::filesystem::path wal_dir = data_dir_path / "wal";
-  if (!std::filesystem::exists(wal_dir)) {
-    std::filesystem::create_directory(wal_dir);
+  std::string wal_dir_path = wal_dir(data_dir);
+  if (!std::filesystem::exists(wal_dir_path)) {
+    std::filesystem::create_directory(wal_dir_path);
   }
+
   std::vector<std::string> wal_files;
-  for (const auto& entry : std::filesystem::directory_iterator(wal_dir)) {
+  for (const auto& entry : std::filesystem::directory_iterator(wal_dir_path)) {
     wal_files.push_back(entry.path().string());
   }
 
   thread_num_ = thread_num;
   contexts_ = static_cast<SessionLocalContext*>(
       aligned_alloc(4096, sizeof(SessionLocalContext) * thread_num));
-  std::filesystem::path work_dir = data_dir_path / "work";
+  std::filesystem::create_directories(allocator_dir(data_dir));
   for (int i = 0; i < thread_num_; ++i) {
-    new (&contexts_[i]) SessionLocalContext(*this, work_dir.string(), i);
+    new (&contexts_[i]) SessionLocalContext(*this, data_dir, i);
   }
-  ingestWals(wal_files, work_dir.string(), thread_num_);
+  ingestWals(wal_files, data_dir, thread_num_);
 
   for (int i = 0; i < thread_num_; ++i) {
-    contexts_[i].logger.open(wal_dir.string(), i);
+    contexts_[i].logger.open(wal_dir_path, i);
   }
 
   initApps(schema.GetPluginsList());

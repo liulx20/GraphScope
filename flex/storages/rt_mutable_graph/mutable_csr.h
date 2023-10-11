@@ -334,7 +334,7 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
     nbr_t* ptr = nbr_list_.data();
     for (vid_t i = 0; i < vnum; ++i) {
       int deg = degree[i];
-      adj_lists_[i].init(ptr, deg, deg);
+      adj_lists_[i].init(ptr, deg, 0);
       ptr += deg;
     }
   }
@@ -363,6 +363,7 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
     bool reuse_nbr_list = true;
     mmap_array<int> degree_list;
     degree_list.open(new_spanshot_dir + "/" + name + ".deg", false);
+    degree_list.resize(vnum);
     size_t offset = 0;
     for (size_t i = 0; i < vnum; ++i) {
       if (adj_lists_[i].size() != 0) {

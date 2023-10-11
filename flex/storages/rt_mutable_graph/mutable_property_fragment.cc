@@ -16,6 +16,7 @@
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
 
 #include "flex/engines/hqps_db/core/utils/hqps_utils.h"
+#include "flex/storages/rt_mutable_graph/file_names.h"
 #include "flex/utils/property/types.h"
 
 namespace gs {
@@ -119,27 +120,29 @@ std::string get_latest_snapshot(const std::string& work_dir) {
 }
 
 void MutablePropertyFragment::Open(const std::string& work_dir) {
-  loadSchema(work_dir + "/schema");
+  loadSchema(schema_path(work_dir));
   vertex_label_num_ = schema_.vertex_label_num();
   edge_label_num_ = schema_.edge_label_num();
 
   lf_indexers_.resize(vertex_label_num_);
   vertex_data_.resize(vertex_label_num_);
   std::string snapshot_dir = get_latest_snapshot(work_dir);
-  std::string w_dir = work_dir + "/work";
+  std::string tmp_dir_path = tmp_dir(work_dir);
+  std::filesystem::create_directory(tmp_dir_path);
+  std::vector<size_t> vertex_capacities(vertex_label_num_, 0);
   for (size_t i = 0; i < vertex_label_num_; ++i) {
-    lf_indexers_[i].open("indexer_" + std::to_string(i), snapshot_dir, w_dir);
-    vertex_data_[i].open("vtable_" + std::to_string(i), snapshot_dir, w_dir,
-                         schema_.get_vertex_property_names(i),
+    std::string v_label_name = schema_.get_vertex_label_name(i);
+    lf_indexers_[i].open(vertex_map_prefix(v_label_name), snapshot_dir,
+                         tmp_dir_path);
+    vertex_data_[i].open(vertex_table_prefix(v_label_name), snapshot_dir,
+                         tmp_dir_path, schema_.get_vertex_property_names(i),
                          schema_.get_vertex_properties(i),
-                         schema_.get_vertex_storage_strategies(
-                             schema_.get_vertex_label_name(i)));
-    // lf_indexers_[i].open(work_dir + "/data/indexer_" + std::to_string(i));
-    // vertex_data_[i].open(work_dir + "/data/vtable_" + std::to_string(i));
+                         schema_.get_vertex_storage_strategies(v_label_name));
     size_t vertex_num = lf_indexers_[i].size();
     size_t vertex_capacity = vertex_num;
     vertex_capacity += vertex_capacity >> 2;
     vertex_data_[i].resize(vertex_capacity);
+    vertex_capacities[i] = vertex_capacity;
   }
 
   ie_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
@@ -169,10 +172,12 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
             src_label, dst_label, edge_label);
         ie_[index] = create_csr(ie_strategy, properties);
         oe_[index] = create_csr(oe_strategy, properties);
-        ie_[index]->open("ie_" + src_label + "_" + dst_label + "_" + edge_label,
-                         snapshot_dir, w_dir);
-        oe_[index]->open("oe_" + src_label + "_" + dst_label + "_" + edge_label,
-                         snapshot_dir, w_dir);
+        ie_[index]->open(ie_prefix(src_label, dst_label, edge_label),
+                         snapshot_dir, tmp_dir_path);
+        ie_[index]->resize(vertex_capacities[dst_label_i]);
+        oe_[index]->open(oe_prefix(src_label, dst_label, edge_label),
+                         snapshot_dir, tmp_dir_path);
+        oe_[index]->resize(vertex_capacities[src_label_i]);
       }
     }
   }

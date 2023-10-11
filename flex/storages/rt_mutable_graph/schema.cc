@@ -242,12 +242,13 @@ Schema::get_vertex_primary_key(label_t index) const {
   return v_primary_keys_.at(index);
 }
 
-void Schema::Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer) {
+void Schema::Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer) const {
   vlabel_indexer_.Serialize(writer);
   elabel_indexer_.Serialize(writer);
   grape::InArchive arc;
-  arc << vproperties_ << vprop_storage_ << eproperties_ << ie_strategy_
-      << oe_strategy_ << max_vnum_;
+  arc << vproperties_ << vprop_names_ << v_primary_keys_ << vprop_storage_
+      << eproperties_ << eprop_names_ << ie_strategy_ << oe_strategy_
+      << max_vnum_ << plugin_list_;
   CHECK(writer->WriteArchive(arc));
 }
 
@@ -256,8 +257,9 @@ void Schema::Deserialize(std::unique_ptr<grape::LocalIOAdaptor>& reader) {
   elabel_indexer_.Deserialize(reader);
   grape::OutArchive arc;
   CHECK(reader->ReadArchive(arc));
-  arc >> vproperties_ >> vprop_storage_ >> eproperties_ >> ie_strategy_ >>
-      oe_strategy_ >> max_vnum_;
+  arc >> vproperties_ >> vprop_names_ >> v_primary_keys_ >> vprop_storage_ >>
+      eproperties_ >> eprop_names_ >> ie_strategy_ >> oe_strategy_ >>
+      max_vnum_ >> plugin_list_;
 }
 
 label_t Schema::vertex_label_to_index(const std::string& label) {

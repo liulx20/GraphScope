@@ -15,6 +15,7 @@
  */
 
 #include "flex/storages/rt_mutable_graph/loader/basic_fragment_loader.h"
+#include "flex/storages/rt_mutable_graph/file_names.h"
 
 namespace gs {
 
@@ -29,18 +30,22 @@ BasicFragmentLoader::BasicFragmentLoader(const Schema& schema,
   oe_.resize(vertex_label_num_ * vertex_label_num_ * edge_label_num_, NULL);
   lf_indexers_.resize(vertex_label_num_);
 
-  std::filesystem::create_directories(prefix + "/data");
-  init_vertex_data(prefix + "/work");
+  std::filesystem::create_directories(runtime_dir(prefix));
+  std::filesystem::create_directories(snapshot_dir(prefix, 0));
+  std::filesystem::create_directories(wal_dir(prefix));
+  std::filesystem::create_directories(tmp_dir(prefix));
+
+  init_vertex_data();
 }
 
-void BasicFragmentLoader::init_vertex_data(const std::string& prefix) {
+void BasicFragmentLoader::init_vertex_data() {
   for (label_t v_label = 0; v_label < vertex_label_num_; v_label++) {
     auto& v_data = vertex_data_[v_label];
     auto label_name = schema_.get_vertex_label_name(v_label);
     auto& property_types = schema_.get_vertex_properties(v_label);
     auto& property_names = schema_.get_vertex_property_names(v_label);
-    v_data.init("vtable_" + std::to_string(v_label), prefix, property_names,
-                property_types,
+    v_data.init(vertex_table_prefix(label_name), tmp_dir(work_dir_),
+                property_names, property_types,
                 schema_.get_vertex_storage_strategies(label_name));
     v_data.resize(schema_.get_max_vnum(label_name));
   }
@@ -48,19 +53,45 @@ void BasicFragmentLoader::init_vertex_data(const std::string& prefix) {
 }
 
 void BasicFragmentLoader::LoadFragment() {
-  std::string schema_path = work_dir_ + "/schema";
+  std::string schema_filename = schema_path(work_dir_);
   auto io_adaptor = std::unique_ptr<grape::LocalIOAdaptor>(
-      new grape::LocalIOAdaptor(schema_path));
+      new grape::LocalIOAdaptor(schema_filename));
   io_adaptor->Open("wb");
   schema_.Serialize(io_adaptor);
   io_adaptor->Close();
 
-  std::string version_path = work_dir_ + "/snapshots/VERSION";
-  FILE* version_file = fopen(version_path.c_str(), "wb");
-  uint32_t version = 0;
-  fwrite(&version, sizeof(uint32_t), 1, version_file);
-  fflush(version_file);
-  fclose(version_file);
+  for (label_t v_label = 0; v_label < vertex_label_num_; v_label++) {
+    auto& v_data = vertex_data_[v_label];
+    auto label_name = schema_.get_vertex_label_name(v_label);
+    v_data.resize(lf_indexers_[v_label].size());
+    v_data.dump(vertex_table_prefix(label_name), snapshot_dir(work_dir_, 0));
+  }
+
+  for (size_t src_label = 0; src_label < vertex_label_num_; src_label++) {
+    std::string src_label_name = schema_.get_vertex_label_name(src_label);
+    for (size_t dst_label = 0; dst_label < vertex_label_num_; dst_label++) {
+      std::string dst_label_name = schema_.get_vertex_label_name(dst_label);
+      for (size_t edge_label = 0; edge_label < edge_label_num_; edge_label++) {
+        std::string edge_label_name = schema_.get_edge_label_name(edge_label);
+        size_t index = src_label * vertex_label_num_ * edge_label_num_ +
+                       dst_label * edge_label_num_ + edge_label;
+        if (schema_.exist(src_label_name, dst_label_name, edge_label_name)) {
+          if (ie_[index] != NULL) {
+            ie_[index]->dump(
+                ie_prefix(src_label_name, dst_label_name, edge_label_name),
+                snapshot_dir(work_dir_, 0));
+          }
+          if (oe_[index] != NULL) {
+            oe_[index]->dump(
+                oe_prefix(src_label_name, dst_label_name, edge_label_name),
+                snapshot_dir(work_dir_, 0));
+          }
+        }
+      }
+    }
+  }
+
+  set_snapshot_version(work_dir_, 0);
 }
 
 void BasicFragmentLoader::AddVertexBatch(
@@ -84,10 +115,12 @@ void BasicFragmentLoader::AddVertexBatch(
 }
 
 void BasicFragmentLoader::FinishAddingVertex(
-    label_t v_label, const std::string& filename,
-    const IdIndexer<oid_t, vid_t>& indexer) {
+    label_t v_label, const IdIndexer<oid_t, vid_t>& indexer) {
   CHECK(v_label < vertex_label_num_);
-  build_lf_indexer(indexer, filename, lf_indexers_[v_label]);
+  std::string prefix =
+      snapshot_dir(work_dir_, 0) +
+      vertex_map_prefix(schema_.get_vertex_label_name(v_label));
+  build_lf_indexer(indexer, prefix, lf_indexers_[v_label]);
 }
 
 const LFIndexer<vid_t>& BasicFragmentLoader::GetLFIndexer(

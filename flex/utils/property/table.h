@@ -68,6 +68,7 @@ class Table {
   const std::shared_ptr<ColumnBase> get_column_by_id(size_t index) const;
 
   size_t col_num() const;
+  size_t row_num() const;
   std::vector<std::shared_ptr<ColumnBase>>& columns();
   std::vector<ColumnBase*>& column_ptrs();
 

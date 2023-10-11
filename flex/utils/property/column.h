@@ -36,6 +36,8 @@ class ColumnBase {
 
   virtual void dump(const std::string& filename) = 0;
 
+  virtual size_t size() const = 0;
+
   virtual void resize(size_t size) = 0;
 
   virtual PropertyType type() const = 0;
@@ -104,6 +106,8 @@ class TypedColumn : public ColumnBase {
     }
   }
 
+  size_t size() const override { return basic_size_ + extra_size_; }
+
   void resize(size_t size) override {
     if (size < basic_buffer_.size()) {
       basic_size_ = size;
@@ -118,7 +122,7 @@ class TypedColumn : public ColumnBase {
   PropertyType type() const override { return AnyConverter<T>::type; }
 
   void set_value(size_t index, const T& val) {
-    assert(index > basic_size_ && index < basic_size_ + extra_size_);
+    assert(index >= basic_size_ && index < basic_size_ + extra_size_);
     extra_buffer_.set(index - basic_size_, val);
   }
 
@@ -208,6 +212,7 @@ class StringColumn : public ColumnBase {
     if (basic_size_ != 0 && extra_size_ == 0) {
       basic_buffer_.dump(filename);
     } else if (basic_size_ == 0 && extra_size_ != 0) {
+      extra_buffer_.resize(extra_size_, pos_.load());
       extra_buffer_.dump(filename);
     } else {
       mmap_array<std::string_view> tmp;
@@ -229,6 +234,8 @@ class StringColumn : public ColumnBase {
     }
   }
 
+  size_t size() const override { return basic_size_ + extra_size_; }
+
   void resize(size_t size) override {
     if (size < basic_buffer_.size()) {
       basic_size_ = size;
@@ -245,7 +252,7 @@ class StringColumn : public ColumnBase {
   }
 
   void set_value(size_t idx, const std::string_view& val) {
-    assert(idx > basic_size_ && idx < basic_size_ + extra_size_);
+    assert(idx >= basic_size_ && idx < basic_size_ + extra_size_);
     size_t offset = pos_.fetch_add(val.size());
     extra_buffer_.set(idx - basic_size_, offset, val);
   }

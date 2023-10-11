@@ -59,7 +59,8 @@ struct KeyBuffer {
   using type = std::vector<T>;
 
   template <typename IOADAPTOR_T>
-  static void serialize(std::unique_ptr<IOADAPTOR_T>& writer, type& buffer) {
+  static void serialize(std::unique_ptr<IOADAPTOR_T>& writer,
+                        const type& buffer) {
     size_t size = buffer.size();
     CHECK(writer->Write(&size, sizeof(size_t)));
     if (size > 0) {
@@ -83,7 +84,8 @@ struct KeyBuffer<std::string> {
   using type = std::vector<std::string>;
 
   template <typename IOADAPTOR_T>
-  static void serialize(std::unique_ptr<IOADAPTOR_T>& writer, type& buffer) {
+  static void serialize(std::unique_ptr<IOADAPTOR_T>& writer,
+                        const type& buffer) {
     grape::InArchive arc;
     arc << buffer;
     CHECK(writer->WriteArchive(arc));
@@ -102,7 +104,8 @@ struct KeyBuffer<std::string_view> {
   using type = StringViewVector;
 
   template <typename IOADAPTOR_T>
-  static void serialize(std::unique_ptr<IOADAPTOR_T>& writer, type& buffer) {
+  static void serialize(std::unique_ptr<IOADAPTOR_T>& writer,
+                        const type& buffer) {
     size_t content_buffer_size = buffer.content_buffer().size();
     CHECK(writer->Write(&content_buffer_size, sizeof(size_t)));
     if (content_buffer_size > 0) {
@@ -497,7 +500,7 @@ class IdIndexer {
 
   key_buffer_t& keys() { return keys_; }
 
-  void Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer) {
+  void Serialize(std::unique_ptr<grape::LocalIOAdaptor>& writer) const {
     id_indexer_impl::KeyBuffer<KEY_T>::serialize(writer, keys_);
     grape::InArchive arc;
     arc << hash_policy_.get_mod_function_index() << max_lookups_
@@ -507,11 +510,12 @@ class IdIndexer {
     arc.Clear();
 
     if (indices_.size() > 0) {
-      CHECK(writer->Write(indices_.data(), indices_.size() * sizeof(INDEX_T)));
+      CHECK(writer->Write(const_cast<uint8_t*>(indices_.data()),
+                          indices_.size() * sizeof(INDEX_T)));
     }
     if (distances_.size() > 0) {
-      CHECK(
-          writer->Write(distances_.data(), distances_.size() * sizeof(int8_t)));
+      CHECK(writer->Write(const_cast<int8_t*>(distances_.data()),
+                          distances_.size() * sizeof(int8_t)));
     }
   }
 

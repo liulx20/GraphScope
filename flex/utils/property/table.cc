@@ -177,6 +177,12 @@ const std::shared_ptr<ColumnBase> Table::get_column_by_id(size_t index) const {
 }
 
 size_t Table::col_num() const { return columns_.size(); }
+size_t Table::row_num() const {
+  if (columns_.empty()) {
+    return 0;
+  }
+  return columns_[0]->size();
+}
 std::vector<std::shared_ptr<ColumnBase>>& Table::columns() { return columns_; }
 // get column pointers
 std::vector<ColumnBase*>& Table::column_ptrs() { return column_ptrs_; }

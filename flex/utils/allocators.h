@@ -95,10 +95,15 @@ class MMapAllocator {
   static constexpr size_t batch_size = 4096;
 
  public:
-  MMapAllocator() : prefix_("/dev/null"), cur_loc_(0), cur_size_(0) {}
-  ~MMapAllocator() {}
-
-  void set_prefix(const std::string& prefix) { prefix_ = prefix; }
+  MMapAllocator(const std::string& prefix)
+      : prefix_(prefix), cur_loc_(0), cur_size_(0) {}
+  ~MMapAllocator() {
+    for (auto ptr : buffers_) {
+      if (ptr != nullptr) {
+        delete ptr;
+      }
+    }
+  }
 
   void reserve(size_t cap) {
     if (cur_size_ - cur_loc_ >= cap) {

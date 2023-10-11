@@ -89,10 +89,9 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  gs::MutablePropertyFragment graph;
   auto loader = gs::LoaderFactory::CreateFragmentLoader(
       data_dir_path.string(), schema, loading_config, parallelism);
-  loader->LoadFragment(graph);
+  loader->LoadFragment();
 
   return 0;
 }

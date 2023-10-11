@@ -329,9 +329,7 @@ void CSVFragmentLoader::addVertices(label_t v_label_id,
   if (indexer.bucket_count() == 0) {
     indexer._rehash(schema_.get_max_vnum(v_label_name));
   }
-  basic_fragment_loader_.FinishAddingVertex(
-      v_label_id, work_dir_ + "/data/indexer_" + std::to_string(v_label_id),
-      indexer);
+  basic_fragment_loader_.FinishAddingVertex(v_label_id, indexer);
 
   VLOG(10) << "Finish init vertices for label " << v_label_name;
 }
