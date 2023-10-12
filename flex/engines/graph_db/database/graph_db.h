@@ -49,6 +49,10 @@ class GraphDB {
   void Init(const Schema& schema, const std::string& data_dir,
             int thread_num = 1);
 
+  void Checkpoint();
+
+  void CheckpointAndRestart();
+
   /** @brief Create a transaction to read vertices and edges.
    *
    * @return graph_dir The directory of graph data.
@@ -110,13 +114,11 @@ class GraphDB {
 
   friend class GraphDBSession;
 
+  std::string work_dir_;
   SessionLocalContext* contexts_;
-
   int thread_num_;
-
   MutablePropertyFragment graph_;
   VersionManager version_manager_;
-
   std::array<std::string, 256> app_paths_;
   std::array<std::shared_ptr<AppFactoryBase>, 256> app_factories_;
 };

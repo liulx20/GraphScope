@@ -38,6 +38,7 @@ struct SessionLocalContext {
 
 GraphDB::GraphDB() = default;
 GraphDB::~GraphDB() {
+  // Checkpoint();
   for (int i = 0; i < thread_num_; ++i) {
     contexts_[i].~SessionLocalContext();
   }
@@ -59,6 +60,7 @@ void GraphDB::Init(const Schema& schema, const std::string& data_dir,
   if (!std::filesystem::exists(schema_file)) {
     LOG(FATAL) << "Schema file does not exist";
   }
+  work_dir_ = data_dir;
   graph_.Open(data_dir);
 
   std::string wal_dir_path = wal_dir(data_dir);
@@ -85,6 +87,27 @@ void GraphDB::Init(const Schema& schema, const std::string& data_dir,
   }
 
   initApps(schema.GetPluginsList());
+}
+
+void GraphDB::Checkpoint() {
+  uint32_t ts = version_manager_.acquire_update_timestamp();
+
+  uint32_t read_version = ts - 1;
+  if (read_version == 0 || read_version <= get_snapshot_version(work_dir_)) {
+    CHECK(version_manager_.revert_update_timestamp(ts));
+    return;
+  }
+
+  double t = -grape::GetCurrentTime();
+  graph_.Dump(work_dir_, read_version);
+  t += grape::GetCurrentTime();
+  LOG(INFO) << "Dump graph data using " << t << "s";
+  CHECK(version_manager_.revert_update_timestamp(ts));
+}
+
+void GraphDB::CheckpointAndRestart() {
+  Checkpoint();
+  Init(graph_.schema(), work_dir_, thread_num_);
 }
 
 ReadTransaction GraphDB::GetReadTransaction() {

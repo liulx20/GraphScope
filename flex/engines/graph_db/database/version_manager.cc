@@ -97,6 +97,15 @@ void VersionManager::release_update_timestamp(uint32_t ts) {
   pending_reqs_.store(0);
 }
 
+bool VersionManager::revert_update_timestamp(uint32_t ts) {
+  uint32_t expected_ts = ts + 1;
+  if (write_ts_.compare_exchange_strong(expected_ts, ts)) {
+    pending_reqs_.store(0);
+    return true;
+  }
+  return false;
+}
+
 }  // namespace gs
 
 #undef likely

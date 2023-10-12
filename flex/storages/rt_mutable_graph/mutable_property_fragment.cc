@@ -183,6 +183,52 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
   }
 }
 
+void MutablePropertyFragment::Dump(const std::string& work_dir,
+                                   uint32_t version) {
+  std::string snapshot_dir_path = snapshot_dir(work_dir, version);
+  std::filesystem::create_directories(snapshot_dir_path);
+  std::vector<size_t> vertex_num(vertex_label_num_, 0);
+  for (size_t i = 0; i < vertex_label_num_; ++i) {
+    vertex_num[i] = lf_indexers_[i].size();
+    lf_indexers_[i].dump(vertex_map_prefix(schema_.get_vertex_label_name(i)),
+                         snapshot_dir_path);
+    vertex_data_[i].resize(vertex_num[i]);
+    vertex_data_[i].dump(vertex_table_prefix(schema_.get_vertex_label_name(i)),
+                         snapshot_dir_path);
+  }
+
+  for (size_t src_label_i = 0; src_label_i != vertex_label_num_;
+       ++src_label_i) {
+    std::string src_label =
+        schema_.get_vertex_label_name(static_cast<label_t>(src_label_i));
+    for (size_t dst_label_i = 0; dst_label_i != vertex_label_num_;
+         ++dst_label_i) {
+      std::string dst_label =
+          schema_.get_vertex_label_name(static_cast<label_t>(dst_label_i));
+      for (size_t e_label_i = 0; e_label_i != edge_label_num_; ++e_label_i) {
+        std::string edge_label =
+            schema_.get_edge_label_name(static_cast<label_t>(e_label_i));
+        if (!schema_.exist(src_label, dst_label, edge_label)) {
+          continue;
+        }
+        size_t index = src_label_i * vertex_label_num_ * edge_label_num_ +
+                       dst_label_i * edge_label_num_ + e_label_i;
+        if (ie_[index] != NULL) {
+          ie_[index]->resize(vertex_num[dst_label_i]);
+          ie_[index]->dump(ie_prefix(src_label, dst_label, edge_label),
+                           snapshot_dir_path);
+        }
+        if (oe_[index] != NULL) {
+          oe_[index]->resize(vertex_num[src_label_i]);
+          oe_[index]->dump(oe_prefix(src_label, dst_label, edge_label),
+                           snapshot_dir_path);
+        }
+      }
+    }
+  }
+  set_snapshot_version(work_dir, version);
+}
+
 void MutablePropertyFragment::IngestEdge(label_t src_label, vid_t src_lid,
                                          label_t dst_label, vid_t dst_lid,
                                          label_t edge_label, timestamp_t ts,

@@ -225,6 +225,7 @@ Any Table::at(size_t row_id, size_t col_id) const {
 }
 
 void Table::ingest(uint32_t index, grape::OutArchive& arc) {
+  CHECK_GT(row_num(), index);
   for (auto col : column_ptrs_) {
     col->ingest(index, arc);
   }

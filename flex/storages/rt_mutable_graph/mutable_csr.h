@@ -146,10 +146,13 @@ class MutableAdjlist {
   void put_edge(vid_t neighbor, const EDATA_T& data, timestamp_t ts,
                 MMapAllocator& allocator) {
     if (size_ == capacity_) {
-      capacity_ += (((capacity_) >> 1) + 1);
+      capacity_ += ((capacity_) >> 1);
+      capacity_ = std::max(capacity_, 8);
       nbr_t* new_buffer =
           static_cast<nbr_t*>(allocator.allocate(capacity_ * sizeof(nbr_t)));
-      UninitializedUtils<nbr_t>::copy(new_buffer, buffer_, size_);
+      if (size_ > 0) {
+        UninitializedUtils<nbr_t>::copy(new_buffer, buffer_, size_);
+      }
       buffer_ = new_buffer;
     }
     auto& nbr = buffer_[size_.fetch_add(1)];
@@ -226,6 +229,7 @@ class MutableCsrBase {
                     const std::string& new_spanshot_dir) = 0;
 
   virtual void resize(vid_t vnum) = 0;
+  virtual size_t size() const = 0;
 
   virtual void put_generic_edge(vid_t src, vid_t dst, const Any& data,
                                 timestamp_t ts, MMapAllocator& alloc) = 0;
@@ -398,10 +402,14 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
       for (size_t k = old_size; k != vnum; ++k) {
         adj_lists_[k].init(NULL, 0, 0);
       }
+      delete[] locks_;
+      locks_ = new grape::SpinLock[vnum];
     } else {
       adj_lists_.resize(vnum);
     }
   }
+
+  size_t size() const override { return adj_lists_.size(); }
 
   void batch_put_edge(vid_t src, vid_t dst, const EDATA_T& data,
                       timestamp_t ts = 0) override {
@@ -510,6 +518,8 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
     }
   }
 
+  size_t size() const override { return nbr_list_.size(); }
+
   void batch_put_edge(vid_t src, vid_t dst, const EDATA_T& data,
                       timestamp_t ts = 0) override {
     nbr_list_[src].neighbor = dst;
@@ -611,6 +621,8 @@ class EmptyCsr : public TypedMutableCsrBase<EDATA_T> {
             const std::string& new_spanshot_dir) override {}
 
   void resize(vid_t vnum) override {}
+
+  size_t size() const override { return 0; }
 
   slice_t get_edges(vid_t i) const override { return slice_t::empty(); }
 
