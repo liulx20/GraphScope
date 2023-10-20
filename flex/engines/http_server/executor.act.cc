@@ -18,6 +18,7 @@
 #include "flex/engines/graph_db/database/graph_db.h"
 #include "flex/engines/graph_db/database/graph_db_session.h"
 #include "flex/engines/http_server/codegen_proxy.h"
+#include "flex/engines/http_server/graph_db_update_server.h"
 #include "flex/engines/http_server/stored_procedure.h"
 
 #include <seastar/core/print.hh>
@@ -45,6 +46,11 @@ seastar::future<query_result> executor::run_graph_db_query(
   return seastar::make_ready_future<query_result>(std::move(content));
 }
 
+seastar::future<query_result> executor::run_graph_db_update_query(
+    query_param&& param) {
+  server::GraphDBUpdateServer::get().Eval(param.content);
+  return seastar::make_ready_future<query_result>("OK");
+}
 // run_query_for stored_procedure
 seastar::future<query_result> executor::run_hqps_procedure_query(
     query_param&& param) {
