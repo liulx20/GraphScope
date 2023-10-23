@@ -14,6 +14,7 @@
  */
 
 #include "flex/engines/http_server/graph_db_update_service.h"
+#include "flex/engines/http_server/graph_db_update_server.h"
 #include "flex/engines/http_server/options.h"
 namespace server {
 
@@ -32,6 +33,11 @@ void GraphDBUpdateService::run_and_wait_for_exit() {
   http_hdl_->start();
   running_.store(true);
   while (running_.load(std::memory_order_relaxed)) {
+    ++count_;
+    if (count_ == 100) {
+      count_ = 0;
+      forward_ = true;
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   http_hdl_->stop();

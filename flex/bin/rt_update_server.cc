@@ -26,13 +26,10 @@ namespace bpo = boost::program_options;
 
 int main(int argc, char** argv) {
   bpo::options_description desc("Usage:");
-  desc.add_options()("help", "Display help message")(
-      "version,v", "Display version")("shard-num,s",
-                                      bpo::value<uint32_t>()->default_value(1),
-                                      "shard number of actor system")(
+  desc.add_options()("help", "Display help message")("version,v",
+                                                     "Display version")(
       "http-port,p", bpo::value<uint16_t>()->default_value(10000),
-      "http port of query handler")("graph-config,g", bpo::value<std::string>(),
-                                    "graph schema config file");
+      "http port of query handler");
   google::InitGoogleLogging(argv[0]);
   FLAGS_logtostderr = true;
 
@@ -50,7 +47,7 @@ int main(int argc, char** argv) {
   }
 
   bool enable_dpdk = false;
-  uint32_t shard_num = vm["shard-num"].as<uint32_t>();
+  constexpr uint32_t shard_num = 1;
   uint16_t http_port = vm["http-port"].as<uint16_t>();
 
   setenv("TZ", "Asia/Shanghai", 1);

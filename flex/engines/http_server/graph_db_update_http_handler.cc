@@ -20,6 +20,7 @@
 #include <seastar/core/print.hh>
 #include <seastar/http/handlers.hh>
 #include "flex/engines/http_server/generated/executor_ref.act.autogen.h"
+#include "flex/engines/http_server/graph_db_update_server.h"
 #include "flex/engines/http_server/types.h"
 
 namespace server {
@@ -45,7 +46,9 @@ class update_query_handler : public seastar::httpd::handler_base {
       std::unique_ptr<seastar::httpd::reply> rep) override {
     auto dst_executor = executor_idx_;
     executor_idx_ = (executor_idx_ + 1) % shard_concurrency_;
-
+    if (GraphDBUpdateService::get().forward()) {
+      req->content[req->content.size() - 1] += (1 << 7);
+    }
     return executor_refs_[dst_executor]
         .run_graph_db_update_query(query_param{std::move(req->content)})
         .then_wrapped([rep = std::move(rep)](
@@ -82,6 +85,7 @@ class update_exit_handler : public seastar::httpd::handler_base {
       const seastar::sstring& path,
       std::unique_ptr<seastar::httpd::request> req,
       std::unique_ptr<seastar::httpd::reply> rep) override {
+    GraphDBUpdateServer::get().Forward();
     GraphDBUpdateService::get().set_exit_state();
     rep->write_body(
         "bin",

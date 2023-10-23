@@ -32,14 +32,23 @@ class GraphDBUpdateService {
   void init(uint32_t num_shards, uint16_t http_port, bool dpdk_mode);
   void run_and_wait_for_exit();
   void set_exit_state();
+  bool forward() {
+    if (forward_) {
+      forward_ = false;
+      return true;
+    }
+    return false;
+  }
 
  private:
-  GraphDBUpdateService() = default;
+  GraphDBUpdateService() : count_(0), forward_(false) {}
 
  private:
   std::unique_ptr<actor_system> actor_sys_;
   std::unique_ptr<graph_db_update_http_handler> http_hdl_;
   std::atomic<bool> running_{false};
+  int count_;
+  bool forward_;
 };
 
 }  // namespace server
