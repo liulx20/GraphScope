@@ -55,8 +55,16 @@ class BasicFragmentLoader {
     dst_columns[col_ind]->set_any(vid, prop);
   }
 
+  template <typename KEY_T>
   void FinishAddingVertex(label_t v_label,
-                          const IdIndexer<oid_t, vid_t>& indexer);
+                          const IdIndexer<KEY_T, vid_t>& indexer) {
+    CHECK(v_label < vertex_label_num_);
+    std::string filename =
+        vertex_map_prefix(schema_.get_vertex_label_name(v_label));
+    build_lf_indexer<KEY_T, vid_t>(indexer, filename, lf_indexers_[v_label],
+                                   snapshot_dir(work_dir_, 0),
+                                   tmp_dir(work_dir_));
+  }
 
   template <typename EDATA_T>
   void AddNoPropEdgeBatch(label_t src_label_id, label_t dst_label_id,

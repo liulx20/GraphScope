@@ -59,12 +59,14 @@ class CSVFragmentLoader : public IFragmentLoader {
 
   void addVertices(label_t v_label_id, const std::vector<std::string>& v_files);
 
+  template <typename KEY_T>
   void addVerticesImpl(label_t v_label_id, const std::string& v_label_name,
                        const std::vector<std::string> v_file,
-                       IdIndexer<oid_t, vid_t>& indexer);
+                       IdIndexer<KEY_T, vid_t>& indexer);
 
+  template <typename KEY_T>
   void addVertexBatch(
-      label_t v_label_id, IdIndexer<oid_t, vid_t>& indexer,
+      label_t v_label_id, IdIndexer<KEY_T, vid_t>& indexer,
       std::shared_ptr<arrow::Array>& primary_key_col,
       const std::vector<std::shared_ptr<arrow::Array>>& property_cols);
 

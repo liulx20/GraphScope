@@ -62,7 +62,11 @@ void BasicFragmentLoader::LoadFragment() {
 
   for (label_t v_label = 0; v_label < vertex_label_num_; v_label++) {
     auto& v_data = vertex_data_[v_label];
+
     auto label_name = schema_.get_vertex_label_name(v_label);
+    lf_indexers_[v_label].dump_keys(vertex_map_prefix(label_name) + ".keys",
+                                    snapshot_dir(work_dir_, 0));
+
     v_data.resize(lf_indexers_[v_label].size());
     v_data.dump(vertex_table_prefix(label_name), snapshot_dir(work_dir_, 0));
   }
@@ -112,15 +116,6 @@ void BasicFragmentLoader::AddVertexBatch(
       dst_columns[j]->set_any(index, cur_vec[i]);
     }
   }
-}
-
-void BasicFragmentLoader::FinishAddingVertex(
-    label_t v_label, const IdIndexer<oid_t, vid_t>& indexer) {
-  CHECK(v_label < vertex_label_num_);
-  std::string prefix =
-      snapshot_dir(work_dir_, 0) +
-      vertex_map_prefix(schema_.get_vertex_label_name(v_label));
-  build_lf_indexer(indexer, prefix, lf_indexers_[v_label]);
 }
 
 const LFIndexer<vid_t>& BasicFragmentLoader::GetLFIndexer(

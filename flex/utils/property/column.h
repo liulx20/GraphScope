@@ -31,12 +31,13 @@ class ColumnBase {
 
   virtual void open(const std::string& name, const std::string& snapshot_dir,
                     const std::string& work_dir) = 0;
-
   virtual void touch(const std::string& filename) = 0;
 
   virtual void dump(const std::string& filename) = 0;
 
   virtual size_t size() const = 0;
+
+  // virtual void clear() = 0;
 
   virtual void resize(size_t size) = 0;
 
@@ -58,7 +59,7 @@ class TypedColumn : public ColumnBase {
   ~TypedColumn() {}
 
   void open(const std::string& name, const std::string& snapshot_dir,
-            const std::string& work_dir) {
+            const std::string& work_dir) override {
     std::string basic_path = snapshot_dir + "/" + name;
     if (std::filesystem::exists(basic_path)) {
       basic_buffer_.open(basic_path, true);
@@ -66,11 +67,9 @@ class TypedColumn : public ColumnBase {
     } else {
       basic_size_ = 0;
     }
-
     extra_buffer_.open(work_dir + "/" + name, false);
     extra_size_ = extra_buffer_.size();
   }
-
   void touch(const std::string& filename) override {
     mmap_array<T> tmp;
     tmp.open(filename, false);
@@ -170,7 +169,7 @@ class StringColumn : public ColumnBase {
   ~StringColumn() {}
 
   void open(const std::string& name, const std::string& snapshot_dir,
-            const std::string& work_dir) {
+            const std::string& work_dir) override {
     std::string basic_path = snapshot_dir + "/" + name;
     if (std::filesystem::exists(basic_path + ".items")) {
       basic_buffer_.open(basic_path, true);

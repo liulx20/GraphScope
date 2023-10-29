@@ -134,6 +134,7 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
     std::string v_label_name = schema_.get_vertex_label_name(i);
     lf_indexers_[i].open(vertex_map_prefix(v_label_name), snapshot_dir,
                          tmp_dir_path);
+
     vertex_data_[i].open(vertex_table_prefix(v_label_name), snapshot_dir,
                          tmp_dir_path, schema_.get_vertex_property_names(i),
                          schema_.get_vertex_properties(i),
@@ -142,6 +143,7 @@ void MutablePropertyFragment::Open(const std::string& work_dir) {
     size_t vertex_capacity = vertex_num;
     vertex_capacity += vertex_capacity >> 2;
     vertex_data_[i].resize(vertex_capacity);
+    lf_indexers_[i].resize_keys(vertex_capacity);
     vertex_capacities[i] = vertex_capacity;
   }
 
@@ -255,16 +257,16 @@ vid_t MutablePropertyFragment::vertex_num(label_t vertex_label) const {
   return static_cast<vid_t>(lf_indexers_[vertex_label].size());
 }
 
-bool MutablePropertyFragment::get_lid(label_t label, oid_t oid,
+bool MutablePropertyFragment::get_lid(label_t label, const Any& oid,
                                       vid_t& lid) const {
   return lf_indexers_[label].get_index(oid, lid);
 }
 
-oid_t MutablePropertyFragment::get_oid(label_t label, vid_t lid) const {
+Any MutablePropertyFragment::get_oid(label_t label, vid_t lid) const {
   return lf_indexers_[label].get_key(lid);
 }
 
-vid_t MutablePropertyFragment::add_vertex(label_t label, oid_t id) {
+vid_t MutablePropertyFragment::add_vertex(label_t label, const Any& id) {
   return lf_indexers_[label].insert(id);
 }
 

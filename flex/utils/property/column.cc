@@ -30,6 +30,7 @@ class TypedEmptyColumn : public ColumnBase {
             const std::string& work_dir) override {}
   void touch(const std::string& filename) override {}
   void dump(const std::string& filename) override {}
+  // void clear() override {}
   size_t size() const override { return 0; }
   void resize(size_t size) override {}
 
