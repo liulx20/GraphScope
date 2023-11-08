@@ -39,6 +39,9 @@ enum class PropertyType {
   kEmpty,
   kInt64,
   kDouble,
+  kUInt8,
+  kUInt16,
+  kStringMap,
 };
 
 struct Date {
@@ -60,6 +63,8 @@ union AnyValue {
   Date d;
   std::string_view s;
   double db;
+  uint8_t u8;
+  uint16_t u16;
 };
 
 template <typename T>
@@ -110,6 +115,16 @@ struct Any {
     value.db = db;
   }
 
+  void set_u8(uint8_t v) {
+    type = PropertyType::kUInt8;
+    value.u8 = v;
+  }
+
+  void set_u16(uint16_t v) {
+    type = PropertyType::kUInt16;
+    value.u16 = v;
+  }
+
   std::string to_string() const {
     if (type == PropertyType::kInt32) {
       return std::to_string(value.i);
@@ -124,6 +139,10 @@ struct Any {
       return "NULL";
     } else if (type == PropertyType::kDouble) {
       return std::to_string(value.db);
+    } else if (type == PropertyType::kUInt8) {
+      return std::to_string(value.u8);
+    } else if (type == PropertyType::kUInt16) {
+      return std::to_string(value.u16);
     } else {
       LOG(FATAL) << "Unexpected property type: " << static_cast<int>(type);
       return "";
@@ -269,6 +288,14 @@ struct ConvertAny<std::string> {
 };
 
 template <>
+struct ConvertAny<std::string_view> {
+  static void to(const Any& value, std::string_view& out) {
+    CHECK(value.type == PropertyType::kString);
+    out = value.value.s;
+  }
+};
+
+template <>
 struct ConvertAny<double> {
   static void to(const Any& value, double& out) {
     CHECK(value.type == PropertyType::kDouble);
@@ -278,6 +305,34 @@ struct ConvertAny<double> {
 
 template <typename T>
 struct AnyConverter {};
+
+template <>
+struct AnyConverter<uint8_t> {
+  static constexpr PropertyType type = PropertyType::kUInt8;
+  static Any to_any(const uint8_t& value) {
+    Any ret;
+    ret.set_u8(value);
+    return ret;
+  }
+  static const uint8_t& from_any(const Any& value) {
+    CHECK(value.type == PropertyType::kUInt8);
+    return value.value.u8;
+  }
+};
+
+template <>
+struct AnyConverter<uint16_t> {
+  static constexpr PropertyType type = PropertyType::kUInt16;
+  static Any to_any(const uint16_t& value) {
+    Any ret;
+    ret.set_u16(value);
+    return ret;
+  }
+  static const uint16_t& from_any(const Any& value) {
+    CHECK(value.type == PropertyType::kUInt8);
+    return value.value.u16;
+  }
+};
 
 template <>
 struct AnyConverter<int> {

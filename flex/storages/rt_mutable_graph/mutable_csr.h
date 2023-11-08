@@ -348,6 +348,7 @@ class MutableCsr : public TypedMutableCsrBase<EDATA_T> {
     mmap_array<int> degree_list;
     degree_list.open(snapshot_dir + "/" + name + ".deg", true);
     nbr_list_.open(snapshot_dir + "/" + name + ".nbr", true);
+    nbr_list_.touch(work_dir + "/" + name + ".nbr");
     adj_lists_.open(work_dir + "/" + name + ".adj", false);
 
     adj_lists_.resize(degree_list.size());
@@ -484,7 +485,7 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
   void batch_init(const std::string& name, const std::string& work_dir,
                   const std::vector<int>& degree) override {
     size_t vnum = degree.size();
-    nbr_list_.open(work_dir + "/" + name + ".nbr", false);
+    nbr_list_.open(work_dir + "/" + name + ".snbr", false);
     nbr_list_.resize(vnum);
     for (size_t k = 0; k != vnum; ++k) {
       nbr_list_[k].timestamp.store(std::numeric_limits<timestamp_t>::max());
@@ -492,9 +493,14 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
   }
 
   void open(const std::string& name, const std::string& snapshot_dir,
-            const std::string& work_dir) {
-    nbr_list_.open(snapshot_dir + "/" + name + ".nbr", true);
-    nbr_list_.touch(work_dir + "/" + name + ".nbr");
+            const std::string& work_dir) override {
+    if (!std::filesystem::exists(work_dir + "/" + name + ".snbr")) {
+      copy_file(snapshot_dir + "/" + name + ".snbr",
+                work_dir + "/" + name + ".snbr");
+    }
+    nbr_list_.open(work_dir + "/" + name + ".snbr", false);
+    // nbr_list_.open(snapshot_dir + "/" + name + ".nbr", true);
+    // nbr_list_.touch(work_dir + "/" + name + ".nbr");
   }
 
   void dump(const std::string& name,
@@ -503,7 +509,7 @@ class SingleMutableCsr : public TypedMutableCsrBase<EDATA_T> {
            std::filesystem::exists(nbr_list_.filename()));
     assert(!nbr_list_.read_only());
     std::filesystem::create_hard_link(nbr_list_.filename(),
-                                      new_snapshot_dir + "/" + name + ".nbr");
+                                      new_snapshot_dir + "/" + name + ".snbr");
   }
 
   void resize(vid_t vnum) override {

@@ -61,14 +61,18 @@ UpdateTransaction::UpdateTransaction(MutablePropertyFragment& graph,
   }
   vertex_offsets_.resize(vertex_label_num_);
   extra_vertex_properties_.resize(vertex_label_num_);
-  std::string txn_work_dir = update_txn_dir(work_dir, timestamp_);
+  std::string txn_work_dir = update_txn_dir(work_dir, 0);
+  if (std::filesystem::exists(txn_work_dir)) {
+    std::filesystem::remove_all(txn_work_dir);
+  }
   std::filesystem::create_directories(txn_work_dir);
   for (size_t i = 0; i < vertex_label_num_; ++i) {
     const Table& table = graph_.get_vertex_table(i);
     std::string v_label = graph_.schema().get_vertex_label_name(i);
     std::string table_prefix = vertex_table_prefix(v_label);
-    extra_vertex_properties_[i].init(
-        table_prefix, work_dir, table.column_names(), table.column_types(), {});
+    extra_vertex_properties_[i].init(table_prefix, txn_work_dir,
+                                     table.column_names(), table.column_types(),
+                                     {});
     extra_vertex_properties_[i].resize(4096);
   }
 
@@ -114,6 +118,10 @@ bool UpdateTransaction::AddVertex(label_t label, const Any& oid,
   int col_num = types.size();
   for (int col_i = 0; col_i != col_num; ++col_i) {
     if (props[col_i].type != types[col_i]) {
+      if (types[col_i] == PropertyType::kStringMap &&
+          props[col_i].type == PropertyType::kString) {
+        continue;
+      }
       return false;
     }
   }
@@ -130,6 +138,7 @@ bool UpdateTransaction::AddVertex(label_t label, const Any& oid,
   }
   grape::OutArchive oarc;
   oarc.SetSlice(arc.GetBuffer(), arc.GetSize());
+
   extra_vertex_properties_[label].ingest(row_num, oarc);
 
   op_num_ += 1;
@@ -593,6 +602,7 @@ void UpdateTransaction::release() {
     added_vertices_.clear();
     added_vertices_base_.clear();
     vertex_offsets_.clear();
+
     extra_vertex_properties_.clear();
     added_edges_.clear();
     updated_edge_data_.clear();

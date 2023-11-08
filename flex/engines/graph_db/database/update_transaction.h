@@ -161,7 +161,6 @@ class UpdateTransaction {
   WalWriter& logger_;
   VersionManager& vm_;
   timestamp_t timestamp_;
-
   grape::InArchive arc_;
   int op_num_;
 

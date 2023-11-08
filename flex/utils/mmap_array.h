@@ -30,8 +30,31 @@
 #include <string_view>
 
 #include "glog/logging.h"
+#include "grape/util.h"
 
 namespace gs {
+
+inline void copy_file(const std::string& src, const std::string& dst) {
+  if (!std::filesystem::exists(src)) {
+    LOG(ERROR) << "file not exists: " << src;
+    return;
+  }
+  size_t len = std::filesystem::file_size(src);
+  int src_fd = open(src.c_str(), O_RDONLY);
+  int dst_fd = open(dst.c_str(), O_WRONLY | O_CREAT);
+
+  ssize_t ret;
+  do {
+    ret = copy_file_range(src_fd, NULL, dst_fd, NULL, len, 0);
+    if (ret == -1) {
+      perror("copy_file_range");
+      return;
+    }
+    len -= ret;
+  } while (len > 0 && ret > 0);
+  close(src_fd);
+  close(dst_fd);
+}
 
 template <typename T>
 class mmap_array {
@@ -44,13 +67,14 @@ class mmap_array {
   void reset() {
     filename_ = "";
     if (data_ != NULL) {
-      munmap(data_, size_);
+      munmap(data_, size_ * sizeof(T));
       data_ = NULL;
     }
     if (fd_ != -1) {
       close(fd_);
       fd_ = -1;
     }
+    size_ = 0;
     read_only_ = true;
   }
 
@@ -78,6 +102,10 @@ class mmap_array {
       }
     } else {
       fd_ = ::open(filename.c_str(), O_RDWR | O_CREAT);
+      if (fd_ == -1) {
+        LOG(FATAL) << "open file failed " << filename << strerror(errno)
+                   << "\n";
+      }
       size_t file_size = std::filesystem::file_size(filename);
       size_ = file_size / sizeof(T);
       if (size_ == 0) {
@@ -86,9 +114,14 @@ class mmap_array {
         data_ = reinterpret_cast<T*>(mmap(NULL, size_ * sizeof(T),
                                           PROT_READ | PROT_WRITE, MAP_SHARED,
                                           fd_, 0));
+        if (data_ == MAP_FAILED) {
+          LOG(FATAL) << "mmap failed " << errno << " " << strerror(errno)
+                     << "..\n";
+        }
         assert(data_ != MAP_FAILED);
       }
     }
+    madvise(data_, size_ * sizeof(T), MADV_RANDOM | MADV_WILLNEED);
   }
 
   void dump(const std::string& filename) {
@@ -116,11 +149,13 @@ class mmap_array {
         size_ = size;
         data_ = reinterpret_cast<T*>(
             mmap(NULL, size_ * sizeof(T), PROT_READ, MAP_PRIVATE, fd_, 0));
+
       } else if (size * sizeof(T) < std::filesystem::file_size(filename_)) {
         munmap(data_, size_ * sizeof(T));
         size_ = size;
         data_ = reinterpret_cast<T*>(
             mmap(NULL, size_ * sizeof(T), PROT_READ, MAP_PRIVATE, fd_, 0));
+
       } else {
         LOG(FATAL)
             << "cannot resize read-only mmap_array to larger size than file";
@@ -129,13 +164,20 @@ class mmap_array {
       if (data_ != NULL) {
         munmap(data_, size_ * sizeof(T));
       }
-      ftruncate(fd_, size * sizeof(T));
+      int rt = ftruncate(fd_, size * sizeof(T));
+      if (rt == -1) {
+        LOG(FATAL) << "ftruncate failed: " << rt << " " << strerror(errno)
+                   << "\n";
+      }
       if (size == 0) {
         data_ = NULL;
       } else {
         data_ =
             static_cast<T*>(::mmap(NULL, size * sizeof(T),
                                    PROT_READ | PROT_WRITE, MAP_SHARED, fd_, 0));
+        if (data_ == MAP_FAILED) {
+          LOG(FATAL) << "mmap failed " << strerror(errno) << "\n";
+        }
       }
       size_ = size;
     }
@@ -144,14 +186,10 @@ class mmap_array {
   bool read_only() const { return read_only_; }
 
   void touch(const std::string& filename) {
-    {
-      FILE* fout = fopen(filename.c_str(), "wb");
-      fwrite(data_, sizeof(T), size_, fout);
-      fflush(fout);
-      fclose(fout);
+    if (read_only_) {
+      copy_file(filename_, filename);
+      open(filename, false);
     }
-
-    open(filename, false);
   }
 
   T* data() { return data_; }
@@ -171,6 +209,7 @@ class mmap_array {
     std::swap(fd_, rhs.fd_);
     std::swap(data_, rhs.data_);
     std::swap(size_, rhs.size_);
+    std::swap(read_only_, rhs.read_only_);
   }
 
   const std::string& filename() const { return filename_; }

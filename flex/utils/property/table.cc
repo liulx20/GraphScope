@@ -69,7 +69,7 @@ void Table::touch(const std::string& name, const std::string& work_dir) {
     return;
   }
   int i = 0;
-  for (auto col : columns_) {
+  for (auto& col : columns_) {
     col->touch(work_dir + "/" + name + ".col_" + std::to_string(i++));
   }
   touched_ = true;
@@ -225,6 +225,10 @@ Any Table::at(size_t row_id, size_t col_id) const {
 }
 
 void Table::ingest(uint32_t index, grape::OutArchive& arc) {
+  if (column_ptrs_.size() == 0) {
+    return;
+  }
+
   CHECK_GT(row_num(), index);
   for (auto col : column_ptrs_) {
     col->ingest(index, arc);

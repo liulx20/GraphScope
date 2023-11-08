@@ -200,6 +200,51 @@ class LFIndexer {
         rhs.hash_policy_.get_mod_function_index());
   }
 
+  void init_with_resize(const std::string& filename,
+                        const std::string& snapshot_dir,
+                        const std::string& work_dir, size_t size) {
+    keys_->open(filename + ".keys", snapshot_dir, work_dir);
+    indices_.open(work_dir + "/" + filename + ".indices", false);
+    rehash(std::max(size, num_elements_.load()));
+  }
+  void rehash(size_t size) {
+    size = std::max(
+        static_cast<size_t>(std::ceil(size / id_indexer_impl::max_load_factor)),
+        4ul);
+    if (size == indices_size_) {
+      return;
+    }
+
+    auto new_prime_index = hash_policy_.next_size_over(size);
+    hash_policy_.commit(new_prime_index);
+    size_t num_elements = num_elements_.load();
+    // keys_ resize
+    // indices_ resize
+    keys_->resize(size);
+    indices_.resize(size);
+    indices_size_ = size;
+    for (size_t k = 0; k != size; ++k) {
+      indices_[k] = std::numeric_limits<INDEX_T>::max();
+    }
+    num_slots_minus_one_ = size - 1;
+    for (INDEX_T idx = 0; idx < num_elements; ++idx) {
+      emplace(idx);
+    }
+  }
+
+  void emplace(INDEX_T lid) {
+    const auto& oid = keys_->get(lid);
+    size_t index =
+        hash_policy_.index_for_hash(hasher_(oid), num_slots_minus_one_);
+    static constexpr INDEX_T sentinel = std::numeric_limits<INDEX_T>::max();
+    while (true) {
+      if (indices_[index] == sentinel) {
+        indices_[index] = lid;
+        break;
+      }
+      index = (index + 1) % (num_slots_minus_one_ + 1);
+    }
+  }
   void init(const PropertyType& type) {
     if (keys_ != nullptr) {
       delete keys_;
@@ -273,12 +318,41 @@ class LFIndexer {
 
   void open(const std::string& name, const std::string& snapshot_dir,
             const std::string& work_dir) {
-    load_meta(snapshot_dir + "/" + name + ".meta");
-    keys_->open(name + ".keys", snapshot_dir, work_dir);
+    if (!std::filesystem::exists(work_dir + "/" + name + ".meta")) {
+      if (std::filesystem::exists(snapshot_dir + "/" + name + ".meta")) {
+        load_meta(snapshot_dir + "/" + name + ".meta");
+        keys_->open(name + ".keys", snapshot_dir, work_dir);
+        keys_->copy_to_tmp(snapshot_dir + "/" + name + ".keys",
+                           work_dir + "/" + name + ".keys");
+        size_t size = keys_->size();
+        num_elements_.store(size);
+        indices_.open(snapshot_dir + "/" + name + ".indices", true);
+        indices_.touch(work_dir + "/" + name + ".indices");
+        indices_size_ = indices_.size();
+
+        indices_.reset();
+        keys_->close();
+        keys_->open(name + ".keys", "", work_dir);
+        size_t num_elements = num_elements_.load();
+        keys_->resize(num_elements + (num_elements >> 2));
+        dump_meta(work_dir + "/" + name + ".meta");
+        keys_->close();
+      } else {
+        init_with_resize(name, work_dir, work_dir,
+                         std::numeric_limits<INDEX_T>::max());
+        num_elements_.store(0);
+        indices_.open(work_dir + "/" + name + ".indices", false);
+        indices_size_ = indices_.size();
+        dump_meta(work_dir + "/" + name + ".meta");
+        indices_.reset();
+        keys_->close();
+      }
+    }
+    load_meta(work_dir + "/" + name + ".meta", true);
+    keys_->open(name + ".keys", "", work_dir);
     size_t size = keys_->size();
     num_elements_.store(size);
-    indices_.open(snapshot_dir + "/" + name + ".indices", true);
-    indices_.touch(work_dir + "/" + name + ".indices");
+    indices_.open(work_dir + "/" + name + ".indices", false);
     indices_size_ = indices_.size();
   }
 
@@ -289,9 +363,14 @@ class LFIndexer {
     dump_meta(snapshot_dir + "/" + name + ".meta");
   }
 
+  void close() {
+    keys_->close();
+    indices_.reset();
+  }
+
   void dump_meta(const std::string& filename) const {
     grape::InArchive arc;
-    arc << get_type() << num_slots_minus_one_
+    arc << get_type() << num_elements_.load() << num_slots_minus_one_
         << hash_policy_.get_mod_function_index();
     FILE* fout = fopen(filename.c_str(), "wb");
     fwrite(arc.GetBuffer(), sizeof(char), arc.GetSize(), fout);
@@ -305,7 +384,7 @@ class LFIndexer {
 
   void resize_keys(size_t size) { keys_->resize(size); }
 
-  void load_meta(const std::string& filename) {
+  void load_meta(const std::string& filename, bool flag = false) {
     grape::OutArchive arc;
     FILE* fin = fopen(filename.c_str(), "r");
     size_t meta_file_size = std::filesystem::file_size(filename);
@@ -315,9 +394,17 @@ class LFIndexer {
     arc.SetSlice(buf.data(), meta_file_size);
     size_t mod_function_index;
     PropertyType type;
-    arc >> type >> num_slots_minus_one_ >> mod_function_index;
+    arc >> type;
+
+    if (flag) {
+      size_t num_elements;
+      arc >> num_elements;
+      num_elements_.store(num_elements);
+    }
+    arc >> num_slots_minus_one_ >> mod_function_index;
     init(type);
     hash_policy_.set_mod_function_by_index(mod_function_index);
+    fclose(fin);
   }
 
   // get keys

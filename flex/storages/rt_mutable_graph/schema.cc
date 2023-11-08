@@ -375,6 +375,8 @@ static PropertyType StringToPropertyType(const std::string& str) {
     return PropertyType::kDate;
   } else if (str == "String" || str == DT_STRING) {
     return PropertyType::kString;
+  } else if (str == DT_STRINGMAP) {
+    return PropertyType::kStringMap;
   } else if (str == "Empty") {
     return PropertyType::kEmpty;
   } else if (str == "int64" || str == DT_SIGNED_INT64) {
