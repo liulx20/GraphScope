@@ -50,6 +50,12 @@ UpdateTransaction GraphDBSession::GetUpdateTransaction() {
                            db_.version_manager_, ts);
 }
 
+UpdateTransactionCRO GraphDBSession::GetUpdateTransactionCRO() {
+  uint32_t ts = db_.version_manager_.acquire_read_timestamp();
+  return UpdateTransactionCRO(db_.graph_, alloc_, logger_, db_.version_manager_,
+                              ts);
+}
+
 const MutablePropertyFragment& GraphDBSession::graph() const {
   return db_.graph();
 }

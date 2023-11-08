@@ -39,6 +39,10 @@ class UpdateTransactionCRO {
   UpdateTransactionCRO(MutablePropertyFragment& graph, MMapAllocator& alloc,
                        WalWriter& logger, VersionManager& vm,
                        timestamp_t timestamp);
+  bool AddVertexAndEdge(label_t src_label, const Any& src, label_t dst_label,
+                        const Any& dst, label_t edge_label,
+                        std::vector<Any>&& src_props,
+                        std::vector<Any>&& dst_props, const Any& edge_prop);
 
   ~UpdateTransactionCRO();
 
@@ -47,6 +51,13 @@ class UpdateTransactionCRO {
   void Commit();
 
   void Abort();
+
+  bool AddVertex(label_t label, const Any& oid, std::vector<Any>&& out);
+
+  bool AddEdge(label_t src_label, const Any& src, label_t dst_label,
+               const Any& dst, label_t edge_label, const Any& prop);
+
+  bool GetVertexIndex(label_t label, const Any& id, vid_t& index) const;
 
   bool UpdateVertex(label_t label, const Any& oid, vid_t vid,
                     std::vector<Any>&& out);
@@ -70,10 +81,13 @@ class UpdateTransactionCRO {
 
   grape::InArchive arc_;
   int op_num_;
-  std::vector<std::tuple<label_t, vid_t, std::vector<Any>>> update_verties_;
+  std::vector<std::tuple<label_t, vid_t, std::vector<Any>>> update_vertices_;
+  std::vector<std::tuple<label_t, Any, std::vector<Any>>> insert_vertices_;
   std::vector<std::tuple<std::shared_ptr<MutableCsrEdgeIterBase>,
                          std::shared_ptr<MutableCsrEdgeIterBase>, Any>>
       update_edges_;
+  std::vector<std::tuple<label_t, Any, label_t, Any, label_t, Any>>
+      insert_edges_;
 };
 
 }  // namespace gs

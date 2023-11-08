@@ -22,6 +22,7 @@
 #include "flex/engines/graph_db/database/single_edge_insert_transaction.h"
 #include "flex/engines/graph_db/database/single_vertex_insert_transaction.h"
 #include "flex/engines/graph_db/database/update_transaction.h"
+#include "flex/engines/graph_db/database/update_transaction_cro.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
 #include "flex/utils/property/column.h"
 
@@ -54,6 +55,8 @@ class GraphDBSession {
   SingleEdgeInsertTransaction GetSingleEdgeInsertTransaction();
 
   UpdateTransaction GetUpdateTransaction();
+
+  UpdateTransactionCRO GetUpdateTransactionCRO();
 
   const MutablePropertyFragment& graph() const;
   MutablePropertyFragment& graph();
