@@ -23,6 +23,8 @@
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
 
 namespace gs {
+static constexpr int commit_thread_num = 16;
+static constexpr int multi_thread_limit = 256;
 UpdateTransactionCRO::UpdateTransactionCRO(MutablePropertyFragment& graph,
                                            MMapAllocator& alloc,
                                            WalWriter& logger,
@@ -246,40 +248,136 @@ void UpdateTransactionCRO::release() {
 
 void UpdateTransactionCRO::applyEdgesUpdates() {
   // int count = 0;
-  for (auto& [src_label, src, dst_label, dst, edge_label, prop] :
-       insert_edges_) {
-    grape::InArchive arc;
-    arc << prop;
-    vid_t src_lid, dst_lid;
-    GetVertexIndex(src_label, src, src_lid);
-    GetVertexIndex(dst_label, dst, dst_lid);
-    grape::OutArchive out_arc(std::move(arc));
-    graph_.IngestEdge(src_label, src_lid, dst_label, dst_lid, edge_label,
-                      timestamp_, out_arc, alloc_);
-    // count++;
+  {
+    size_t num = insert_edges_.size();
+    if (num < multi_thread_limit) {
+      for (auto& [src_label, src, dst_label, dst, edge_label, prop] :
+           insert_edges_) {
+        grape::InArchive arc;
+        arc << prop;
+        vid_t src_lid, dst_lid;
+        GetVertexIndex(src_label, src, src_lid);
+        GetVertexIndex(dst_label, dst, dst_lid);
+        grape::OutArchive out_arc(std::move(arc));
+        graph_.IngestEdge(src_label, src_lid, dst_label, dst_lid, edge_label,
+                          timestamp_, out_arc, alloc_);
+        // count++;
+      }
+    } else {
+      num /= commit_thread_num;
+      std::vector<std::thread> vec;
+      for (int i = 0; i < commit_thread_num; ++i) {
+        vec.emplace_back(std::thread([&, i, num]() {
+          for (size_t idx = i * num;
+               idx < (i + 1) * num && idx < insert_edges_.size(); ++idx) {
+            auto& [src_label, src, dst_label, dst, edge_label, prop] =
+                insert_edges_[idx];
+            grape::InArchive arc;
+            arc << prop;
+            vid_t src_lid, dst_lid;
+            GetVertexIndex(src_label, src, src_lid);
+            GetVertexIndex(dst_label, dst, dst_lid);
+            grape::OutArchive out_arc(std::move(arc));
+            graph_.IngestEdge(src_label, src_lid, dst_label, dst_lid,
+                              edge_label, timestamp_, out_arc, alloc_);
+          }
+        }));
+        for (auto& t : vec) {
+          t.join();
+        }
+      }
+    }
   }
-  for (auto& [in_iter, out_iter, prop] : update_edges_) {
-    if (in_iter != nullptr) {
-      in_iter->set_data(prop, timestamp_);
+
+  {
+    size_t num = update_edges_.size();
+    if (num < multi_thread_limit) {
+      for (auto& [in_iter, out_iter, prop] : update_edges_) {
+        if (in_iter != nullptr) {
+          in_iter->set_data(prop, timestamp_);
+        }
+        if (out_iter != nullptr) {
+          out_iter->set_data(prop, timestamp_);
+        }
+        // count++;
+      }
+    } else {
+      num /= commit_thread_num;
+      std::vector<std::thread> vec;
+      for (int i = 0; i < commit_thread_num; ++i) {
+        vec.emplace_back(std::thread([&, i, num]() {
+          for (size_t idx = i * num;
+               idx < (i + 1) * num && idx < update_edges_.size(); ++idx) {
+            auto& [in_iter, out_iter, prop] = update_edges_[i];
+            if (in_iter != nullptr) {
+              in_iter->set_data(prop, timestamp_);
+            }
+            if (out_iter != nullptr) {
+              out_iter->set_data(prop, timestamp_);
+            }
+          }
+        }));
+      }
+      for (auto& t : vec) {
+        t.join();
+      }
     }
-    if (out_iter != nullptr) {
-      out_iter->set_data(prop, timestamp_);
-    }
-    // count++;
   }
   // LOG(INFO) << "Update Edge" << count << "\n";
 }
 
 void UpdateTransactionCRO::applyVerticesUpdates() {
   // int count = 0;
-  for (auto& [label, oid, prop] : insert_vertices_) {
-    vid_t lid = graph_.add_vertex(label, oid);
-    graph_.get_vertex_table(label).insert(lid, prop);
-    // count++;
+  {
+    size_t num = insert_vertices_.size();
+    if (num < multi_thread_limit) {
+      for (auto& [label, oid, prop] : insert_vertices_) {
+        vid_t lid = graph_.add_vertex(label, oid);
+        graph_.get_vertex_table(label).insert(lid, prop);
+        // count++;
+      }
+    } else {
+      num /= commit_thread_num;
+      std::vector<std::thread> vec;
+      for (int i = 0; i < commit_thread_num; ++i) {
+        vec.emplace_back([&, i, num]() {
+          for (size_t idx = i * num;
+               idx < (i + 1) * num && idx < insert_vertices_.size(); ++idx) {
+            auto& [label, oid, prop] = insert_vertices_[idx];
+            vid_t lid = graph_.add_vertex(label, oid);
+            graph_.get_vertex_table(label).insert(lid, prop);
+            // count++;
+          }
+        });
+      }
+      for (auto& t : vec) {
+        t.join();
+      }
+    }
   }
-  for (auto& [label, vid, prop] : update_vertices_) {
-    graph_.get_vertex_table(label).insert(vid, prop);
-    // count++;
+  {
+    size_t num = update_vertices_.size();
+    if (num < multi_thread_limit) {
+      for (auto& [label, vid, prop] : update_vertices_) {
+        graph_.get_vertex_table(label).insert(vid, prop);
+        // count++;
+      }
+    } else {
+      num /= commit_thread_num;
+      std::vector<std::thread> vec;
+      for (int i = 0; i < commit_thread_num; ++i) {
+        vec.emplace_back([&, i, num] {
+          for (size_t idx = i * num;
+               idx < (i + 1) * num && idx < update_vertices_.size(); ++idx) {
+            auto& [label, vid, prop] = update_vertices_[idx];
+            graph_.get_vertex_table(label).insert(vid, prop);
+          }
+        });
+      }
+      for (auto& t : vec) {
+        t.join();
+      }
+    }
   }
   // LOG(INFO) << "Update Vertex" << count << "\n";
 }
