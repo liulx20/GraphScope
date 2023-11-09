@@ -36,6 +36,9 @@ class VersionManager;
 class UpdateTransaction {
  public:
   UpdateTransaction(MutablePropertyFragment& graph, MMapAllocator& alloc,
+                    WalWriter& logger, VersionManager& vm,
+                    timestamp_t timestamp);
+  UpdateTransaction(MutablePropertyFragment& graph, MMapAllocator& alloc,
                     const std::string& work_dir, WalWriter& logger,
                     VersionManager& vm, timestamp_t timestamp);
 
@@ -44,6 +47,17 @@ class UpdateTransaction {
   timestamp_t timestamp() const;
 
   void Commit();
+
+  void BatchCommit(
+      std::vector<std::tuple<label_t, vid_t, std::vector<Any>>>&&
+          update_vertices,
+      std::vector<std::tuple<std::shared_ptr<MutableCsrEdgeIterBase>,
+                             std::shared_ptr<MutableCsrEdgeIterBase>, Any>>&&
+          update_edges,
+      std::vector<std::tuple<label_t, Any, std::vector<Any>>>&& insert_vertices,
+      std::vector<std::tuple<label_t, Any, label_t, Any, label_t, Any>>&&
+          insert_edges,
+      grape::InArchive& arc);
 
   void Abort();
 

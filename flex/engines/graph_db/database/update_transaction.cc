@@ -28,6 +28,14 @@
 namespace gs {
 
 UpdateTransaction::UpdateTransaction(MutablePropertyFragment& graph,
+                                     MMapAllocator& alloc, WalWriter& logger,
+                                     VersionManager& vm, timestamp_t timestamp)
+    : graph_(graph),
+      alloc_(alloc),
+      logger_(logger),
+      vm_(vm),
+      timestamp_(timestamp) {}
+UpdateTransaction::UpdateTransaction(MutablePropertyFragment& graph,
                                      MMapAllocator& alloc,
                                      const std::string& work_dir,
                                      WalWriter& logger, VersionManager& vm,
@@ -102,6 +110,91 @@ void UpdateTransaction::Commit() {
 
   applyVerticesUpdates();
   applyEdgesUpdates();
+  release();
+}
+
+template <class Fn, class T>
+void applyBatchUpdate(Fn&& fn, std::vector<T>&& vec) {
+  static constexpr int commit_thread_num = 8;
+  static constexpr int multi_thread_limit = 1024;
+  int num = vec.size();
+  if (num < multi_thread_limit) {
+    for (auto& e : vec) {
+      fn(std::forward<T>(e));
+    }
+  } else {
+    std::vector<std::thread> threads;
+    num /= commit_thread_num;
+    for (int i = 0; i < commit_thread_num; ++i) {
+      threads.emplace_back([&, i, num] {
+        for (size_t idx = i * num; idx < (i + 1) * num && idx < vec.size();
+             ++idx) {
+          fn(std::move(vec[idx]));
+        }
+      });
+    }
+    for (auto& t : threads) {
+      t.join();
+    }
+  }
+}
+
+void UpdateTransaction::BatchCommit(
+    std::vector<std::tuple<label_t, vid_t, std::vector<Any>>>&& update_vertices,
+    std::vector<std::tuple<std::shared_ptr<MutableCsrEdgeIterBase>,
+                           std::shared_ptr<MutableCsrEdgeIterBase>, Any>>&&
+        update_edges,
+    std::vector<std::tuple<label_t, Any, std::vector<Any>>>&& insert_vertices,
+    std::vector<std::tuple<label_t, Any, label_t, Any, label_t, Any>>&&
+        insert_edges,
+    grape::InArchive& arc) {
+  if (timestamp_ == std::numeric_limits<timestamp_t>::max()) {
+    return;
+  }
+  auto* header = reinterpret_cast<WalHeader*>(arc.GetBuffer());
+  header->length = arc.GetSize() - sizeof(WalHeader);
+  header->type = 1;
+  header->timestamp = timestamp_;
+  logger_.append(arc.GetBuffer(), arc.GetSize());
+  applyBatchUpdate(
+      [&](std::tuple<label_t, vid_t, std::vector<Any>>&& v) {
+        const auto& [label, vid, prop] = v;
+        graph_.get_vertex_table(label).insert(vid, prop);
+      },
+      std::move(update_vertices));
+  applyBatchUpdate(
+      [&](std::tuple<label_t, Any, std::vector<Any>>&& v) {
+        const auto& [label, oid, prop] = v;
+        vid_t lid = graph_.add_vertex(label, oid);
+        graph_.get_vertex_table(label).insert(lid, prop);
+      },
+      std::move(insert_vertices));
+  applyBatchUpdate(
+      [&](std::tuple<std::shared_ptr<MutableCsrEdgeIterBase>,
+                     std::shared_ptr<MutableCsrEdgeIterBase>, Any>&& e) {
+        const auto& [in_iter, out_iter, prop] = e;
+        if (in_iter != nullptr) {
+          in_iter->set_data(prop, timestamp_);
+        }
+        if (out_iter != nullptr) {
+          out_iter->set_data(prop, timestamp_);
+        }
+      },
+      std::move(update_edges));
+  applyBatchUpdate(
+      [&](std::tuple<label_t, Any, label_t, Any, label_t, Any>&& e) {
+        const auto& [src_label, src, dst_label, dst, edge_label, prop] = e;
+        grape::InArchive arc;
+        arc << prop;
+        vid_t src_lid, dst_lid;
+
+        graph_.get_lid(src_label, src, src_lid);
+        graph_.get_lid(dst_label, dst, dst_lid);
+        grape::OutArchive out_arc(std::move(arc));
+        graph_.IngestEdge(src_label, src_lid, dst_label, dst_lid, edge_label,
+                          timestamp_, out_arc, alloc_);
+      },
+      std::move(insert_edges));
   release();
 }
 
