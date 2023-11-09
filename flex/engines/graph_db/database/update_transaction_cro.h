@@ -63,6 +63,7 @@ class UpdateTransactionCRO {
                     std::vector<Any>&& out);
   bool UpdateEdge(label_t src_label, const Any& src, label_t dst_label,
                   const Any& dst, label_t edge_label, const Any& prop,
+                  vid_t src_lid, vid_t dst_lid,
                   std::shared_ptr<MutableCsrEdgeIterBase>& in_edge,
                   std::shared_ptr<MutableCsrEdgeIterBase>& out_edge);
 
@@ -73,6 +74,9 @@ class UpdateTransactionCRO {
 
   void applyEdgesUpdates();
 
+  size_t get_csr_index(label_t src_label, label_t dst_label,
+                       label_t edge_label) const;
+
   MutablePropertyFragment& graph_;
   MMapAllocator& alloc_;
   WalWriter& logger_;
@@ -81,13 +85,39 @@ class UpdateTransactionCRO {
 
   grape::InArchive arc_;
   int op_num_;
+  size_t vertex_label_num_;
+  size_t edge_label_num_;
   std::vector<std::tuple<label_t, vid_t, std::vector<Any>>> update_vertices_;
   std::vector<std::tuple<label_t, Any, std::vector<Any>>> insert_vertices_;
+
   std::vector<std::tuple<std::shared_ptr<MutableCsrEdgeIterBase>,
                          std::shared_ptr<MutableCsrEdgeIterBase>, Any>>
       update_edges_;
   std::vector<std::tuple<label_t, Any, label_t, Any, label_t, Any>>
       insert_edges_;
+
+  struct hash_pair {
+    template <class T1, class T2>
+    size_t operator()(const std::pair<T1, T2>& p) const {
+      auto hash1 = GHash<T1>()(p.first);
+      auto hash2 = GHash<T2>()(p.second);
+
+      if (hash1 != hash2) {
+        return hash1 ^ hash2;
+      }
+
+      // If hash1 == hash2, their XOR is zero.
+      return hash1;
+    }
+  };
+
+  std::vector<ska::flat_hash_map<vid_t, int>> update_vertices_map_;
+
+  std::vector<ska::flat_hash_map<std::pair<vid_t, vid_t>, int, hash_pair>>
+      update_edges_map_;
+  std::vector<ska::flat_hash_map<Any, int, GHash<Any>>> insert_vertices_map_;
+  std::vector<ska::flat_hash_map<std::pair<Any, Any>, int, hash_pair>>
+      insert_edges_map_;
 };
 
 }  // namespace gs
