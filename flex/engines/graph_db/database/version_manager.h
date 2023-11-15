@@ -36,7 +36,7 @@ class VersionManager {
   VersionManager();
   ~VersionManager();
 
-  void init_ts(uint32_t ts);
+  void init_ts(uint32_t ts, int thread_num);
 
   uint32_t acquire_read_timestamp();
 
@@ -54,9 +54,12 @@ class VersionManager {
   std::atomic<uint32_t> read_ts_{0};
 
   std::atomic<int> pending_reqs_{0};
+  std::atomic<int> pending_update_reqs_{0};
 
   grape::Bitset buf_;
   grape::SpinLock lock_;
+
+  int thread_num_;
 };
 
 }  // namespace gs

@@ -91,7 +91,6 @@ void GraphDB::Init(const Schema& schema, const std::string& data_dir,
 
 void GraphDB::Checkpoint() {
   uint32_t ts = version_manager_.acquire_update_timestamp();
-
   uint32_t read_version = ts - 1;
   if (read_version == 0 || read_version <= get_snapshot_version(work_dir_)) {
     CHECK(version_manager_.revert_update_timestamp(ts));
@@ -230,7 +229,7 @@ void GraphDB::ingestWals(const std::vector<std::string>& wals,
     IngestWalRange(contexts_, graph_, parser, from_ts, parser.last_ts() + 1,
                    thread_num);
   }
-  version_manager_.init_ts(parser.last_ts());
+  version_manager_.init_ts(parser.last_ts(), thread_num);
 }
 
 void GraphDB::initApps(const std::vector<std::string>& plugins) {
