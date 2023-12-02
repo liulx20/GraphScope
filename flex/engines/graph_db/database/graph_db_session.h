@@ -74,7 +74,7 @@ class GraphDBSession {
   // Get vertex id column.
   std::shared_ptr<RefColumnBase> get_vertex_id_column(uint8_t label) const;
 
-  Result<std::vector<char>> Eval(const std::string& input);
+  std::vector<char> Eval(const std::string& input);
 
   // Evaluate a temporary stored procedure. close the handle of the dynamic lib
   // immediately.

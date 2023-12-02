@@ -122,7 +122,7 @@ std::shared_ptr<RefColumnBase> GraphDBSession::get_vertex_id_column(
 
 #define likely(x) __builtin_expect(!!(x), 1)
 
-Result<std::vector<char>> GraphDBSession::Eval(const std::string& input) {
+std::vector<char> GraphDBSession::Eval(const std::string& input) {
   uint8_t type = input.back();
   const char* str_data = input.data();
   size_t str_len = input.size() - 1;
@@ -140,10 +140,11 @@ Result<std::vector<char>> GraphDBSession::Eval(const std::string& input) {
     if (app_wrappers_[type].app() == NULL) {
       LOG(ERROR) << "[Query-" + std::to_string((int) type)
                  << "] is not registered...";
-      return Result<std::vector<char>>(
-          StatusCode::NotExists,
-          "Query:" + std::to_string((int) type) + " is not registere",
-          result_buffer);
+      // return Result<std::vector<char>>(
+      //   StatusCode::NotExists,
+      //"Query:" + std::to_string((int) type) + " is not registere",
+      // result_buffer);
+      return result_buffer;
     } else {
       apps_[type] = app_wrappers_[type].app();
       app = apps_[type];
@@ -162,11 +163,12 @@ Result<std::vector<char>> GraphDBSession::Eval(const std::string& input) {
     decoder.reset(str_data, str_len);
     result_buffer.clear();
   }
+  return result_buffer;
 
-  return Result<std::vector<char>>(
-      StatusCode::QueryFailed,
-      "Query failed for procedure id:" + std::to_string((int) type),
-      result_buffer);
+  // return Result<std::vector<char>>(
+  //   StatusCode::QueryFailed,
+  //"Query failed for procedure id:" + std::to_string((int) type),
+  // result_buffer);
 }
 
 // Evaluating stored procedure for hqps adhoc query, the dynamic lib is closed

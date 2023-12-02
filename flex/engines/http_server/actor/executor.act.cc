@@ -40,13 +40,13 @@ executor::executor(hiactor::actor_base* exec_ctx, const hiactor::byte_t* addr)
 
 seastar::future<query_result> executor::run_graph_db_query(
     query_param&& param) {
-  auto ret = gs::GraphDB::get()
-                 .GetSession(hiactor::local_shard_id())
-                 .Eval(param.content);
-  if (!ret.ok()) {
-    LOG(ERROR) << "Eval failed: " << ret.status().error_message();
-  }
-  auto result = ret.value();
+  auto result = gs::GraphDB::get()
+                    .GetSession(hiactor::local_shard_id())
+                    .Eval(param.content);
+  // if (!ret.ok()) {
+  // LOG(ERROR) << "Eval failed: " << ret.status().error_message();
+  //}
+  // auto result = ret.value();
   seastar::sstring content(result.data(), result.size());
   return seastar::make_ready_future<query_result>(std::move(content));
 }
