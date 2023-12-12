@@ -21,6 +21,17 @@ if(Hiactor_FOUND)
                 LIBRARY DESTINATION lib)
 endif()
 
+if(Hiactor_FOUND)
+        include_directories(../engines/http_server)
+        add_executable(cro_bench cro_bench.cc)
+        target_link_libraries(cro_bench flex_utils flex_rt_mutable_graph flex_graph_db flex_server)
+
+        install(TARGETS cro_bench
+                RUNTIME DESTINATION bin
+                ARCHIVE DESTINATION lib
+                LIBRARY DESTINATION lib)
+endif()
+
 add_executable(rt_admin rt_admin.cc)
 target_link_libraries(rt_admin flex_utils flex_rt_mutable_graph flex_graph_db)
 
