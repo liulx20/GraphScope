@@ -13,8 +13,10 @@
  * limitations under the License.
  */
 
+#include "flex/engines/http_server/graph_db_update_server.h"
 #include "flex/engines/http_server/graph_db_update_service.h"
 #include "flex/engines/http_server/options.h"
+#include "flex/storages/rt_mutable_graph/schema.h"
 
 #include <boost/program_options.hpp>
 #include <seastar/core/alien.hh>
@@ -28,6 +30,7 @@ int main(int argc, char** argv) {
   bpo::options_description desc("Usage:");
   desc.add_options()("help", "Display help message")("version,v",
                                                      "Display version")(
+      "graph-config,g", bpo::value<std::string>(), "graph schema config file")(
       "http-port,p", bpo::value<uint16_t>()->default_value(10000),
       "http port of query handler");
   google::InitGoogleLogging(argv[0]);
@@ -45,6 +48,14 @@ int main(int argc, char** argv) {
     std::cout << "GraphScope/Flex version " << FLEX_VERSION << std::endl;
     return 0;
   }
+  std::string graph_schema_path = "";
+  if (!vm.count("graph-config")) {
+    LOG(ERROR) << "graph-config is required";
+    return -1;
+  }
+  graph_schema_path = vm["graph-config"].as<std::string>();
+  auto schema = gs::Schema::LoadFromYaml(graph_schema_path);
+  server::GraphDBUpdateServer::get().init(schema);
 
   bool enable_dpdk = false;
   constexpr uint32_t shard_num = 1;
