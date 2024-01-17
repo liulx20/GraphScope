@@ -17,6 +17,7 @@
 #define STORAGES_RT_MUTABLE_GRAPH_LOADER_BASIC_FRAGMENT_LOADER_H_
 
 #include "flex/storages/rt_mutable_graph/file_names.h"
+#include "flex/storages/rt_mutable_graph/loader/loader_utils.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
 #include "flex/storages/rt_mutable_graph/schema.h"
 
@@ -68,6 +69,13 @@ class BasicFragmentLoader {
     build_lf_indexer<KEY_T, vid_t>(indexer, filename, lf_indexers_[v_label],
                                    snapshot_dir(work_dir_, 0),
                                    tmp_dir(work_dir_), type);
+    auto& v_data = vertex_data_[v_label];
+    auto label_name = schema_.get_vertex_label_name(v_label);
+
+    v_data.resize(lf_indexers_[v_label].size());
+    v_data.dump(vertex_table_prefix(label_name), snapshot_dir(work_dir_, 0));
+
+    v_data.clear_tmp(vertex_table_prefix(label_name), tmp_dir(work_dir_));
   }
 
   template <typename EDATA_T>
@@ -89,8 +97,16 @@ class BasicFragmentLoader {
                                                      edge_label_id);
       dual_csr_list_[index] = new DualCsr<std::string_view>(
           oe_strategy, ie_strategy, prop[0].additional_type_info.max_length);
+    } else if constexpr (std::is_same_v<EDATA_T, FixedChar>) {
+      const auto& prop = schema_.get_edge_properties(src_label_id, dst_label_id,
+                                                     edge_label_id);
+      dual_csr_list_[index] = new DualCsr<FixedChar>(
+          oe_strategy, ie_strategy, prop[0].additional_type_info.max_length);
     } else {
-      dual_csr_list_[index] = new DualCsr<EDATA_T>(oe_strategy, ie_strategy);
+      dual_csr_list_[index] = new DualCsr<EDATA_T>(
+          oe_strategy, ie_strategy,
+          schema_.get_edge_mutability(src_label_name, dst_label_name,
+                                      edge_label_name));
     }
     ie_[index] = dual_csr_list_[index]->GetInCsr();
     oe_[index] = dual_csr_list_[index]->GetOutCsr();
@@ -120,11 +136,13 @@ class BasicFragmentLoader {
         src_label_name, dst_label_name, edge_label_name);
     EdgeStrategy ie_strategy = schema_.get_incoming_edge_strategy(
         src_label_name, dst_label_name, edge_label_name);
+    auto INVALID_VID = std::numeric_limits<vid_t>::max();
 
-    if constexpr (std::is_same_v<EDATA_T, std::string_view>) {
+    if constexpr (std::is_same_v<EDATA_T, std::string_view> ||
+                  std::is_same_v<EDATA_T, FixedChar>) {
       const auto& prop = schema_.get_edge_properties(src_label_id, dst_label_id,
                                                      edge_label_id);
-      auto dual_csr = new DualCsr<std::string_view>(
+      auto dual_csr = new DualCsr<EDATA_T>(
           oe_strategy, ie_strategy, prop[0].additional_type_info.max_length);
       dual_csr_list_[index] = dual_csr;
       ie_[index] = dual_csr_list_[index]->GetInCsr();
@@ -137,12 +155,20 @@ class BasicFragmentLoader {
           edata_prefix(src_label_name, dst_label_name, edge_label_name),
           tmp_dir(work_dir_), oe_degree, ie_degree);
       for (auto& edge : edges) {
+        if (std::get<1>(edge) == INVALID_VID ||
+            std::get<0>(edge) == INVALID_VID) {
+          VLOG(10) << "Skip invalid edge:" << std::get<0>(edge) << "->"
+                   << std::get<1>(edge);
+          continue;
+        }
         dual_csr->BatchPutEdge(std::get<0>(edge), std::get<1>(edge),
                                std::get<2>(edge));
       }
-
     } else {
-      auto dual_csr = new DualCsr<EDATA_T>(oe_strategy, ie_strategy);
+      bool mutability = schema_.get_edge_mutability(
+          src_label_name, dst_label_name, edge_label_name);
+      auto dual_csr =
+          new DualCsr<EDATA_T>(oe_strategy, ie_strategy, mutability);
 
       dual_csr_list_[index] = dual_csr;
       ie_[index] = dual_csr_list_[index]->GetInCsr();
@@ -155,11 +181,107 @@ class BasicFragmentLoader {
           edata_prefix(src_label_name, dst_label_name, edge_label_name),
           tmp_dir(work_dir_), oe_degree, ie_degree);
       for (auto& edge : edges) {
+        if (std::get<1>(edge) == INVALID_VID ||
+            std::get<0>(edge) == INVALID_VID) {
+          VLOG(10) << "Skip invalid edge:" << std::get<0>(edge) << "->"
+                   << std::get<1>(edge);
+          continue;
+        }
         dual_csr->BatchPutEdge(std::get<0>(edge), std::get<1>(edge),
                                std::get<2>(edge));
       }
+      dual_csr->Dump(
+          oe_prefix(src_label_name, dst_label_name, edge_label_name),
+          ie_prefix(src_label_name, dst_label_name, edge_label_name),
+          edata_prefix(src_label_name, dst_label_name, edge_label_name),
+          snapshot_dir(work_dir_, 0));
+      dual_csr->Close();
+      dual_csr->ClearTmp(
+          oe_prefix(src_label_name, dst_label_name, edge_label_name),
+          ie_prefix(src_label_name, dst_label_name, edge_label_name),
+          edata_prefix(src_label_name, dst_label_name, edge_label_name),
+          tmp_dir(work_dir_));
     }
     VLOG(10) << "Finish adding edge batch of size: " << edges.size();
+  }
+
+  template <typename CHAR_ARRAY_T>
+  void putMultiPropEdges(
+      label_t src_label_id, label_t dst_label_id, label_t edge_label_id,
+      const MMapVector<std::tuple<vid_t, vid_t, CHAR_ARRAY_T>>& edges,
+      const std::vector<int32_t>& ie_degree,
+      const std::vector<int32_t>& oe_degree) {
+    LOG(INFO) << "putMultiPropEdges: " << demangle(typeid(CHAR_ARRAY_T).name());
+    size_t index = src_label_id * vertex_label_num_ * edge_label_num_ +
+                   dst_label_id * edge_label_num_ + edge_label_id;
+    auto& src_indexer = lf_indexers_[src_label_id];
+    auto& dst_indexer = lf_indexers_[dst_label_id];
+    CHECK(ie_[index] == NULL);
+    CHECK(oe_[index] == NULL);
+    auto src_label_name = schema_.get_vertex_label_name(src_label_id);
+    auto dst_label_name = schema_.get_vertex_label_name(dst_label_id);
+    auto edge_label_name = schema_.get_edge_label_name(edge_label_id);
+    EdgeStrategy oe_strategy = schema_.get_outgoing_edge_strategy(
+        src_label_name, dst_label_name, edge_label_name);
+    EdgeStrategy ie_strategy = schema_.get_incoming_edge_strategy(
+        src_label_name, dst_label_name, edge_label_name);
+
+    auto edge_properties =
+        schema_.get_edge_properties(src_label_id, dst_label_id, edge_label_id);
+    bool mutability = schema_.get_edge_mutability(
+        src_label_name, dst_label_name, edge_label_name);
+
+    auto dual_csr =
+        new DualCsr<CHAR_ARRAY_T>(oe_strategy, ie_strategy, mutability);
+    dual_csr_list_[index] = dual_csr;
+    ie_[index] = dual_csr_list_[index]->GetInCsr();
+    oe_[index] = dual_csr_list_[index]->GetOutCsr();
+    CHECK(ie_degree.size() == dst_indexer.size());
+    CHECK(oe_degree.size() == src_indexer.size());
+    dual_csr->BatchInit(
+        oe_prefix(src_label_name, dst_label_name, edge_label_name),
+        ie_prefix(src_label_name, dst_label_name, edge_label_name),
+        edata_prefix(src_label_name, dst_label_name, edge_label_name),
+        tmp_dir(work_dir_), oe_degree, ie_degree);
+    LOG(INFO) << "Add edge batch of size: " << edges.size() << " to "
+              << src_label_name << "->" << dst_label_name << "->"
+              << edge_label_name << " with mutability: " << mutability
+              << " and edge_properties size: " << edge_properties.size();
+    for (auto& edge : edges) {
+      if (std::get<1>(edge) == INVALID_VID ||
+          std::get<0>(edge) == INVALID_VID) {
+        VLOG(10) << "Skip invalid edge:" << std::get<0>(edge) << "->"
+                 << std::get<1>(edge);
+        continue;
+      }
+      auto& vec = std::get<2>(edge);
+
+      dual_csr->BatchPutEdge(std::get<0>(edge), std::get<1>(edge), vec.data);
+    }
+    dual_csr->Dump(
+        oe_prefix(src_label_name, dst_label_name, edge_label_name),
+        ie_prefix(src_label_name, dst_label_name, edge_label_name),
+        edata_prefix(src_label_name, dst_label_name, edge_label_name),
+        snapshot_dir(work_dir_, 0));
+    dual_csr->Close();
+    dual_csr->ClearTmp(
+        oe_prefix(src_label_name, dst_label_name, edge_label_name),
+        ie_prefix(src_label_name, dst_label_name, edge_label_name),
+        edata_prefix(src_label_name, dst_label_name, edge_label_name),
+        tmp_dir(work_dir_));
+
+    VLOG(10) << "Finish adding edge batch of size: " << edges.size();
+  }
+
+  template <typename CHAR_ARRAY_T>
+  void PutMultiPropEdges(
+      label_t src_label_id, label_t dst_label_id, label_t edge_label_id,
+      const MMapVector<std::tuple<vid_t, vid_t, CHAR_ARRAY_T>>& edges,
+      const std::vector<int32_t>& ie_degree,
+      const std::vector<int32_t>& oe_degree,
+      const std::vector<size_t>& offset_vec) {
+    putMultiPropEdges<CHAR_ARRAY_T>(src_label_id, dst_label_id, edge_label_id,
+                                    edges, ie_degree, oe_degree);
   }
 
   Table& GetVertexTable(size_t ind) {
@@ -169,6 +291,7 @@ class BasicFragmentLoader {
 
   // get lf_indexer
   const LFIndexer<vid_t>& GetLFIndexer(label_t v_label) const;
+  const std::string& work_dir() const { return work_dir_; }
 
  private:
   void init_vertex_data();

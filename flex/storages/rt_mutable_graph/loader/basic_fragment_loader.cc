@@ -62,36 +62,9 @@ void BasicFragmentLoader::LoadFragment() {
   io_adaptor->Close();
 
   for (label_t v_label = 0; v_label < vertex_label_num_; v_label++) {
-    auto& v_data = vertex_data_[v_label];
-
     auto label_name = schema_.get_vertex_label_name(v_label);
-    v_data.resize(lf_indexers_[v_label].size());
-    v_data.dump(vertex_table_prefix(label_name), snapshot_dir(work_dir_, 0));
-  }
-
-  for (size_t src_label = 0; src_label < vertex_label_num_; src_label++) {
-    std::string src_label_name = schema_.get_vertex_label_name(src_label);
-    for (size_t dst_label = 0; dst_label < vertex_label_num_; dst_label++) {
-      std::string dst_label_name = schema_.get_vertex_label_name(dst_label);
-      for (size_t edge_label = 0; edge_label < edge_label_num_; edge_label++) {
-        std::string edge_label_name = schema_.get_edge_label_name(edge_label);
-        size_t index = src_label * vertex_label_num_ * edge_label_num_ +
-                       dst_label * edge_label_num_ + edge_label;
-        if (schema_.exist(src_label_name, dst_label_name, edge_label_name)) {
-          if (dual_csr_list_[index] != NULL) {
-            if (schema_.get_sort_on_compaction(src_label_name, dst_label_name,
-                                               edge_label_name)) {
-              dual_csr_list_[index]->SortByEdgeData(1);
-            }
-            dual_csr_list_[index]->Dump(
-                oe_prefix(src_label_name, dst_label_name, edge_label_name),
-                ie_prefix(src_label_name, dst_label_name, edge_label_name),
-                edata_prefix(src_label_name, dst_label_name, edge_label_name),
-                snapshot_dir(work_dir_, 0));
-          }
-        }
-      }
-    }
+    lf_indexers_[v_label].clear_tmp(tmp_dir(work_dir_) + "/" +
+                                    vertex_map_prefix(label_name));
   }
 
   set_snapshot_version(work_dir_, 0);
@@ -102,15 +75,15 @@ void BasicFragmentLoader::AddVertexBatch(
     const std::vector<std::vector<Any>>& props) {
   auto& table = vertex_data_[v_label];
   CHECK(props.size() == table.col_num());
-  for (size_t i = 0; i < props.size(); ++i) {
+  for (auto i = 0; i < props.size(); ++i) {
     CHECK(props[i].size() == vids.size())
         << "vids size: " << vids.size() << ", props size: " << props.size()
         << ", props[i] size: " << props[i].size();
   }
   auto dst_columns = table.column_ptrs();
-  for (size_t j = 0; j < props.size(); ++j) {
+  for (auto j = 0; j < props.size(); ++j) {
     auto& cur_vec = props[j];
-    for (size_t i = 0; i < vids.size(); ++i) {
+    for (auto i = 0; i < vids.size(); ++i) {
       auto index = vids[i];
       dst_columns[j]->set_any(index, cur_vec[i]);
     }
