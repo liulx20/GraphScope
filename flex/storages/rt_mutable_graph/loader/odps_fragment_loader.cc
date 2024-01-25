@@ -194,7 +194,7 @@ void ODPSFragmentLoader::addVertices(label_t v_label_id,
                                      const std::vector<std::string>& v_files) {
   auto record_batch_supplier_creator =
       [this](label_t label_id, const std::string& v_file,
-             const LoadingConfig& loading_config) {
+             const LoadingConfig& loading_config, int cur_id, int thread_num) {
         auto vertex_column_mappings =
             loading_config_.GetVertexColumnMappings(label_id);
         std::string session_id;
@@ -213,8 +213,8 @@ void ODPSFragmentLoader::addVertices(label_t v_label_id,
                 << ", split count: " << split_count;
         if (loading_config.GetIsBatchReader()) {
           auto res = std::make_shared<ODPSStreamRecordBatchSupplier>(
-              label_id, v_file, odps_read_client_, session_id, split_count, 0,
-              1, table_identifier);
+              label_id, v_file, odps_read_client_, session_id, split_count,
+              cur_id, thread_num, table_identifier);
           return std::dynamic_pointer_cast<IRecordBatchSupplier>(res);
         } else {
           auto res = std::make_shared<ODPSTableRecordBatchSupplier>(

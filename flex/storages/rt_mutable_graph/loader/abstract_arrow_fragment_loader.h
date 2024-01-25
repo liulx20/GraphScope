@@ -147,7 +147,8 @@ void check_edge_invariant(
 template <typename KEY_T>
 struct _add_vertex {
   void operator()(const std::shared_ptr<arrow::Array>& col,
-                  IdIndexer<KEY_T, vid_t>& indexer, std::vector<vid_t>& vids) {
+                  IdIndexer<KEY_T, vid_t>& indexer, std::vector<vid_t>& vids,
+                  std::mutex& mtx) {
     size_t row_num = col->length();
     vid_t vid;
     if constexpr (!std::is_same<std::string_view, KEY_T>::value) {
@@ -161,6 +162,7 @@ struct _add_vertex {
       }
       auto casted_array = std::static_pointer_cast<arrow_array_t>(col);
       // auto batch = std::max((int) row_num / 5, 1);
+      std::unique_lock<std::mutex> lock(mtx);
       for (auto i = 0; i < row_num; ++i) {
         if (!indexer.add(casted_array->Value(i), vid)) {
           VLOG(2) << "Duplicate vertex id: " << casted_array->Value(i) << "..";
@@ -175,6 +177,8 @@ struct _add_vertex {
     } else {
       if (col->type()->Equals(arrow::utf8())) {
         auto casted_array = std::static_pointer_cast<arrow::StringArray>(col);
+        std::unique_lock<std::mutex> lock(mtx);
+
         for (auto i = 0; i < row_num; ++i) {
           auto str = casted_array->GetView(i);
           std::string_view str_view(str.data(), str.size());
@@ -188,6 +192,8 @@ struct _add_vertex {
       } else if (col->type()->Equals(arrow::large_utf8())) {
         auto casted_array =
             std::static_pointer_cast<arrow::LargeStringArray>(col);
+        std::unique_lock<std::mutex> lock(mtx);
+
         for (auto i = 0; i < row_num; ++i) {
           auto str = casted_array->GetView(i);
           std::string_view str_view(str.data(), str.size());
@@ -279,65 +285,6 @@ static void append_src_or_dst(
     }
   }
 }
-/**
-template <typename PK_T, typename EDATA_T>
-static void append_src_or_dst(
-    bool is_dst, size_t old_size, const std::shared_ptr<arrow::Array> col,
-    const LFIndexer<vid_t>& indexer,
-    MMapVector<std::tuple<vid_t, vid_t, EDATA_T>>& parsed_edges,
-    std::vector<std::atomic<int32_t>>& ie_degree,
-    std::vector<std::atomic<int32_t>>& oe_degree) {
-  size_t cur_ind = old_size;
-  auto invalid_vid = std::numeric_limits<vid_t>::max();
-  if constexpr (std::is_same_v<PK_T, std::string_view>) {
-    if (col->type()->Equals(arrow::utf8())) {
-      auto casted = std::static_pointer_cast<arrow::StringArray>(col);
-      for (auto j = 0; j < casted->length(); ++j) {
-        auto str = casted->GetView(j);
-        std::string_view str_view(str.data(), str.size());
-        auto vid = indexer.get_index(Any::From(str_view));
-        if (is_dst) {
-          std::get<1>(parsed_edges[cur_ind++]) = vid;
-        } else {
-          std::get<0>(parsed_edges[cur_ind++]) = vid;
-        }
-        if (vid != invalid_vid) {
-          is_dst ? ie_degree[vid]++ : oe_degree[vid]++;
-        }
-      }
-    } else {
-      // must be large utf8
-      auto casted = std::static_pointer_cast<arrow::LargeStringArray>(col);
-      for (auto j = 0; j < casted->length(); ++j) {
-        auto str = casted->GetView(j);
-        std::string_view str_view(str.data(), str.size());
-        auto vid = indexer.get_index(Any::From(str_view));
-        if (is_dst) {
-          std::get<1>(parsed_edges[cur_ind++]) = vid;
-        } else {
-          std::get<0>(parsed_edges[cur_ind++]) = vid;
-        }
-        if (vid != invalid_vid) {
-          is_dst ? ie_degree[vid]++ : oe_degree[vid]++;
-        }
-      }
-    }
-  } else {
-    using arrow_array_type = typename gs::TypeConverter<PK_T>::ArrowArrayType;
-    auto casted = std::static_pointer_cast<arrow_array_type>(col);
-    for (auto j = 0; j < casted->length(); ++j) {
-      auto vid = indexer.get_index(Any::From(casted->Value(j)));
-      if (is_dst) {
-        std::get<1>(parsed_edges[cur_ind++]) = vid;
-      } else {
-        std::get<0>(parsed_edges[cur_ind++]) = vid;
-      }
-      if (vid != invalid_vid) {
-        is_dst ? ie_degree[vid]++ : oe_degree[vid]++;
-      }
-    }
-  }
-}*/
 
 template <typename PK_T, typename EDATA_T>
 static void append_edges(
@@ -562,28 +509,6 @@ static void append_edges_for_multiple_props(
   edata_col_thread.join();
 }
 
-// A simple queue which stores the record batches, for consuming.
-struct RecordBatchQueue {
- public:
-  RecordBatchQueue(int32_t max_length = 2048);
-
-  void push(std::shared_ptr<arrow::RecordBatch> record_batch);
-
-  std::shared_ptr<arrow::RecordBatch> pop();
-
-  size_t size() const;
-
-  void finish();
-
- private:
-  std::queue<std::shared_ptr<arrow::RecordBatch>> queue_;
-  mutable std::mutex mutex_;
-  std::condition_variable full_cv_;
-  std::condition_variable empty_cv_;
-  int32_t max_length_;
-  bool finished_;
-};
-
 // A AbstractArrowFragmentLoader with can load fragment from arrow::table.
 // Can not be used directly, should be inherited.
 class AbstractArrowFragmentLoader : public IFragmentLoader {
@@ -604,7 +529,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
   void AddVerticesRecordBatch(
       label_t v_label_id, const std::vector<std::string>& input_paths,
       std::function<std::shared_ptr<IRecordBatchSupplier>(
-          label_t, const std::string&, const LoadingConfig&)>
+          label_t, const std::string&, const LoadingConfig&, int, int)>
           supplier_creator);
 
   // Add edges in record batch to output_parsed_edges, output_ie_degrees and
@@ -633,7 +558,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
     std::vector<vid_t> vids;
     vids.reserve(row_num);
 
-    _add_vertex<KEY_T>()(primary_key_col, indexer, vids);
+    _add_vertex<KEY_T>()(primary_key_col, indexer, vids, mtx_);
 
     for (auto j = 0; j < property_cols.size(); ++j) {
       auto array = property_cols[j];
@@ -650,7 +575,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
   void addVertexRecordBatchImpl(
       label_t v_label_id, const std::vector<std::string>& v_files,
       std::function<std::shared_ptr<IRecordBatchSupplier>(
-          label_t, const std::string&, const LoadingConfig&)>
+          label_t, const std::string&, const LoadingConfig&, int, int)>
           supplier_creator) {
     std::string v_label_name = schema_.get_vertex_label_name(v_label_id);
     VLOG(10) << "Parsing vertex file:" << v_files.size() << " for label "
@@ -659,47 +584,81 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
     auto primary_key_name = std::get<1>(primary_key);
     size_t primary_key_ind = std::get<2>(primary_key);
     IdIndexer<KEY_T, vid_t> indexer;
-
-    std::vector<std::shared_ptr<arrow::Array>> property_str_cols;
-
+    // ConsumerQueue<std::pair<vid_t, std::shared_ptr<arrow::Array>>> pk_que;
+    ConsumerQueue<std::shared_ptr<arrow::RecordBatch>> batch_que;
+    std::vector<std::thread> work_threads;
+    int NUM_THREADS = 64;
     for (auto& v_file : v_files) {
       VLOG(10) << "Parsing vertex file:" << v_file << " for label "
                << v_label_name;
-      auto record_batch_supplier =
-          supplier_creator(v_label_id, v_file, loading_config_);
-
-      bool first_batch = true;
-      while (true) {
-        auto batch = record_batch_supplier->GetNextBatch();
-        if (!batch) {
-          break;
-        }
-        if (first_batch) {
-          auto header = batch->schema()->field_names();
-          auto schema_column_names =
-              schema_.get_vertex_property_names(v_label_id);
-          CHECK(schema_column_names.size() + 1 == header.size())
-              << "File header of size: " << header.size()
-              << " does not match schema column size: "
-              << schema_column_names.size() + 1;
-          first_batch = false;
-        }
-        auto columns = batch->columns();
-        CHECK(primary_key_ind < columns.size());
-        auto primary_key_column = columns[primary_key_ind];
-        auto other_columns_array = columns;
-        other_columns_array.erase(other_columns_array.begin() +
-                                  primary_key_ind);
-
-        for (auto i = 0; i < other_columns_array.size(); ++i) {
-          if (other_columns_array[i]->type()->Equals(arrow::large_utf8()) ||
-              other_columns_array[i]->type()->Equals(arrow::utf8())) {
-            property_str_cols.emplace_back(other_columns_array[i]);
+      std::atomic<int> finish_reads(0);
+      work_threads.emplace_back([&]() {
+        while (true) {
+          while (true) {
+            if (finish_reads.load() == NUM_THREADS && batch_que.size() == 0) {
+              // std::this_thread::sleep_for(std::chrono::seconds(5));
+              batch_que.finish();
+              break;
+            }
+            std::this_thread::sleep_for(std::chrono::seconds(5));
           }
         }
-        addVertexBatchFromArray(v_label_id, indexer, primary_key_column,
-                                other_columns_array);
+      });
+
+      for (int idx = 0; idx < NUM_THREADS; ++idx) {
+        work_threads.emplace_back(
+            [&](int i) {
+              auto record_batch_supplier = supplier_creator(
+                  v_label_id, v_file, loading_config_, i, NUM_THREADS);
+
+              bool first_batch = true;
+              while (true) {
+                auto batch = record_batch_supplier->GetNextBatch();
+                if (!batch) {
+                  finish_reads++;
+                  break;
+                }
+                if (first_batch) {
+                  auto header = batch->schema()->field_names();
+                  auto schema_column_names =
+                      schema_.get_vertex_property_names(v_label_id);
+                  CHECK(schema_column_names.size() + 1 == header.size())
+                      << "File header of size: " << header.size()
+                      << " does not match schema column size: "
+                      << schema_column_names.size() + 1;
+                  first_batch = false;
+                }
+                batch_que.push(batch);
+              }
+            },
+            idx);
       }
+      for (int idx = 0; idx < NUM_THREADS; ++idx) {
+        work_threads.emplace_back(
+            [&](int i) {
+              while (true) {
+                auto batch = batch_que.pop();
+                if (!batch) {
+                  break;
+                }
+                auto columns = batch->columns();
+                CHECK(primary_key_ind < columns.size());
+                auto primary_key_column = columns[primary_key_ind];
+                auto other_columns_array = columns;
+                other_columns_array.erase(other_columns_array.begin() +
+                                          primary_key_ind);
+
+                addVertexBatchFromArray(v_label_id, indexer, primary_key_column,
+                                        other_columns_array);
+              }
+            },
+            idx);
+      }
+      for (auto& t : work_threads) {
+        t.join();
+      }
+      work_threads.clear();
+
       VLOG(10) << "Finish parsing vertex file:" << v_file << " for label "
                << v_label_name;
     }
@@ -740,11 +699,11 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
 
     check_edge_invariant(schema_, edge_column_mappings, src_col_ind,
                          dst_col_ind, src_label_id, dst_label_id, e_label_id);
-
+    int NUM_THREADS = 64;
     std::vector<MMapVector<std::tuple<vid_t, vid_t, EDATA_T>>> parsed_edges_vec;
     auto work_dir = basic_fragment_loader_.work_dir();
-    parsed_edges_vec.reserve(64);
-    for (auto i = 0; i < 64; ++i) {
+    parsed_edges_vec.reserve(NUM_THREADS);
+    for (auto i = 0; i < NUM_THREADS; ++i) {
       parsed_edges_vec.emplace_back(
           work_dir, src_label_name + "_" + dst_label_name + "_" +
                         edge_label_name + "_" + std::to_string(i) + ".tmp");
@@ -760,12 +719,12 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
              << " dst indexer size: " << dst_indexer.size();
     std::vector<std::shared_ptr<arrow::Array>> property_str_types;
     std::vector<std::thread> work_threads;
-    RecordBatchQueue queue;
+    ConsumerQueue<std::shared_ptr<arrow::RecordBatch>> queue;
     std::atomic<int> finish_reads(0);
     for (auto filename : e_files) {
       work_threads.emplace_back([&]() {
         while (true) {
-          if (finish_reads.load() == 64 && queue.size() == 0) {
+          if (finish_reads.load() == NUM_THREADS && queue.size() == 0) {
             // std::this_thread::sleep_for(std::chrono::seconds(5));
             queue.finish();
             break;
@@ -773,7 +732,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
           std::this_thread::sleep_for(std::chrono::seconds(5));
         }
       });
-      for (int i = 0; i < 64; ++i) {
+      for (int i = 0; i < NUM_THREADS; ++i) {
         work_threads.emplace_back(
             [&](int idx) {
               auto record_batch_supplier =
@@ -804,7 +763,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
             },
             i);
       }
-      for (int i = 0; i < 64; ++i) {
+      for (int i = 0; i < NUM_THREADS; ++i) {
         work_threads.emplace_back(
             [&](int idx) {
               while (true) {
@@ -994,7 +953,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
     auto begin = std::chrono::system_clock::now();
     std::string work_dir = basic_fragment_loader_.work_dir();
     std::vector<std::thread> work_threads;
-    std::mutex mtx;
+
     std::vector<MMapVector<std::tuple<vid_t, vid_t, CHAR_ARRAY_T>>> vec;
     vec.reserve(64);
     for (auto i = 0; i < 64; ++i) {
@@ -1010,7 +969,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
     for (auto filename : e_files) {
       std::cout << "filename: " << filename << "\n";
       work_threads.clear();
-      RecordBatchQueue queue;
+      ConsumerQueue<std::shared_ptr<arrow::RecordBatch>> queue;
       work_threads.emplace_back([&]() {
         while (true) {
           // LOG(INFO) << "finish : "<<finish_reads.load() << "size: " <<
@@ -1184,6 +1143,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
   const Schema& schema_;
   size_t vertex_label_num_, edge_label_num_;
   int32_t thread_num_;
+  std::mutex mtx_;
 
   mutable BasicFragmentLoader basic_fragment_loader_;
 };

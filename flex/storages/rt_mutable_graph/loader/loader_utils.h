@@ -18,7 +18,70 @@
 #define STORAGES_RT_MUTABLE_GRAPH_LOADER_LOADER_UTILS_H_
 #include "flex/utils/property/column.h"
 
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 namespace gs {
+
+// A simple queue which stores the record batches, for consuming.
+template <typename EDATA_T>
+struct ConsumerQueue {
+ public:
+  ConsumerQueue(int32_t max_length = 2048)
+      : max_length_(max_length), finished_(false) {}
+
+  void push(const EDATA_T& data) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    VLOG(10) << "Try Pushing item to queue, size: " << queue_.size()
+             << ", max_length_: " << max_length_;
+    full_cv_.wait(lock,
+                  [this] { return queue_.size() < max_length_ || finished_; });
+    if (finished_) {
+      return;
+    }
+    VLOG(10) << "Pushing item to queue, size: " << queue_.size()
+             << ", max_length_: " << max_length_;
+    queue_.push(data);
+    empty_cv_.notify_one();
+  }
+
+  EDATA_T pop() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    VLOG(10) << "Try Popping item from queue, size: " << queue_.size()
+             << ", max_length_: " << max_length_;
+    empty_cv_.wait(lock, [this] { return !queue_.empty() || finished_; });
+    if (queue_.empty()) {
+      return nullptr;
+    }
+    VLOG(10) << "Popping item from queue, size: " << queue_.size()
+             << ", max_length_: " << max_length_;
+    auto data = queue_.front();
+    queue_.pop();
+    full_cv_.notify_one();
+    return data;
+  }
+
+  size_t size() const {
+    std::unique_lock<std::mutex> lock(mutex_);
+    return queue_.size();
+  }
+
+  void finish() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    finished_ = true;
+    empty_cv_.notify_all();
+    full_cv_.notify_all();
+  }
+
+ private:
+  std::queue<EDATA_T> queue_;
+  mutable std::mutex mutex_;
+  std::condition_variable full_cv_;
+  std::condition_variable empty_cv_;
+  size_t max_length_;
+  bool finished_;
+};
+
 template <typename EDATA_T>
 class MMapVector {
  public:

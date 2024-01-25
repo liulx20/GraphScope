@@ -239,7 +239,7 @@ void CSVFragmentLoader::addVertices(label_t v_label_id,
                                     const std::vector<std::string>& v_files) {
   auto record_batch_supplier_creator =
       [this](label_t label_id, const std::string& v_file,
-             const LoadingConfig& loading_config) {
+             const LoadingConfig& loading_config, int, int) {
         arrow::csv::ConvertOptions convert_options;
         arrow::csv::ReadOptions read_options;
         arrow::csv::ParseOptions parse_options;

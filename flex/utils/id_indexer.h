@@ -491,8 +491,6 @@ class LFIndexer {
                                const std::string& work_dir, PropertyType type);
 };
 
-#define unlikely(x) __builtin_expect(!!(x), 0)
-
 template <typename INDEX_T>
 class IdIndexerBase {
  public:
@@ -810,9 +808,6 @@ class IdIndexer : public IdIndexerBase<INDEX_T> {
     } else if (distances_[index] < 0) {
       indices_[index] = lid;
       distances_[index] = distance_from_desired;
-      if (unlikely(index > num_slots_minus_one_)) {
-        residuals_.emplace_back(lid);
-      }
       ++num_elements_;
       return;
     }
@@ -823,15 +818,9 @@ class IdIndexer : public IdIndexerBase<INDEX_T> {
       if (distances_[index] < 0) {
         indices_[index] = to_insert;
         distances_[index] = distance_from_desired;
-        if (unlikely(index > num_slots_minus_one_)) {
-          residuals_.emplace_back(to_insert);
-        }
         ++num_elements_;
         return;
       } else if (distances_[index] < distance_from_desired) {
-        if (unlikely(index > num_slots_minus_one_)) {
-          residuals_.emplace_back(to_insert);
-        }
         std::swap(distance_from_desired, distances_[index]);
         std::swap(to_insert, indices_[index]);
         ++distance_from_desired;
@@ -851,7 +840,6 @@ class IdIndexer : public IdIndexerBase<INDEX_T> {
     num_buckets = std::max(
         num_buckets, static_cast<size_t>(std::ceil(
                          num_elements_ / id_indexer_impl::max_load_factor)));
-    residuals_.clear();
     if (num_buckets == 0) {
       reset_to_empty_state();
       return;
@@ -892,7 +880,6 @@ class IdIndexer : public IdIndexerBase<INDEX_T> {
 
   void reset_to_empty_state() {
     keys_.clear();
-    residuals_.clear();
 
     indices_.clear();
     distances_.clear();
@@ -922,7 +909,6 @@ class IdIndexer : public IdIndexerBase<INDEX_T> {
   size_t num_slots_minus_one_ = 0;
 
   GHash<KEY_T> hasher_;
-  std::vector<INDEX_T> residuals_;
 
   template <typename _KEY_T, typename _INDEX_T>
   friend void build_lf_indexer(const IdIndexer<_KEY_T, _INDEX_T>& input,
@@ -978,8 +964,14 @@ void build_lf_indexer(const IdIndexer<KEY_T, INDEX_T>& input,
          lf.indices_.size() * sizeof(INDEX_T));
 
   static constexpr INDEX_T sentinel = std::numeric_limits<INDEX_T>::max();
-  LOG(INFO) << "residuals size: " << input.residuals_.size() << "\n";
-  for (const auto& lid : input.residuals_) {
+  std::vector<INDEX_T> residuals;
+  for (size_t idx = lf.indices_.size(); idx < lf.indices_size_; ++idx) {
+    if (input.indices_[idx] != sentinel) {
+      residuals.emplace_back(input.indices_[idx]);
+    }
+  }
+  LOG(INFO) << "residuals size: " << residuals.size() << "\n";
+  for (auto lid : residuals) {
     auto oid = input.keys_[lid];
     size_t index = input.hash_policy_.index_for_hash(
         input.hasher_(oid), input.num_slots_minus_one_);
