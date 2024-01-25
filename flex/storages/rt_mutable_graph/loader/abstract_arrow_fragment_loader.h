@@ -522,6 +522,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
         basic_fragment_loader_(schema_, work_dir) {
     vertex_label_num_ = schema_.vertex_label_num();
     edge_label_num_ = schema_.edge_label_num();
+    mtx_ = new std::mutex[vertex_label_num_];
   }
 
   ~AbstractArrowFragmentLoader() {}
@@ -558,7 +559,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
     std::vector<vid_t> vids;
     vids.reserve(row_num);
 
-    _add_vertex<KEY_T>()(primary_key_col, indexer, vids, mtx_);
+    _add_vertex<KEY_T>()(primary_key_col, indexer, vids, mtx_[v_label_id]);
 
     for (auto j = 0; j < property_cols.size(); ++j) {
       auto array = property_cols[j];
@@ -1143,7 +1144,7 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
   const Schema& schema_;
   size_t vertex_label_num_, edge_label_num_;
   int32_t thread_num_;
-  std::mutex mtx_;
+  std::mutex* mtx_;
 
   mutable BasicFragmentLoader basic_fragment_loader_;
 };

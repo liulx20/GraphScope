@@ -141,19 +141,7 @@ void ODPSFragmentLoader::init() { odps_read_client_.init(); }
 
 void ODPSFragmentLoader::LoadFragment() {
   init();
-  auto& person = basic_fragment_loader_.GetLFIndexer(0);
-  person.open_in_memory(
-      "/home/graphscope/data/csr-data/snapshots/0/vertex_map_User");
-  auto& dingOrg = basic_fragment_loader_.GetLFIndexer(1);
-  dingOrg.open_in_memory(
-      "/home/graphscope/data/csr-data/snapshots/0/vertex_map_DingOrg");
-  auto& dingEduOrg = basic_fragment_loader_.GetLFIndexer(2);
-  dingEduOrg.open_in_memory(
-      "/home/graphscope/data/csr-data/snapshots/0/vertex_map_DingEduOrg");
-  auto& dingGroup = basic_fragment_loader_.GetLFIndexer(3);
-  dingGroup.open_in_memory(
-      "/home/graphscope/data/csr-data/snapshots/0/vertex_map_DingGroup");
-
+  loadVertices();
   loadEdges();
 
   basic_fragment_loader_.LoadFragment();
