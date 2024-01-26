@@ -595,14 +595,12 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
       std::atomic<int> finish_reads(0);
       work_threads.emplace_back([&]() {
         while (true) {
-          while (true) {
-            if (finish_reads.load() == NUM_THREADS && batch_que.size() == 0) {
-              // std::this_thread::sleep_for(std::chrono::seconds(5));
-              batch_que.finish();
-              break;
-            }
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+          if (finish_reads.load() == NUM_THREADS && batch_que.size() == 0) {
+            // std::this_thread::sleep_for(std::chrono::seconds(5));
+            batch_que.finish();
+            break;
           }
+          std::this_thread::sleep_for(std::chrono::seconds(5));
         }
       });
 
