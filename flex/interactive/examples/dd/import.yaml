@@ -6,7 +6,7 @@ loading_config:
   format:
     type: arrow
     metadata:
-      batch_reader: false
+      batch_reader: true
       batch_size: 16MB
 vertex_mappings:
   - type_name: User  # must align with the schema
@@ -56,6 +56,14 @@ vertex_mappings:
       - column:
           index: 0
           name: group_id
+        property: id
+  - type_name : SubIndustry
+    inputs:
+      - dd_undata/dim_ding_user_node/ds=20240130
+    column_mappings:
+      - column:
+          index: 5
+          name: org_industry_sub_id
         property: id
 edge_mappings:
   - type_triplet:
@@ -183,6 +191,21 @@ edge_mappings:
       #     index: 4
       #     name: profession
       #   property: profession
-
+  - type_triplet:
+      edge: Involved
+      source_vertex: User
+      destination_vertex: SubIndustry
+    inputs:
+      - dd_undata/dim_ding_user_node/ds=20240130
+    source_vertex_mappings:
+      - column:
+          index: 0
+          name: ding_user_id
+        property: id
+    destination_vertex_mappings:
+      - column:
+          index: 5
+          name: org_industry_sub_id
+        property: id
 
 
