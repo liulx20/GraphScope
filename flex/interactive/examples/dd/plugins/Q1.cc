@@ -281,8 +281,6 @@ class Query2 : public AppBase {
     std::vector<uint32_t> tmp, cand;
     int idx1 = 0, idx2 = 0;
 
-    // Define the range of numbers you want, here it's 0 through 99
-    //     std::uniform_int_distribution<int> dist(0, 99);
     for (auto& [a, b] : root_study_at) {
       const auto& ie = studyat_ie.get_edges(a);
       for (auto& e : ie) {

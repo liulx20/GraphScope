@@ -306,33 +306,31 @@ class Query2 : public AppBase {
 
     std::vector<uint32_t> tmp;
     std::vector<vid_t> cand;
-    size_t idx1 = 0, idx2;
+    size_t idx1 = 0, idx2 = 0;
     if (involved_ie.estimated_degree() > 1) {
       for (auto& e : involved_ie) {
         loop_limit--;
         if (loop_limit == 0) {
           break;
         }
-        if (!vis_set.count(e.neighbor)) {
+        if (!vis_set.count(e.neighbor) &&
+            !check_same_org(work_at, study_at, root_work_at, root_study_at,
+                            e.neighbor)) {
           auto city_id = user_city_col_.get_idx(e.neighbor);
           auto roleName_id = user_roleName_col_.get_view(e.neighbor);
           if ((!exist_city || city_id != root_city_id) &&
               roleName_id != root_roleName_id) {
-            if (!check_same_org(work_at, study_at, root_work_at, root_study_at,
-                                e.neighbor)) {
-              if (tmp.size() < res) {
-                tmp.emplace_back(e.neighbor);
-              } else {
-                std::uniform_int_distribution<int> dist(0, idx1);
-                auto ind = dist(mt_);
-                if (ind < res) {
-                  tmp[ind] = e.neighbor;
-                }
+            if (tmp.size() < res) {
+              tmp.emplace_back(e.neighbor);
+            } else {
+              std::uniform_int_distribution<int> dist(0, idx1);
+              auto ind = dist(mt_);
+              if (ind < res) {
+                tmp[ind] = e.neighbor;
               }
-              idx1++;
             }
-          } else if (!check_same_org(work_at, study_at, root_work_at,
-                                     root_study_at, e.neighbor)) {
+            idx1++;
+          } else {
             if (cand.size() < res) {
               cand.emplace_back(e.neighbor);
             } else {
