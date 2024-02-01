@@ -286,7 +286,7 @@ static void append_src_or_dst(
   }
 }
 
-template <typename PK_T, typename EDATA_T>
+template <typename SRC_PK_T, typename DST_PK_T, typename EDATA_T>
 static void append_edges(
     std::shared_ptr<arrow::Array> src_col,
     std::shared_ptr<arrow::Array> dst_col, const LFIndexer<vid_t>& src_indexer,
@@ -306,12 +306,12 @@ static void append_edges(
            << parsed_edges.size();
 
   auto src_col_thread = std::thread([&]() {
-    append_src_or_dst<PK_T, EDATA_T>(false, old_size, src_col, src_indexer,
-                                     parsed_edges, ie_degree, oe_degree);
+    append_src_or_dst<SRC_PK_T, EDATA_T>(false, old_size, src_col, src_indexer,
+                                         parsed_edges, ie_degree, oe_degree);
   });
   auto dst_col_thread = std::thread([&]() {
-    append_src_or_dst<PK_T, EDATA_T>(true, old_size, dst_col, dst_indexer,
-                                     parsed_edges, ie_degree, oe_degree);
+    append_src_or_dst<DST_PK_T, EDATA_T>(true, old_size, dst_col, dst_indexer,
+                                         parsed_edges, ie_degree, oe_degree);
   });
   // if EDATA_T is grape::EmptyType, no need to read columns
   auto edata_col_thread = std::thread([&]() {
@@ -454,7 +454,8 @@ static void cast_array_and_append(
   }
 }
 
-template <typename PK_T, typename EDATA_T, typename CHAR_ARRAY_T>
+template <typename SRC_PK_T, typename DST_PK_T, typename EDATA_T,
+          typename CHAR_ARRAY_T>
 static void append_edges_for_multiple_props(
     std::shared_ptr<arrow::Array> src_col,
     std::shared_ptr<arrow::Array> dst_col, const LFIndexer<vid_t>& src_indexer,
@@ -475,12 +476,12 @@ static void append_edges_for_multiple_props(
            << parsed_edges.size();
 
   auto src_col_thread = std::thread([&]() {
-    append_src_or_dst<PK_T, CHAR_ARRAY_T>(false, old_size, src_col, src_indexer,
-                                          parsed_edges, ie_deg, oe_deg);
+    append_src_or_dst<SRC_PK_T, CHAR_ARRAY_T>(
+        false, old_size, src_col, src_indexer, parsed_edges, ie_deg, oe_deg);
   });
   auto dst_col_thread = std::thread([&]() {
-    append_src_or_dst<PK_T, CHAR_ARRAY_T>(true, old_size, dst_col, dst_indexer,
-                                          parsed_edges, ie_deg, oe_deg);
+    append_src_or_dst<DST_PK_T, CHAR_ARRAY_T>(
+        true, old_size, dst_col, dst_indexer, parsed_edges, ie_deg, oe_deg);
   });
   auto edata_col_thread = std::thread([&]() {
     CHECK(edata_cols.size() == edge_props.size());
@@ -670,6 +671,40 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
     basic_fragment_loader_.FinishAddingVertex<KEY_T>(v_label_id, indexer);
   }
 
+  template <typename SRC_PK_T, typename EDATA_T>
+  void _append_edges(
+      std::shared_ptr<arrow::Array> src_col,
+      std::shared_ptr<arrow::Array> dst_col,
+      const LFIndexer<vid_t>& src_indexer, const LFIndexer<vid_t>& dst_indexer,
+      std::vector<std::shared_ptr<arrow::Array>>& property_cols,
+      const std::vector<PropertyType>& edge_properties,
+      MMapVector<std::tuple<vid_t, vid_t, EDATA_T>>& parsed_edges,
+      std::vector<std::atomic<int32_t>>& ie_degree,
+      std::vector<std::atomic<int32_t>>& oe_degree) {
+    auto dst_col_type = dst_col->type();
+    if (dst_col_type->Equals(arrow::int64())) {
+      append_edges<SRC_PK_T, int64_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree);
+    } else if (dst_col_type->Equals(arrow::uint64())) {
+      append_edges<SRC_PK_T, uint64_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree);
+    } else if (dst_col_type->Equals(arrow::int32())) {
+      append_edges<SRC_PK_T, int32_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree);
+    } else if (dst_col_type->Equals(arrow::uint32())) {
+      append_edges<SRC_PK_T, uint32_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree);
+    } else {
+      // must be string
+      append_edges<SRC_PK_T, std::string_view, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree);
+    }
+  }
   template <typename EDATA_T,
             typename std::enable_if<
                 (!std::is_same_v<EDATA_T, FixedChar>)>::type* = nullptr>
@@ -784,9 +819,6 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
                     << "unsupported src_col type: " << src_col_type->ToString();
                 CHECK(check_primary_key_type(dst_col_type))
                     << "unsupported dst_col type: " << dst_col_type->ToString();
-                CHECK(src_col_type->Equals(dst_col_type))
-                    << "src_col type: " << src_col_type->ToString()
-                    << " neq dst_col type: " << dst_col_type->ToString();
 
                 std::vector<std::shared_ptr<arrow::Array>> property_cols;
                 for (auto i = 2; i < columns.size(); ++i) {
@@ -803,24 +835,24 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
                 // add edges to vector
                 CHECK(src_col->length() == dst_col->length());
                 if (src_col_type->Equals(arrow::int64())) {
-                  append_edges<int64_t, EDATA_T>(
+                  _append_edges<int64_t, EDATA_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree);
                 } else if (src_col_type->Equals(arrow::uint64())) {
-                  append_edges<uint64_t, EDATA_T>(
+                  _append_edges<uint64_t, EDATA_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree);
                 } else if (src_col_type->Equals(arrow::int32())) {
-                  append_edges<int32_t, EDATA_T>(
+                  _append_edges<int32_t, EDATA_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree);
                 } else if (src_col_type->Equals(arrow::uint32())) {
-                  append_edges<uint32_t, EDATA_T>(
+                  _append_edges<uint32_t, EDATA_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree);
                 } else {
                   // must be string
-                  append_edges<std::string_view, EDATA_T>(
+                  _append_edges<std::string_view, EDATA_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree);
                 }
@@ -925,7 +957,41 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
           supplier_creator);
     }
   }
-
+  template <typename SRC_PK_T, typename EDATA_T, typename CHAR_ARRAY_T>
+  void _append_edges_for_multiple_props(
+      std::shared_ptr<arrow::Array> src_col,
+      std::shared_ptr<arrow::Array> dst_col,
+      const LFIndexer<vid_t>& src_indexer, const LFIndexer<vid_t>& dst_indexer,
+      std::vector<std::shared_ptr<arrow::Array>>& property_cols,
+      const std::vector<PropertyType>& edge_properties,
+      MMapVector<std::tuple<vid_t, vid_t, CHAR_ARRAY_T>>& parsed_edges,
+      std::vector<std::atomic<int32_t>>& ie_degree,
+      std::vector<std::atomic<int32_t>>& oe_degree,
+      const std::vector<size_t>& offset_vec) {
+    auto dst_col_type = dst_col->type();
+    if (dst_col_type->Equals(arrow::int64())) {
+      append_edges_for_multiple_props<SRC_PK_T, int64_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree, offset_vec);
+    } else if (dst_col_type->Equals(arrow::uint64())) {
+      append_edges_for_multiple_props<SRC_PK_T, uint64_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree, offset_vec);
+    } else if (dst_col_type->Equals(arrow::int32())) {
+      append_edges_for_multiple_props<SRC_PK_T, int32_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree, offset_vec);
+    } else if (dst_col_type->Equals(arrow::uint32())) {
+      append_edges_for_multiple_props<SRC_PK_T, uint32_t, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree, offset_vec);
+    } else {
+      // must be string
+      append_edges_for_multiple_props<SRC_PK_T, std::string_view, EDATA_T>(
+          src_col, dst_col, src_indexer, dst_indexer, property_cols,
+          edge_properties, parsed_edges, ie_degree, oe_degree, offset_vec);
+    }
+  }
   template <typename EDATA_T, typename CHAR_ARRAY_T>
   void collect_edge_properties(
       label_t src_label_id, label_t dst_label_id, label_t e_label_id,
@@ -1054,43 +1120,41 @@ class AbstractArrowFragmentLoader : public IFragmentLoader {
                     << "unsupported src_col type: " << src_col_type->ToString();
                 CHECK(check_primary_key_type(dst_col_type))
                     << "unsupported dst_col type: " << dst_col_type->ToString();
-                CHECK(src_col_type->Equals(dst_col_type))
-                    << "src_col type: " << src_col_type->ToString()
-                    << " neq dst_col type: " << dst_col_type->ToString();
 
                 std::vector<std::shared_ptr<arrow::Array>> property_cols;
                 for (auto i = 2; i < columns.size(); ++i) {
                   property_cols.emplace_back(columns[i]);
                 }
-                // CHECK(property_cols.size() <= 1)
-                //     << "Currently only support at most one property on
-                //     edge";
 
                 // add edges to vector
-                CHECK(src_col->length() == dst_col->length());
                 if (src_col_type->Equals(arrow::int64())) {
-                  append_edges_for_multiple_props<int64_t, EDATA_T>(
+                  _append_edges_for_multiple_props<int64_t, EDATA_T,
+                                                   CHAR_ARRAY_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree,
                       offset_vec);
                 } else if (src_col_type->Equals(arrow::uint64())) {
-                  append_edges_for_multiple_props<uint64_t, EDATA_T>(
+                  _append_edges_for_multiple_props<uint64_t, EDATA_T,
+                                                   CHAR_ARRAY_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree,
                       offset_vec);
                 } else if (src_col_type->Equals(arrow::int32())) {
-                  append_edges_for_multiple_props<int32_t, EDATA_T>(
+                  _append_edges_for_multiple_props<int32_t, EDATA_T,
+                                                   CHAR_ARRAY_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree,
                       offset_vec);
                 } else if (src_col_type->Equals(arrow::uint32())) {
-                  append_edges_for_multiple_props<uint32_t, EDATA_T>(
+                  _append_edges_for_multiple_props<uint32_t, EDATA_T,
+                                                   CHAR_ARRAY_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree,
                       offset_vec);
                 } else {
                   // must be string
-                  append_edges_for_multiple_props<std::string_view, EDATA_T>(
+                  _append_edges_for_multiple_props<std::string_view, EDATA_T,
+                                                   CHAR_ARRAY_T>(
                       src_col, dst_col, src_indexer, dst_indexer, property_cols,
                       edge_properties, parsed_edges, ie_degree, oe_degree,
                       offset_vec);
