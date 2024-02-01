@@ -142,7 +142,7 @@ class Query0 : public AppBase {
     std::vector<vid_t> intimacy_users_tmp;
     // root -> Intimacy -> Users
     for (auto& v : intimacy_users) {
-      if (check_same_org(orgs, workat_oe, v, mem) && !vis_set.count(v)) {
+      if (!vis_set.count(v) && check_same_org(orgs, workat_oe, v, mem)) {
         intimacy_users_tmp.emplace_back(v);
       }
     }
