@@ -84,6 +84,45 @@ bool PropertyType::IsVarchar() const {
   return type_enum == impl::PropertyTypeImpl::kVarChar;
 }
 
+uint16_t PropertyType::NumBytes() const {
+  switch (type_enum) {
+  case impl::PropertyTypeImpl::kEmpty:
+    return 0;
+  case impl::PropertyTypeImpl::kBool:
+    return sizeof(bool);
+  case impl::PropertyTypeImpl::kUInt8:
+    return sizeof(uint8_t);
+  case impl::PropertyTypeImpl::kUInt16:
+    return sizeof(uint16_t);
+  case impl::PropertyTypeImpl::kInt32:
+    return sizeof(int32_t);
+  case impl::PropertyTypeImpl::kUInt32:
+    return sizeof(uint32_t);
+  case impl::PropertyTypeImpl::kFloat:
+    return sizeof(float);
+  case impl::PropertyTypeImpl::kInt64:
+    return sizeof(int64_t);
+  case impl::PropertyTypeImpl::kUInt64:
+    return sizeof(uint64_t);
+  case impl::PropertyTypeImpl::kDouble:
+    return sizeof(double);
+  case impl::PropertyTypeImpl::kCharArray4:
+    return 4;
+  case impl::PropertyTypeImpl::kCharArray8:
+    return 8;
+  case impl::PropertyTypeImpl::kCharArray12:
+    return 12;
+  case impl::PropertyTypeImpl::kCharArray16:
+    return 16;
+  case impl::PropertyTypeImpl::kCharArray20:
+    return 20;
+  case impl::PropertyTypeImpl::kCharArray24:
+    return 24;
+  default:
+    LOG(FATAL) << "Can not get num bytes for type: " << (*this);
+  }
+}
+
 /////////////////////////////// Get Type Instance
 //////////////////////////////////
 PropertyType PropertyType::Empty() {

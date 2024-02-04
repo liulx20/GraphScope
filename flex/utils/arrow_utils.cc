@@ -18,6 +18,10 @@ namespace gs {
 std::shared_ptr<arrow::DataType> PropertyTypeToArrowType(PropertyType type) {
   if (type == PropertyType::Bool()) {
     return arrow::boolean();
+  } else if (type == PropertyType::UInt8()) {
+    return arrow::uint8();
+  } else if (type == PropertyType::UInt16()) {
+    return arrow::uint16();
   } else if (type == PropertyType::Int32()) {
     return arrow::int32();
   } else if (type == PropertyType::Int64()) {
@@ -42,6 +46,18 @@ std::shared_ptr<arrow::DataType> PropertyTypeToArrowType(PropertyType type) {
     return arrow::null();
   } else if (type.type_enum == impl::PropertyTypeImpl::kVarChar) {
     return arrow::large_utf8();
+  } else if (type == PropertyType::CharArray4()) {
+    return arrow::fixed_size_binary(4);
+  } else if (type == PropertyType::CharArray8()) {
+    return arrow::fixed_size_binary(8);
+  } else if (type == PropertyType::CharArray12()) {
+    return arrow::fixed_size_binary(12);
+  } else if (type == PropertyType::CharArray16()) {
+    return arrow::fixed_size_binary(16);
+  } else if (type == PropertyType::CharArray20()) {
+    return arrow::fixed_size_binary(20);
+  } else if (type == PropertyType::CharArray24()) {
+    return arrow::fixed_size_binary(24);
   } else {
     LOG(FATAL) << "Unexpected property type: "
                << static_cast<int>(type.type_enum);

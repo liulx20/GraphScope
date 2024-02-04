@@ -91,6 +91,7 @@ struct PropertyType {
   }
 
   bool IsVarchar() const;
+  uint16_t NumBytes() const;
 
   static PropertyType Empty();
   static PropertyType Bool();

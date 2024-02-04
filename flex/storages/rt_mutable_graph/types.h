@@ -36,6 +36,8 @@ static constexpr const char* DT_SIGNED_INT32 = "DT_SIGNED_INT32";
 static constexpr const char* DT_UNSIGNED_INT32 = "DT_UNSIGNED_INT32";
 static constexpr const char* DT_SIGNED_INT64 = "DT_SIGNED_INT64";
 static constexpr const char* DT_UNSIGNED_INT64 = "DT_UNSIGNED_INT64";
+static constexpr const char* DT_UNSIGNED_INT16 = "DT_UNSIGNED_INT16";
+static constexpr const char* DT_UNSIGNED_INT8 = "DT_UNSIGNED_INT8";
 static constexpr const char* DT_BOOL = "DT_BOOL";
 static constexpr const char* DT_FLOAT = "DT_FLOAT";
 static constexpr const char* DT_DOUBLE = "DT_DOUBLE";
@@ -43,6 +45,13 @@ static constexpr const char* DT_STRING = "DT_STRING";
 static constexpr const char* DT_STRINGMAP = "DT_STRINGMAP";
 static constexpr const char* DT_DATE = "DT_DATE32";
 static constexpr const char* DT_DAY = "DT_DAY32";
+
+static constexpr const char* DT_CHARARRAY_4 = "DT_CHARARRAY_4";
+static constexpr const char* DT_CHARARRAY_8 = "DT_CHARARRAY_8";
+static constexpr const char* DT_CHARARRAY_12 = "DT_CHARARRAY_12";
+static constexpr const char* DT_CHARARRAY_16 = "DT_CHARARRAY_16";
+static constexpr const char* DT_CHARARRAY_20 = "DT_CHARARRAY_20";
+static constexpr const char* DT_CHARARRAY_24 = "DT_CHARARRAY_24";
 
 }  // namespace gs
 

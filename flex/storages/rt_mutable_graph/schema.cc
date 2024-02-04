@@ -438,6 +438,10 @@ static PropertyType StringToPropertyType(const std::string& str) {
     return PropertyType::kInt32;
   } else if (str == "uint32" || str == DT_UNSIGNED_INT32) {
     return PropertyType::kUInt32;
+  } else if (str == "uint16" || str == DT_UNSIGNED_INT16) {
+    return PropertyType::kUInt16;
+  } else if (str == "uint8" || str == DT_UNSIGNED_INT8) {
+    return PropertyType::kUInt8;
   } else if (str == "bool" || str == DT_BOOL) {
     return PropertyType::kBool;
   } else if (str == "Date" || str == DT_DATE) {
@@ -459,6 +463,18 @@ static PropertyType StringToPropertyType(const std::string& str) {
     return PropertyType::kFloat;
   } else if (str == "double" || str == DT_DOUBLE) {
     return PropertyType::kDouble;
+  } else if (str == DT_CHARARRAY_4) {
+    return PropertyType::kCharArray4;
+  } else if (str == DT_CHARARRAY_8) {
+    return PropertyType::kCharArray8;
+  } else if (str == DT_CHARARRAY_12) {
+    return PropertyType::kCharArray12;
+  } else if (str == DT_CHARARRAY_16) {
+    return PropertyType::kCharArray16;
+  } else if (str == DT_CHARARRAY_20) {
+    return PropertyType::kCharArray20;
+  } else if (str == DT_CHARARRAY_24) {
+    return PropertyType::kCharArray24;
   } else {
     return PropertyType::kEmpty;
   }

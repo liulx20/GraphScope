@@ -68,6 +68,10 @@ void set_vertex_properties(gs::ColumnBase* col,
   // TODO(zhanglei): reduce the dummy code here with a template function.
   if (col_type == PropertyType::kBool) {
     set_single_vertex_column<bool>(col, array, vids);
+  } else if (col_type == PropertyType::kUInt8) {
+    set_single_vertex_column<uint8_t>(col, array, vids);
+  } else if (col_type == PropertyType::kUInt16) {
+    set_single_vertex_column<uint16_t>(col, array, vids);
   } else if (col_type == PropertyType::kInt64) {
     set_single_vertex_column<int64_t>(col, array, vids);
   } else if (col_type == PropertyType::kInt32) {
@@ -251,128 +255,183 @@ void AbstractArrowFragmentLoader::AddEdgesRecordBatch(
       addEdgesRecordBatchImpl<grape::EmptyType>(
           src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
     }
-  } else if (property_types[0] == PropertyType::kBool) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<bool>(src_label_i, dst_label_i,
-                                                      edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<bool>(src_label_i, dst_label_i, edge_label_i,
-                                    filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kDate) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<Date>(src_label_i, dst_label_i,
-                                                      edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<Date>(src_label_i, dst_label_i, edge_label_i,
-                                    filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kInt32) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<int32_t>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<int32_t>(src_label_i, dst_label_i, edge_label_i,
-                                       filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kUInt32) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<uint32_t>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<uint32_t>(src_label_i, dst_label_i, edge_label_i,
-                                        filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kInt64) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<int64_t>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<int64_t>(src_label_i, dst_label_i, edge_label_i,
-                                       filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kUInt64) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<uint64_t>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<uint64_t>(src_label_i, dst_label_i, edge_label_i,
-                                        filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kDouble) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<double>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<double>(src_label_i, dst_label_i, edge_label_i,
+  } else if (col_num == 1) {
+    if (property_types[0] == PropertyType::kBool) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<bool>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<bool>(src_label_i, dst_label_i, edge_label_i,
                                       filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kFloat) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<float>(src_label_i, dst_label_i,
-                                                       edge_label_i);
+      }
+    } else if (property_types[0] == PropertyType::kDate) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<Date>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<Date>(src_label_i, dst_label_i, edge_label_i,
+                                      filenames, supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kUInt8) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<uint8_t>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<uint8_t>(src_label_i, dst_label_i, edge_label_i,
+                                         filenames, supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kUInt16) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<uint16_t>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<uint16_t>(src_label_i, dst_label_i,
+                                          edge_label_i, filenames,
+                                          supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kInt32) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<int32_t>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<int32_t>(src_label_i, dst_label_i, edge_label_i,
+                                         filenames, supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kUInt32) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<uint32_t>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<uint32_t>(src_label_i, dst_label_i,
+                                          edge_label_i, filenames,
+                                          supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kInt64) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<int64_t>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<int64_t>(src_label_i, dst_label_i, edge_label_i,
+                                         filenames, supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kUInt64) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<uint64_t>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<uint64_t>(src_label_i, dst_label_i,
+                                          edge_label_i, filenames,
+                                          supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kDouble) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<double>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<double>(src_label_i, dst_label_i, edge_label_i,
+                                        filenames, supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kFloat) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<float>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<float>(src_label_i, dst_label_i, edge_label_i,
+                                       filenames, supplier_creator);
+      }
+    } else if (property_types[0].type_enum ==
+               impl::PropertyTypeImpl::kVarChar) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<std::string_view>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<std::string_view>(src_label_i, dst_label_i,
+                                                  edge_label_i, filenames,
+                                                  supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kCharArray4) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<char_array<4>>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<char_array<4>>(src_label_i, dst_label_i,
+                                               edge_label_i, filenames,
+                                               supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kCharArray8) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<char_array<8>>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<char_array<8>>(src_label_i, dst_label_i,
+                                               edge_label_i, filenames,
+                                               supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kCharArray12) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<char_array<12>>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<char_array<12>>(src_label_i, dst_label_i,
+                                                edge_label_i, filenames,
+                                                supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kCharArray16) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<char_array<16>>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<char_array<16>>(src_label_i, dst_label_i,
+                                                edge_label_i, filenames,
+                                                supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kCharArray20) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<char_array<20>>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<char_array<20>>(src_label_i, dst_label_i,
+                                                edge_label_i, filenames,
+                                                supplier_creator);
+      }
+    } else if (property_types[0] == PropertyType::kCharArray24) {
+      if (filenames.empty()) {
+        basic_fragment_loader_.AddNoPropEdgeBatch<char_array<24>>(
+            src_label_i, dst_label_i, edge_label_i);
+      } else {
+        addEdgesRecordBatchImpl<char_array<24>>(src_label_i, dst_label_i,
+                                                edge_label_i, filenames,
+                                                supplier_creator);
+      }
     } else {
-      addEdgesRecordBatchImpl<float>(src_label_i, dst_label_i, edge_label_i,
-                                     filenames, supplier_creator);
-    }
-  } else if (property_types[0].type_enum == impl::PropertyTypeImpl::kVarChar) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<std::string_view>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<std::string_view>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kCharArray4) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<char_array<4>>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<char_array<4>>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kCharArray8) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<char_array<8>>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<char_array<8>>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kCharArray12) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<char_array<12>>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<char_array<12>>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kCharArray16) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<char_array<16>>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<char_array<16>>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kCharArray20) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<char_array<20>>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<char_array<20>>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
-    }
-  } else if (property_types[0] == PropertyType::kCharArray24) {
-    if (filenames.empty()) {
-      basic_fragment_loader_.AddNoPropEdgeBatch<char_array<24>>(
-          src_label_i, dst_label_i, edge_label_i);
-    } else {
-      addEdgesRecordBatchImpl<char_array<24>>(
-          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+      LOG(FATAL) << "Unsupported edge property type." << property_types[0];
     }
   } else {
-    LOG(FATAL) << "Unsupported edge property type." << property_types[0];
+    /**
+    size_t len = 0;
+    for (size_t i = 0; i < property_types.size(); ++i) {
+      len += property_types[i].NumBytes();
+    }
+    if (len <= 4) {
+      addEdgesRecordBatchWithMultiPropImpl<char_array<4>>(
+          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+    } else if (len <= 8) {
+      addEdgesRecordBatchWithMultiPropImpl<char_array<8>>(
+          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+    } else if (len <= 12) {
+      addEdgesRecordBatchWithMultiPropImpl<char_array<12>>(
+          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+    } else if (len <= 16) {
+      addEdgesRecordBatchWithMultiPropImpl<char_array<16>>(
+          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+    } else if (len <= 20) {
+      addEdgesRecordBatchWithMultiPropImpl<char_array<20>>(
+          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+    } else {
+      CHECK(len <= 24) << "length less than 24...";
+      addEdgesRecordBatchWithMultiPropImpl<char_array<24>>(
+          src_label_i, dst_label_i, edge_label_i, filenames, supplier_creator);
+    }*/
   }
 }
 
