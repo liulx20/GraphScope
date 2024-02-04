@@ -292,6 +292,17 @@ struct TypeConverter<Day> {
   }
 };
 
+template <int N>
+struct TypeConverter<char_array<N>> {
+  static PropertyType property_type() {
+    return char_array_type_mapping<N>::type;
+  }
+  using ArrowType = arrow::FixedSizeBinaryType;
+  using ArrowArrayType = arrow::FixedSizeBinaryArray;
+  static std::shared_ptr<arrow::DataType> ArrowTypeValue() {
+    return arrow::fixed_size_binary(N);
+  }
+};
 std::shared_ptr<arrow::DataType> PropertyTypeToArrowType(PropertyType type);
 }  // namespace gs
 

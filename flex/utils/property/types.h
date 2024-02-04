@@ -257,6 +257,7 @@ struct char_array_type_mapping<24> {
 template <int N>
 struct char_array {
   char_array() {}
+  char_array(const unsigned char* const other) { memcpy(data, other, N); }
   char_array(const char* const other) { memcpy(data, other, N); }
   char_array(const char_array& other) { memcpy(data, other.data, N); }
   char_array& operator=(const char_array<N>& other) {
@@ -266,6 +267,11 @@ struct char_array {
   size_t size() const { return N; }
   char data[N];
 };
+
+template <int N>
+bool operator<(const char_array<N>& a, const char_array<N>& b) {
+  return memcmp(a.data, b.data, N) < 0;
+}
 
 struct LabelKey {
   using label_data_type = uint8_t;
