@@ -384,6 +384,7 @@ static std::pair<std::string, std::string> BuildOneLabelEdgeExpandOpt(
     }
   }
 
+  LOG(INFO) << "opt_var_name:" << opt_var_name << " " << formater.str();
   return std::make_pair(opt_var_name, formater.str());
 }
 

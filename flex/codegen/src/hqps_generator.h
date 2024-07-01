@@ -262,6 +262,8 @@ class QueryGenerator {
       for (size_t i = 0; i < param_vars.size(); ++i) {
         if (i > 0 && param_vars[i].id == param_vars[i - 1].id) {
           // found duplicate
+          std::cout << "name:" << param_vars[i].var_name << " "
+                    << param_vars[i - 1].var_name << "\n";
           CHECK(param_vars[i] == param_vars[i - 1]);
           continue;
         } else {
@@ -394,7 +396,8 @@ class QueryGenerator {
           LOG(INFO) << "EdgeExpand is the last operator";
         }
         auto& meta_data = meta_datas[0];
-        LOG(INFO) << "Found a edge expand operator";
+        LOG(INFO) << "Found a edge expand operator size: "
+                  << dst_vertex_labels.size();
         ss << BuildEdgeExpandOp<LabelT>(ctx_, real_edge_expand, meta_data,
                                         dst_vertex_labels)
            << std::endl;

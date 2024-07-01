@@ -30,8 +30,7 @@ limitations under the License.
 
 namespace gs {
 
-static constexpr const char* SINK_OP_TEMPLATE_STR =
-    "return Engine::Sink(%1%, %2%, std::array<int32_t, %3%>{%4%});";
+static constexpr const char* SINK_OP_TEMPLATE_STR = "Sink::sink(%1%, encoder);";
 class SinkOpBuilder {
  public:
   SinkOpBuilder(BuildingContext& ctx) : ctx_(ctx) {}
@@ -40,7 +39,7 @@ class SinkOpBuilder {
     std::string prev_ctx_name = ctx_.GetCurCtxName();
     // We need to sink the result along with the alias_id, which is maintained
     // in the context
-    auto& tag_ind_2_tag_ids = ctx_.GetTagIdAndIndMapping().GetTagInd2TagIds();
+    /*auto& tag_ind_2_tag_ids = ctx_.GetTagIdAndIndMapping().GetTagInd2TagIds();
     CHECK(tag_ind_2_tag_ids.size() > 0);
 
     std::string tag_ids_str;
@@ -55,9 +54,9 @@ class SinkOpBuilder {
       }
       tag_ids_str = ss.str();
     }
+    */
     boost::format formater(SINK_OP_TEMPLATE_STR);
-    formater % ctx_.GraphVar() % prev_ctx_name % tag_ind_2_tag_ids.size() %
-        tag_ids_str;
+    formater % prev_ctx_name;
     return formater.str();
   }
 

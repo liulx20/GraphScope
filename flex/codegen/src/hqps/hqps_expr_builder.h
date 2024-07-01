@@ -22,6 +22,7 @@ limitations under the License.
 #include "flex/codegen/src/building_context.h"
 #include "flex/codegen/src/codegen_utils.h"
 #include "flex/codegen/src/graph_types.h"
+#include "flex/codegen/src/hqps/hqps_expr_builder_new.h"
 #include "flex/proto_generated_gie/algebra.pb.h"
 #include "flex/proto_generated_gie/common.pb.h"
 #include "flex/proto_generated_gie/expr.pb.h"
@@ -300,6 +301,8 @@ class ExprBuilder {
 
   void AddAllExprOpr(
       const google::protobuf::RepeatedPtrField<common::ExprOpr>& expr_ops) {
+    gs::ExprBuilderNEW expr_builder_new(ctx_);
+    expr_builder_new.AddAllExprOpr(expr_ops);
     // we currently don't support filter with label keys!
     // If we meet label keys just ignore.
     auto size = expr_ops.size();
@@ -548,8 +551,8 @@ class ExprBuilder {
       ss << ":";
     }
     for (size_t i = 0; i < construct_params_.size(); ++i) {
-      ss << construct_params_[i].var_name << "_"
-         << "(" << construct_params_[i].var_name << ")";
+      ss << construct_params_[i].var_name << "_" << "("
+         << construct_params_[i].var_name << ")";
       if (i != construct_params_.size() - 1) {
         ss << ",";
       }

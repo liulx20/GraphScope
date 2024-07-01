@@ -61,6 +61,8 @@ static constexpr const char* SCAN_OP_BOTH_GID_EXPR_TEMPLATE_STR =
     "auto %5% = Engine::template ScanVertexWithGidExpr<%6%, %7%>(%8%, %9%, "
     "%10%, std::move(%1%));\n";
 
+static constexpr const char* FIND_VERTEX_TEMPLATE_STR =
+    "auto %1% = Scan::find_vertex(txn, %2%, %3%, %4%);\n";
 /// Args
 /// 1. res_ctx_name
 /// 2. AppendOpt,
@@ -68,7 +70,8 @@ static constexpr const char* SCAN_OP_BOTH_GID_EXPR_TEMPLATE_STR =
 /// 4. vertex label
 /// 5. oid
 static constexpr const char* SCAN_OP_WITH_OID_ONE_LABEL_TEMPLATE_STR =
-    "auto %1% = Engine::template ScanVertexWithOid<%2%,%3%>(%4%, %5%, %6%);\n";
+    "auto %1% = Engine::template ScanVertexWithOid<%2%,%3%>(%4%, %5%, "
+    "%6%);\n";
 
 /// Args
 /// 1. res_ctx_name
@@ -327,6 +330,7 @@ class ScanOpBuilder {
     VLOG(10) << "Scan with oid/gid: " << oid_or_gid_;
 
     std::string next_ctx_name = ctx_.GetCurCtxName();
+    /**
     auto append_opt = res_alias_to_append_opt(res_alias_);
 
     boost::format formater;
@@ -351,9 +355,11 @@ class ScanOpBuilder {
       }
       ss << std::to_string(labels_ids_[labels_ids_.size() - 1]);
       formater % next_ctx_name % append_opt % oid_or_gid_type_name_ %
-          ctx_.GraphVar() % labels_ids_.size() % ss.str() % oid_or_gid_;
-      return formater.str();
-    }
+          ctx_.GraphVar() % labels_ids_.size() % ss.str() % oid_or_gid_;*/
+    boost::format formater;
+    formater = boost::format(FIND_VERTEX_TEMPLATE_STR);
+    formater % next_ctx_name % labels_ids_[0] % oid_or_gid_ % res_alias_;
+    return formater.str();
   }
 
   std::string scan_without_expr() const {
@@ -413,6 +419,7 @@ class ScanOpBuilder {
       const std::string& expr_construct_params,
       const std::string& selectors_str) const {
     std::string next_ctx_name = ctx_.GetCurCtxName();
+    /**
     std::string label_ids_str;
     {
       std::stringstream ss;
@@ -435,10 +442,13 @@ class ScanOpBuilder {
       formater = boost::format(SCAN_OP_BOTH_OID_EXPR_TEMPLATE_STR);
     } else {
       formater = boost::format(SCAN_OP_BOTH_GID_EXPR_TEMPLATE_STR);
-    }
-    formater % expr_var_name % expr_func_name % expr_construct_params %
-        selectors_str % next_ctx_name % res_alias_to_append_opt(res_alias_) %
-        oid_or_gid_type_name_ % ctx_.GraphVar() % label_ids_str % oid_or_gid_;
+    }*/
+    boost::format formater;
+    formater = boost::format(FIND_VERTEX_TEMPLATE_STR);
+    formater % next_ctx_name % labels_ids_[0] % oid_or_gid_ % res_alias_;
+    // formater % expr_var_name % expr_func_name % expr_construct_params %
+    //   selectors_str % next_ctx_name % res_alias_to_append_opt(res_alias_) %
+    // oid_or_gid_type_name_ % ctx_.GraphVar() % label_ids_str % oid_or_gid_;
     return formater.str();
   }
 
