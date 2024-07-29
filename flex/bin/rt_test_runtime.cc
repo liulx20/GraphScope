@@ -51,6 +51,7 @@ std::string parse_params_file(const std::string& query) {
   gs::Encoder encoder(buf);
   encoder.put_string(query_str);
   encoder.put_byte(1);
+  encoder.put_byte(0);
   return std::string(buf.data(), buf.size());
 }
 
@@ -97,7 +98,7 @@ int main(int argc, char** argv) {
 
   auto& db = gs::GraphDB::get();
 
-  auto schema = gs::Schema::LoadFromYaml(graph_schema_path);
+  auto schema = gs::Schema::LoadFromYaml(graph_schema_path).value();
   gs::GraphDBConfig config(schema, data_path, 1);
   config.memory_level = 1;
   db.Open(config);

@@ -198,6 +198,7 @@ std::string parse_tokens(const std::vector<std::string>& tokens) {
   } else {
     return "";
   }
+  return "";
 }
 
 std::vector<std::string> parse_params_file(const std::string& file) {
@@ -225,90 +226,90 @@ std::vector<std::string> parse_params_file(const std::string& file) {
 }
 
 int main(int argc, char** argv) {
-  bpo::options_description desc("Usage:");
-  desc.add_options()("help", "Display help message")("version,v",
-                                                     "Display version")(
-      "graph-config,g", bpo::value<std::string>(), "graph schema config file")(
-      "data-path,d", bpo::value<std::string>(), "data directory path")(
-      "input-params,i", bpo::value<std::string>(), "input params file")(
-      "output-path,o", bpo::value<std::string>(), "output file path")(
-      "num-of-query,n", bpo::value<int>(), "num of query");
-  google::InitGoogleLogging(argv[0]);
-  FLAGS_logtostderr = true;
+  /** bpo::options_description desc("Usage:");
+   desc.add_options()("help", "Display help message")("version,v",
+                                                      "Display version")(
+       "graph-config,g", bpo::value<std::string>(), "graph schema config file")(
+       "data-path,d", bpo::value<std::string>(), "data directory path")(
+       "input-params,i", bpo::value<std::string>(), "input params file")(
+       "output-path,o", bpo::value<std::string>(), "output file path")(
+       "num-of-query,n", bpo::value<int>(), "num of query");
+   google::InitGoogleLogging(argv[0]);
+   FLAGS_logtostderr = true;
 
-  bpo::variables_map vm;
-  bpo::store(bpo::command_line_parser(argc, argv).options(desc).run(), vm);
-  bpo::notify(vm);
+   bpo::variables_map vm;
+   bpo::store(bpo::command_line_parser(argc, argv).options(desc).run(), vm);
+   bpo::notify(vm);
 
-  if (vm.count("help")) {
-    std::cout << desc << std::endl;
-    return 0;
-  }
-  if (vm.count("version")) {
-    std::cout << "GraphScope/Flex version " << FLEX_VERSION << std::endl;
-    return 0;
-  }
+   if (vm.count("help")) {
+     std::cout << desc << std::endl;
+     return 0;
+   }
+   if (vm.count("version")) {
+     std::cout << "GraphScope/Flex version " << FLEX_VERSION << std::endl;
+     return 0;
+   }
 
-  std::string graph_schema_path = "";
-  std::string data_path = "";
+   std::string graph_schema_path = "";
+   std::string data_path = "";
 
-  if (!vm.count("graph-config")) {
-    LOG(ERROR) << "graph-config is required";
-    return -1;
-  }
-  graph_schema_path = vm["graph-config"].as<std::string>();
-  if (!vm.count("data-path")) {
-    LOG(ERROR) << "data-path is required";
-    return -1;
-  }
-  data_path = vm["data-path"].as<std::string>();
+   if (!vm.count("graph-config")) {
+     LOG(ERROR) << "graph-config is required";
+     return -1;
+   }
+   graph_schema_path = vm["graph-config"].as<std::string>();
+   if (!vm.count("data-path")) {
+     LOG(ERROR) << "data-path is required";
+     return -1;
+   }
+   data_path = vm["data-path"].as<std::string>();
 
-  setenv("TZ", "Asia/Shanghai", 1);
-  tzset();
+   setenv("TZ", "Asia/Shanghai", 1);
+   tzset();
 
-  double t0 = -grape::GetCurrentTime();
-  auto& db = gs::GraphDB::get();
+   double t0 = -grape::GetCurrentTime();
+   auto& db = gs::GraphDB::get();
 
-  auto schema = gs::Schema::LoadFromYaml(graph_schema_path);
-  gs::GraphDBConfig config(schema, data_path, 1);
-  config.memory_level = 2;
-  db.Open(config);
+   auto schema = gs::Schema::LoadFromYaml(graph_schema_path);
+   gs::GraphDBConfig config(schema, data_path, 1);
+   config.memory_level = 2;
+   db.Open(config);
 
-  t0 += grape::GetCurrentTime();
+   t0 += grape::GetCurrentTime();
 
-  std::string input_path = vm["input-params"].as<std::string>();
-  std::string output_path = vm["output-path"].as<std::string>();
+   std::string input_path = vm["input-params"].as<std::string>();
+   std::string output_path = vm["output-path"].as<std::string>();
 
-  std::vector<std::string> params = parse_params_file(input_path);
-  std::vector<std::vector<char>> results;
-  int nq = std::numeric_limits<int>::max();
-  if (vm.count("num-of-query")) {
-    nq = vm["num-of-query"].as<int>();
-  }
+   std::vector<std::string> params = parse_params_file(input_path);
+   std::vector<std::vector<char>> results;
+   int nq = std::numeric_limits<int>::max();
+   if (vm.count("num-of-query")) {
+     nq = vm["num-of-query"].as<int>();
+   }
 
-  auto& session = db.GetSession(0);
-  size_t idx = 0;
-  nq = std::min<int>(nq, params.size());
-  params.resize(nq);
+   auto& session = db.GetSession(0);
+   size_t idx = 0;
+   nq = std::min<int>(nq, params.size());
+   params.resize(nq);
 
-  double tq = -grape::GetCurrentTime();
-  for (auto& param : params) {
-    auto ret = session.Eval(param);
-    if (!ret.ok()) {
-      LOG(ERROR) << "query - " << idx << " failed...";
-    }
-    auto result = ret.value();
-    results.emplace_back(std::move(result));
-  }
-  tq += grape::GetCurrentTime();
-  LOG(INFO) << "executed " << params.size() << " queries: " << tq << " s";
+   double tq = -grape::GetCurrentTime();
+   for (auto& param : params) {
+     auto ret = session.Eval(param);
+     if (!ret.ok()) {
+       LOG(ERROR) << "query - " << idx << " failed...";
+     }
+     auto result = ret.value();
+     results.emplace_back(std::move(result));
+   }
+   tq += grape::GetCurrentTime();
+   LOG(INFO) << "executed " << params.size() << " queries: " << tq << " s";
 
-  FILE* fout = fopen(output_path.c_str(), "wb");
-  for (auto& result : results) {
-    fwrite(result.data(), sizeof(char), result.size(), fout);
-  }
-  fflush(fout);
-  fclose(fout);
+   FILE* fout = fopen(output_path.c_str(), "wb");
+   for (auto& result : results) {
+     fwrite(result.data(), sizeof(char), result.size(), fout);
+   }
+   fflush(fout);
+   fclose(fout);*/
 
   return 0;
 }

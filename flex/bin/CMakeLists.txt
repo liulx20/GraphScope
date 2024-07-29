@@ -46,6 +46,6 @@ target_link_libraries(rt_test_pb flex_utils flex_rt_mutable_graph flex_graph_db)
 install_without_export_flex_target(rt_test_pb)
 
 
-add_executable(rt_test_without_params rt_test_without_params.cc)
-target_link_libraries(rt_test_without_params flex_utils flex_rt_mutable_graph flex_graph_db)
-install_without_export_flex_target(rt_test_without_params)
+add_executable(rt_test_runtime rt_test_runtime.cc)
+target_link_libraries(rt_test_runtime flex_utils flex_rt_mutable_graph flex_graph_db)
+install_without_export_flex_target(rt_test_runtime)
