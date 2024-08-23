@@ -108,6 +108,7 @@ std::shared_ptr<IContextColumn> BDSLEdgeColumnBuilder::finish() {
   auto ret = std::make_shared<BDSLEdgeColumn>(label_, prop_type_);
   ret->edges_.swap(edges_);
   ret->prop_col_ = prop_col_;
+  ret->prop_col_->resize(edges_.size());
   return ret;
 }
 
@@ -142,6 +143,9 @@ std::shared_ptr<IContextColumn> SDMLEdgeColumnBuilder::finish() {
   auto ret = std::make_shared<SDMLEdgeColumn>(dir_, edge_labels_);
   ret->edges_.swap(edges_);
   ret->prop_cols_.swap(prop_cols_);
+  for (size_t i = 0; i < prop_cols_.size(); ++i) {
+    ret->prop_cols_[i]->resize(lens_[i]);
+  }
   return ret;
 }
 

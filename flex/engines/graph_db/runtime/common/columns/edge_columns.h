@@ -701,7 +701,9 @@ class BDSLEdgeColumnBuilder : public IContextColumnBuilder {
   void push_back_opt(vid_t src, vid_t dst, const Any& data, Direction dir) {
     edges_.emplace_back(src, dst, dir == Direction::kOut);
     size_t len = edges_.size();
-    prop_col_->resize(len);
+    if (len >= prop_col_->size()) {
+      prop_col_->resize((len ? len : 1) * 2);
+    }
     prop_col_->set_any(len - 1, data);
   }
   void push_back_endpoints(vid_t src, vid_t dst, Direction dir) {
@@ -729,6 +731,7 @@ class SDMLEdgeColumnBuilder : public IContextColumnBuilder {
       : dir_(dir) {
     size_t idx = 0;
     prop_cols_.resize(labels.size());
+    lens_.resize(labels.size(), 0);
     for (const auto& label : labels) {
       edge_labels_.emplace_back(label);
       index_[label.first] = idx++;
@@ -747,9 +750,11 @@ class SDMLEdgeColumnBuilder : public IContextColumnBuilder {
     push_back_opt(index, std::get<1>(e), std::get<2>(e), std::get<3>(e));
   }
   void push_back_opt(int8_t index, vid_t src, vid_t dst, const Any& data) {
-    edges_.emplace_back(index, src, dst, prop_cols_[index]->size());
-    prop_cols_[index]->resize(prop_cols_[index]->size() + 1);
-    prop_cols_[index]->set_any(prop_cols_[index]->size() - 1, data);
+    edges_.emplace_back(index, src, dst, lens_[index]);
+    if (lens_[index] >= prop_cols_[index]->size()) {
+      prop_cols_[index]->resize((lens_[index] ? lens_[index] : 1) * 2);
+    }
+    prop_cols_[index]->set_any(lens_[index]++, data);
   }
 
   void push_back_opt(LabelTriplet label, vid_t src, vid_t dst,
@@ -759,7 +764,8 @@ class SDMLEdgeColumnBuilder : public IContextColumnBuilder {
   }
 
   void push_back_endpoints(int8_t index, vid_t src, vid_t dst) {
-    edges_.emplace_back(index, src, dst, prop_cols_[index]->size());
+    LOG(FATAL) << "Not implemented";
+    // edges_.emplace_back(index, src, dst, prop_cols_[index]->size());
   }
 
   std::shared_ptr<IContextColumn> finish() override;
@@ -771,6 +777,7 @@ class SDMLEdgeColumnBuilder : public IContextColumnBuilder {
   std::vector<std::pair<LabelTriplet, PropertyType>> edge_labels_;
   std::vector<std::tuple<int8_t, vid_t, vid_t, size_t>> edges_;
   std::vector<std::shared_ptr<ColumnBase>> prop_cols_;
+  std::vector<size_t> lens_;
 };
 
 class BDMLEdgeColumnBuilder : public IContextColumnBuilder {
