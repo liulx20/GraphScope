@@ -229,7 +229,32 @@ bool parse_idx_predicate(const algebra::IndexPredicate& predicate,
   }
   return true;
 }
+bool has_label_withIn(const common::Expression& expr,
+                      std::set<label_t>& labels) {
+  int opr_num = expr.operators_size();
+  bool has_label_withIn = false;
+  for (int i = 0; i + 2 < opr_num; ++i) {
+    const auto& opr = expr.operators(i);
 
+    if (opr.has_var() && opr.var().has_property() &&
+        opr.var().property().has_label()) {
+      const auto next_opr = expr.operators(i + 1);
+      if (next_opr.item_case() == common::ExprOpr::ItemCase::kLogical &&
+          next_opr.logical() == common::WITHIN) {
+        const auto next_next_opr = expr.operators(i + 2);
+        if (next_next_opr.has_const_() &&
+            next_next_opr.const_().has_i64_array()) {
+          has_label_withIn = true;
+          int label_num = next_next_opr.const_().i64_array().item_size();
+          for (int j = 0; j < label_num; ++j) {
+            labels.insert(next_next_opr.const_().i64_array().item(j));
+          }
+        }
+      }
+    }
+  }
+  return has_label_withIn;
+}
 Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
                   const std::map<std::string, std::string>& params) {
   label_t label;
@@ -359,6 +384,18 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
 
     if (scan_opr_params.has_predicate()) {
       Context ctx;
+      const auto& predicate = scan_opr_params.predicate();
+      std::set<label_t> labels;
+      if (has_label_withIn(predicate, labels)) {
+        std::vector<label_t> tmp;
+        for (auto label : scan_params.tables) {
+          if (labels.find(label) != labels.end()) {
+            tmp.push_back(label);
+          }
+        }
+        scan_params.tables.swap(tmp);
+      }
+
       auto expr = parse_expression(
           txn, ctx, params, scan_opr_params.predicate(), VarType::kVertexVar);
       if (expr->is_optional()) {
