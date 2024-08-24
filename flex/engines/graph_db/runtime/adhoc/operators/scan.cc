@@ -16,6 +16,7 @@
 #include "flex/engines/graph_db/runtime/common/operators/scan.h"
 #include "flex/engines/graph_db/runtime/adhoc/expr_impl.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
+#include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
 namespace gs {
 
 namespace runtime {
