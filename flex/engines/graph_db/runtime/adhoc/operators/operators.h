@@ -48,6 +48,11 @@ Context eval_path_expand_p(const physical::PathExpand& opr,
                            const physical::PhysicalOpr_MetaData& meta,
                            int alias);
 
+Context eval_shortest_path(const physical::PathExpand& opr,
+                           const ReadTransaction& txn, Context&& ctx,
+                           const std::map<std::string, std::string>& params,
+                           const physical::PhysicalOpr_MetaData& meta,
+                           int v_alias, int len_alias);
 Context eval_project(const physical::Project& opr, const ReadTransaction& txn,
                      Context&& ctx,
                      const std::map<std::string, std::string>& params,

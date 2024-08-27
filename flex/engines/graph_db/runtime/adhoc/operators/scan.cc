@@ -388,12 +388,18 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
       std::set<label_t> labels;
       if (has_label_withIn(predicate, labels)) {
         std::vector<label_t> tmp;
-        for (auto label : scan_params.tables) {
-          if (labels.find(label) != labels.end()) {
-            tmp.push_back(label);
+        if (scan_params.tables.size() == 0) {
+          for (auto label : labels) {
+            scan_params.tables.push_back(label);
           }
+        } else {
+          for (auto label : scan_params.tables) {
+            if (labels.find(label) != labels.end()) {
+              tmp.push_back(label);
+            }
+          }
+          scan_params.tables.swap(tmp);
         }
-        scan_params.tables.swap(tmp);
       }
 
       auto expr = parse_expression(

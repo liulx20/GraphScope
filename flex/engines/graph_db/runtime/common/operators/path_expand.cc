@@ -445,6 +445,80 @@ Context PathExpand::edge_expand_p(const ReadTransaction& txn, Context&& ctx,
   return ctx;
 }
 
+Context PathExpand::single_source_shortest_path(
+    const ReadTransaction& txn, Context&& ctx,
+    const ShortestPathParams& params) {
+  std::vector<size_t> shuffle_offset;
+  auto& input_vertex_list =
+      *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.start_tag));
+  auto label_sets = input_vertex_list.get_labels_set();
+  auto labels = params.labels;
+  CHECK(labels.size() == 1) << "only support one label triplet";
+  CHECK(label_sets.size() == 1) << "only support one label set";
+  auto label_triplet = labels[0];
+  CHECK(label_triplet.src_label == label_triplet.dst_label)
+      << "only support same src and dst label";
+  auto dir = params.dir;
+  CHECK(dir == Direction::kBoth) << "only support both direction";
+  CHECK(input_vertex_list.size() == 1) << "only support single source";
+
+  std::unordered_set<vid_t> visited;
+  std::vector<vid_t> current;
+  std::vector<vid_t> next;
+  auto start = input_vertex_list.get_vertex(0);
+  CHECK(start.first == label_triplet.src_label) << "invalid start vertex";
+  visited.emplace(start.second);
+  current.push_back(start.second);
+  int depth = 0;
+  SLVertexColumnBuilder builder(label_triplet.dst_label);
+  ValueColumnBuilder<int32_t> len_builder;
+  while (!current.empty()) {
+      if (depth >= params.hop_lower) {
+      for (auto v : current) {
+        builder.push_back_opt(v);
+        len_builder.push_back_opt(depth);
+        shuffle_offset.push_back(0);
+      }
+    }
+
+    if (depth >= params.hop_upper) {
+      break;
+    }
+
+    ++depth;
+    for (auto v : current) {
+      auto oe_iter = txn.GetOutEdgeIterator(label_triplet.src_label, v,
+                                            label_triplet.dst_label,
+                                            label_triplet.edge_label);
+      while (oe_iter.IsValid()) {
+        auto nbr = oe_iter.GetNeighbor();
+        if (visited.find(nbr) == visited.end()) {
+          visited.emplace(nbr);
+          next.push_back(nbr);
+        }
+        oe_iter.Next();
+      }
+      auto ie_iter = txn.GetInEdgeIterator(label_triplet.dst_label, v,
+                                           label_triplet.src_label,
+                                           label_triplet.edge_label);
+      while (ie_iter.IsValid()) {
+        auto nbr = ie_iter.GetNeighbor();
+        if (visited.find(nbr) == visited.end()) {
+          visited.emplace(nbr);
+          next.push_back(nbr);
+        }
+        ie_iter.Next();
+      }
+    }
+    current.clear();
+    std::swap(current, next);
+  }
+
+  ctx.set_with_reshuffle(params.v_alias, builder.finish(), shuffle_offset);
+  ctx.set(params.len_alias, len_builder.finish());
+  return ctx;
+}
+
 }  // namespace runtime
 
 }  // namespace gs

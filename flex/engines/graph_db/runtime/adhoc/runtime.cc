@@ -85,6 +85,54 @@ static std::string get_opr_name(const physical::PhysicalOpr& opr) {
   }
 }
 
+static bool shortest_path(const physical::PhysicalPlan& plan, int i,
+                          int& v_alias, int& len_alias) {
+  int opr_num = plan.plan_size();
+  const auto& opr = plan.plan(i).opr();
+  if (i + 2 < opr_num) {
+    const auto& get_v_opr = plan.plan(i + 1).opr();
+    const auto& group_by_opr = plan.plan(i + 2).opr();
+
+    if (group_by_opr.has_group_by() && get_v_opr.has_vertex() &&
+        opr.path().result_opt() ==
+            physical::PathExpand_ResultOpt::PathExpand_ResultOpt_ALL_V_E) {
+      int path_alias = opr.path().has_alias() ? opr.path().alias().value() : -1;
+      int get_v_tag =
+          get_v_opr.vertex().has_tag() ? get_v_opr.vertex().tag().value() : -1;
+      int get_v_alias = get_v_opr.vertex().has_alias()
+                            ? get_v_opr.vertex().alias().value()
+                            : -1;
+      if (path_alias != get_v_tag && get_v_tag != -1) {
+        return false;
+      }
+
+      if (group_by_opr.group_by().mappings_size() != 1 &&
+          group_by_opr.group_by().functions_size() != 1) {
+        return false;
+      }
+      const auto& mapping = group_by_opr.group_by().mappings(0);
+
+      if (!mapping.has_key() || !mapping.key().has_tag() ||
+          mapping.key().tag().id() != get_v_alias) {
+        return false;
+      }
+      const auto& func = group_by_opr.group_by().functions(0);
+
+      if (func.vars_size() != 1 || !func.vars(0).has_tag() ||
+          func.vars(0).tag().id() != path_alias ||
+          !func.vars(0).has_property() || !func.vars(0).property().has_len() ||
+          func.aggregate() != physical::GroupBy_AggFunc::MIN) {
+        return false;
+      } else {
+        v_alias = mapping.alias().value();
+        len_alias = func.alias().value();
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
                           const ReadTransaction& txn,
                           const std::map<std::string, std::string>& params,
@@ -140,6 +188,17 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
       ret = eval_select(opr.opr().select(), txn, std::move(ret), params);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kPath: {
+      if ((i + 2) < opr_num) {
+        int shortest_path_v_alias = -1, shortest_path_len_alias = -1;
+        if (shortest_path(plan, i, shortest_path_v_alias,
+                          shortest_path_len_alias)) {
+          ret = eval_shortest_path(
+              opr.opr().path(), txn, std::move(ret), params, opr.meta_data(0),
+              shortest_path_v_alias, shortest_path_len_alias);
+          i += 2;
+          break;
+        }
+      }
       if ((i + 1) < opr_num) {
         const physical::PhysicalOpr& next_opr = plan.plan(i + 1);
         if (next_opr.opr().has_vertex() &&
