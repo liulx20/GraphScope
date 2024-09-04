@@ -100,7 +100,9 @@ bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
                                const physical::GetV& v_opr, const Context& ctx,
                                const physical::PhysicalOpr_MetaData& meta) {
   if (ee_opr.expand_opt() !=
-      physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE) {
+          physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE &&
+      ee_opr.expand_opt() !=
+          physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX) {
     // LOG(INFO) << "not edge expand, fallback";
     return false;
   }
@@ -148,20 +150,38 @@ bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
   Direction dir = parse_direction(ee_opr.direction());
 
   std::vector<label_t> output_vertex_labels;
-  if (dir == Direction::kOut &&
-      v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_END) {
-    for (auto& triplet : triplets) {
-      output_vertex_labels.push_back(triplet.dst_label);
-    }
-  } else if (dir == Direction::kIn &&
-             v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_START) {
-    for (auto& triplet : triplets) {
-      output_vertex_labels.push_back(triplet.src_label);
+  if (ee_opr.expand_opt() ==
+      physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX) {
+    if (dir == Direction::kOut &&
+        v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_ITSELF) {
+      for (auto& triplet : triplets) {
+        output_vertex_labels.push_back(triplet.dst_label);
+      }
+    } else if (dir == Direction::kIn &&
+               v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_ITSELF) {
+      for (auto& triplet : triplets) {
+        output_vertex_labels.push_back(triplet.src_label);
+      }
+    } else {
+      return false;
     }
   } else {
-    // LOG(INFO)
-    //     << "direction of edge_expand is not consistent with vopt of get_v";
-    return false;
+    if (dir == Direction::kOut &&
+        v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_END) {
+      for (auto& triplet : triplets) {
+        output_vertex_labels.push_back(triplet.dst_label);
+      }
+    } else if (dir == Direction::kIn &&
+               v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_START) {
+      for (auto& triplet : triplets) {
+        output_vertex_labels.push_back(triplet.src_label);
+      }
+    } else {
+      // LOG(INFO)
+      //     << "direction of edge_expand is not consistent with vopt of
+      //     get_v";
+      return false;
+    }
   }
 
   grape::DistinctSort(v_tables);
@@ -198,7 +218,9 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
   }
 
   CHECK(ee_opr.expand_opt() ==
-        physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE);
+            physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE ||
+        ee_opr.expand_opt() ==
+            physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX);
   CHECK(!query_params.has_predicate());
 
   EdgeExpandParams eep;
