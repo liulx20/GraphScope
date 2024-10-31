@@ -132,8 +132,7 @@ bool is_ep_lt(const common::Expression& expr) {
 Context eval_edge_expand(const physical::EdgeExpand& opr,
                          const ReadTransaction& txn, Context&& ctx,
                          const std::map<std::string, std::string>& params,
-                         const physical::PhysicalOpr_MetaData& meta,
-                         int op_id) {
+                         const physical::PhysicalOpr_MetaData& meta) {
   int v_tag;
   if (!opr.has_v_tag()) {
     v_tag = -1;
@@ -153,9 +152,6 @@ Context eval_edge_expand(const physical::EdgeExpand& opr,
   if (opr.has_alias()) {
     alias = opr.alias().value();
   }
-#ifdef SINGLE_THREAD
-  auto& op_cost = OpCost::get();
-#endif
 
   EdgeExpandParams eep;
   eep.v_tag = v_tag;
@@ -168,89 +164,46 @@ Context eval_edge_expand(const physical::EdgeExpand& opr,
       physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX) {
     if (query_params.has_predicate()) {
       if (is_ep_gt(query_params.predicate())) {
-        double t = -grape::GetCurrentTime();
         std::string param_name =
             query_params.predicate().operators(2).param().name();
         std::string param_value = params.at(param_name);
         auto ret = EdgeExpand::expand_vertex_ep_gt(txn, std::move(ctx), eep,
                                                    param_value);
-        t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-        op_cost.table["expand_vertex_ep_gt"] += t;
-#endif
         return ret;
       } else if (is_ep_lt(query_params.predicate())) {
-        double t = -grape::GetCurrentTime();
         std::string param_name =
             query_params.predicate().operators(2).param().name();
         std::string param_value = params.at(param_name);
         auto ret = EdgeExpand::expand_vertex_ep_lt(txn, std::move(ctx), eep,
                                                    param_value);
-        t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-        op_cost.table["expand_vertex_ep_lt"] += t;
-#endif
         return ret;
       } else {
-        double t = -grape::GetCurrentTime();
-
         GeneralEdgePredicate pred(txn, ctx, params, query_params.predicate());
         auto ret = EdgeExpand::expand_vertex<GeneralEdgePredicate>(
             txn, std::move(ctx), eep, pred);
-
-        t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-        op_cost.table["expand_vertex_with_predicate"] += t;
-#endif
         return ret;
       }
     } else {
-      //      LOG(INFO) << "##### 12 " << op_id;
-      double t = -grape::GetCurrentTime();
       auto ret =
           EdgeExpand::expand_vertex_without_predicate(txn, std::move(ctx), eep);
-      t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-      op_cost.table["expand_vertex_without_predicate"] += t;
-#endif
       return ret;
     }
   } else if (opr.expand_opt() ==
              physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE) {
     if (query_params.has_predicate()) {
-      // LOG(INFO) << "##### 13 " << op_id;
       auto sp_edge_pred =
           parse_special_edge_predicate(query_params.predicate(), txn, params);
       if (sp_edge_pred == nullptr) {
         GeneralEdgePredicate pred(txn, ctx, params, query_params.predicate());
-
-        double t = -grape::GetCurrentTime();
         auto ret = EdgeExpand::expand_edge(txn, std::move(ctx), eep, pred);
-        t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-        op_cost.table["expand_edge_with_predicate"] += t;
-#endif
-
         return ret;
       } else {
-        // LOG(INFO) << "##### 14 " << op_id;
-        double t = -grape::GetCurrentTime();
         auto ret = EdgeExpand::expand_edge_with_special_edge_predicate(
             txn, std::move(ctx), eep, *sp_edge_pred);
-        t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-        op_cost.table["expand_edge_with_sp_predicate"] += t;
-#endif
       }
     } else {
-      // LOG(INFO) << "##### 15 " << op_id;
-      double t = -grape::GetCurrentTime();
       auto ret =
           EdgeExpand::expand_edge_without_predicate(txn, std::move(ctx), eep);
-      t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-      op_cost.table["expand_edge_without_predicate"] += t;
-#endif
     }
   } else {
     LOG(FATAL) << "not support";
@@ -326,12 +279,7 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
                                const physical::GetV& v_opr,
                                const ReadTransaction& txn, Context&& ctx,
                                const std::map<std::string, std::string>& params,
-                               const physical::PhysicalOpr_MetaData& meta,
-                               int op_id) {
-  //  LOG(INFO) << v_opr.DebugString();
-#ifdef SINGLE_THREAD
-  auto& op_cost = OpCost::get();
-#endif
+                               const physical::PhysicalOpr_MetaData& meta) {
   int v_tag;
   if (!ee_opr.has_v_tag()) {
     v_tag = -1;
@@ -366,14 +314,8 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
   // LOG(INFO) << is_optional << " " << "is optional";
 
   if (!v_opr.params().has_predicate()) {
-    // LOG(INFO) << "##### 1 " << op_id;
-    double t = -grape::GetCurrentTime();
     auto ret =
         EdgeExpand::expand_vertex_without_predicate(txn, std::move(ctx), eep);
-    t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-    op_cost.table["#### 1-" + std::to_string(op_id)] += t;
-#endif
     return ret;
   } else {
     std::set<label_t> labels_set;
@@ -411,19 +353,11 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
       if (within) {
         if (query_params.has_predicate()) {
           GeneralEdgePredicate pred(txn, ctx, params, query_params.predicate());
-          // LOG(INFO) << "##### 2 " << op_id;
           return EdgeExpand::expand_vertex<GeneralEdgePredicate>(
               txn, std::move(ctx), eep, pred);
         } else {
-          // LOG(INFO) << "##### 3 " << op_id;
-          double t = -grape::GetCurrentTime();
           auto ret = EdgeExpand::expand_vertex_without_predicate(
               txn, std::move(ctx), eep);
-          t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-          op_cost.table["#### 3-" + std::to_string(op_id)] += t;
-#endif
-
           return ret;
         }
       } else {
@@ -434,12 +368,10 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
           GeneralEdgePredicate e_pred(txn, ctx, params,
                                       query_params.predicate());
           VertexEdgePredicateWrapper ve_pred(v_pred, e_pred);
-          // LOG(INFO) << "##### 4 " << op_id;
           return EdgeExpand::expand_vertex<VertexEdgePredicateWrapper>(
               txn, std::move(ctx), eep, ve_pred);
         } else {
           VertexPredicateWrapper vpred(v_pred);
-          // LOG(INFO) << "##### 5 " << op_id;
           return EdgeExpand::expand_vertex<VertexPredicateWrapper>(
               txn, std::move(ctx), eep, vpred);
         }
@@ -453,11 +385,9 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
         GeneralEdgePredicate e_pred(txn, ctx, params, query_params.predicate());
         ExactVertexEdgePredicateWrapper ve_pred(v_pred, e_pred);
 
-        // LOG(INFO) << "##### 6 " << op_id;
         return EdgeExpand::expand_vertex<ExactVertexEdgePredicateWrapper>(
             txn, std::move(ctx), eep, ve_pred);
       } else {
-        // LOG(INFO) << "##### 7 " << op_id;
         return EdgeExpand::expand_vertex<ExactVertexPredicateWrapper>(
             txn, std::move(ctx), eep, v_pred);
       }
@@ -468,22 +398,15 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
                                       v_opr.params().predicate());
         GeneralEdgePredicate e_pred(txn, ctx, params, query_params.predicate());
         VertexEdgePredicateWrapper ve_pred(v_pred, e_pred);
-        // LOG(INFO) << "##### 8 " << op_id;
         return EdgeExpand::expand_vertex<VertexEdgePredicateWrapper>(
             txn, std::move(ctx), eep, ve_pred);
       } else {
         auto vertex_col =
             std::dynamic_pointer_cast<IVertexColumn>(ctx.get(eep.v_tag));
         if (vertex_col->vertex_column_type() == VertexColumnType::kMultiple) {
-          // if (true) {
-          double t = -grape::GetCurrentTime();
-          auto ee_ret = eval_edge_expand(ee_opr, txn, std::move(ctx), params,
-                                         meta, op_id);
+          auto ee_ret =
+              eval_edge_expand(ee_opr, txn, std::move(ctx), params, meta);
           auto v_ret = eval_get_v(v_opr, txn, std::move(ctx), params);
-          t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-          op_cost.table["#### 9Split-" + std::to_string(op_id)] += t;
-#endif
           return v_ret;
         } else {
           auto sp_vertex_pred = parse_special_vertex_predicate(
@@ -492,23 +415,12 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
             GeneralVertexPredicate v_pred(txn, ctx, params,
                                           v_opr.params().predicate());
             VertexPredicateWrapper vpred(v_pred);
-            // LOG(INFO) << "##### 9 " << op_id;
-            double t = -grape::GetCurrentTime();
             auto ret = EdgeExpand::expand_vertex<VertexPredicateWrapper>(
                 txn, std::move(ctx), eep, vpred);
-            t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-            op_cost.table["#### 9Fuse-" + std::to_string(op_id)] += t;
-#endif
             return ret;
           } else {
-            double t = -grape::GetCurrentTime();
             auto ret = EdgeExpand::expand_vertex_with_special_vertex_predicate(
                 txn, std::move(ctx), eep, *sp_vertex_pred);
-            t += grape::GetCurrentTime();
-#ifdef SINGLE_THREAD
-            op_cost.table["#### 9FuseBeta-" + std::to_string(op_id)] += t;
-#endif
             return ret;
           }
         }
@@ -526,7 +438,7 @@ Context eval_tc(const physical::EdgeExpand& ee_opr0,
                 Context&& ctx, const std::map<std::string, std::string>& params,
                 const physical::PhysicalOpr_MetaData& meta0,
                 const physical::PhysicalOpr_MetaData& meta1,
-                const physical::PhysicalOpr_MetaData& meta2, int op_id) {
+                const physical::PhysicalOpr_MetaData& meta2) {
   // LOG(INFO) << "hit tc!!!";
   CHECK(!ee_opr0.is_optional());
   CHECK(!ee_opr1.is_optional());

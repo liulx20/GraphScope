@@ -17,6 +17,7 @@
 #define ENGINES_GRAPH_DB_ADHOC_APP_H_
 #include "flex/engines/graph_db/app/app_base.h"
 #include "flex/engines/graph_db/database/graph_db_session.h"
+#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 
 namespace gs {
 class AdhocReadApp : public ReadAppBase {
@@ -27,6 +28,9 @@ class AdhocReadApp : public ReadAppBase {
 
   bool Query(const GraphDBSession& graph, Decoder& input,
              Encoder& output) override;
+
+ private:
+  runtime::OprTimer timer_;
 };
 
 class AdhocReadAppFactory : public AppFactoryBase {

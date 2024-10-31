@@ -92,7 +92,7 @@ Context eval_select(const algebra::Select& opr, const ReadTransaction& txn,
 Context eval_edge_expand(const physical::EdgeExpand& opr,
                          const ReadTransaction& txn, Context&& ctx,
                          const std::map<std::string, std::string>& params,
-                         const physical::PhysicalOpr_MetaData& meta, int op_id);
+                         const physical::PhysicalOpr_MetaData& meta);
 
 bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
                                const physical::GetV& v_opr, const Context& ctx,
@@ -109,8 +109,7 @@ Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
                                const physical::GetV& v_opr,
                                const ReadTransaction& txn, Context&& ctx,
                                const std::map<std::string, std::string>& params,
-                               const physical::PhysicalOpr_MetaData& meta,
-                               int op_id);
+                               const physical::PhysicalOpr_MetaData& meta);
 
 Context eval_tc(const physical::EdgeExpand& ee_opr0,
                 const physical::GroupBy& group_by_opr,
@@ -121,7 +120,7 @@ Context eval_tc(const physical::EdgeExpand& ee_opr0,
                 Context&& ctx, const std::map<std::string, std::string>& params,
                 const physical::PhysicalOpr_MetaData& meta0,
                 const physical::PhysicalOpr_MetaData& meta1,
-                const physical::PhysicalOpr_MetaData& meta2, int op_id);
+                const physical::PhysicalOpr_MetaData& meta2);
 
 Context eval_get_v(const physical::GetV& opr, const ReadTransaction& txn,
                    Context&& ctx,

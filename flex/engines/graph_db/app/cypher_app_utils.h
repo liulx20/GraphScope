@@ -13,6 +13,7 @@ bool generate_plan(
     std::unordered_map<std::string, physical::PhysicalPlan>& plan_cache);
 void parse_params(std::string_view sw,
                   std::map<std::string, std::string>& params);
+
 }  // namespace gs
 
 #endif  // ENGINES_GRAPH_DB_CYPHER_APP_UTILS_H_
