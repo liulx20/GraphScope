@@ -151,7 +151,7 @@ bool generate_plan(
 
   const std::string compiler_config_path =
       "/tmp/compiler_config_" + thread_id + ".yaml";
-  const std::string query_file = "/tmp/temp" + thread_id + ".cypher";
+  // const std::string query_file = "/tmp/temp" + thread_id + ".cypher";
   const std::string output_file = "/tmp/temp" + thread_id + ".pb";
   const std::string jar_path = std::string(graphscope_dir) +
                                "/interactive_engine/compiler/target/"
@@ -162,12 +162,30 @@ bool generate_plan(
       std::string("-Djna.library.path=") + std::string(graphscope_dir) +
       "/interactive_engine/executor/ir/target/release/";
   const std::string schema_path = "-Dgraph.schema=" + compiler_yaml;
-  auto raw_query = query;  // decompress(query);
+
+  const std::string query_dir = "/data/flex_ldbc_snb/queries/";
+  assert(query.size() == 1);
+  int query_char = query[0];
+  std::string query_file;
+  if (query_char <= 14) {
+    query_file = query_dir + std::string("interactive-complex-") +
+                 std::to_string(query_char) + ".cypher";
+  } else if (query_char <= 21) {
+    query_char -= 14;
+    query_file = query_dir + std::string("interactive-short-") +
+                 std::to_string(query_char) + ".cypher";
+  } else {
+    query_char -= 21;
+    query_file = query_dir + std::string("interactive-update-") +
+                 std::to_string(query_char) + ".cypher";
+  }
+
+  /*auto raw_query = query;  // decompress(query);
   {
     std::ofstream out(query_file);
     out << query;
     out.close();
-  }
+  }*/
   generate_compiler_configs(compiler_yaml, statistics, compiler_config_path);
 
   // call compiler to generate plan
@@ -230,7 +248,7 @@ bool generate_plan(
       // clean up temp files
       {
         unlink(output_file.c_str());
-        unlink(query_file.c_str());
+        // unlink(query_file.c_str());
         unlink(compiler_config_path.c_str());
         // unlink("/tmp/temp.cypher.yaml");
         // unlink("/tmp/temp.cypher.yaml_extra_config.yaml");
