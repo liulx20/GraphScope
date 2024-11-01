@@ -641,7 +641,7 @@ bool is_property_expr(const common::Expression& expr, int& tag_id,
 
 Context eval_project_order_by(
     const physical::Project& project_opr, const algebra::OrderBy& order_by_opr,
-    const ReadTransaction& txn, Context&& ctx,
+    const ReadTransaction& txn, Context&& ctx, OprTimer& timer,
     const std::map<std::string, std::string>& params,
     const std::vector<common::IrDataType>& data_types) {
   int mappings_size = project_opr.mappings_size();
@@ -744,7 +744,10 @@ Context eval_project_order_by(
     }
   }
 
-  ctx = eval_order_by(order_by_opr, txn, std::move(ctx), !success);
+  double t1 = -grape::GetCurrentTime();
+  ctx = eval_order_by(order_by_opr, txn, std::move(ctx), timer, !success);
+  t1 += grape::GetCurrentTime();
+  timer.record_routine("project_order_by:order_by", t1);
   row_num = ctx.row_num();
   Context ret;
 

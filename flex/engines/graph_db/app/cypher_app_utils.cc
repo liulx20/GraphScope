@@ -137,7 +137,7 @@ bool generate_plan(
     const std::string& compiler_yaml,
     std::unordered_map<std::string, physical::PhysicalPlan>& plan_cache) {
   // dump query to file
-  static const char* const GRAPHSCOPE_DIR = "/data/GraphScope/";
+  static const char* const GRAPHSCOPE_DIR = "/data/luoxiaojian/GraphScope/";
 
   auto id = std::this_thread::get_id();
 

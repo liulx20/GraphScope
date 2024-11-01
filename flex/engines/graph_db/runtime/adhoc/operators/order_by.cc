@@ -60,7 +60,8 @@ class GeneralComparer {
 };
 
 Context eval_order_by(const algebra::OrderBy& opr, const ReadTransaction& txn,
-                      Context&& ctx, bool enable_staged) {
+                      Context&& ctx, OprTimer& timer, bool enable_staged) {
+  double t = -grape::GetCurrentTime();
   int lower = 0;
   int upper = std::numeric_limits<int>::max();
   if (opr.has_limit()) {
@@ -92,21 +93,30 @@ Context eval_order_by(const algebra::OrderBy& opr, const ReadTransaction& txn,
           auto col = ctx.get(tag);
           if (col != nullptr) {
             if (!opr.pairs(0).key().has_property()) {
+              double tx = -grape::GetCurrentTime();
               staged_order_by = col->order_by_limit(asc, upper, picked_indices);
               if (!staged_order_by) {
                 LOG(INFO) << "column staged order by returns false, fallback";
               }
+              tx += grape::GetCurrentTime();
+              timer.record_routine("order_by::column_order_by", tx);
             } else if (col->column_type() == ContextColumnType::kVertex) {
               std::string prop_name =
                   opr.pairs(0).key().property().key().name();
               if (prop_name == "id") {
+                double tx = -grape::GetCurrentTime();
                 staged_order_by = vertex_id_topN(
                     asc, upper, std::dynamic_pointer_cast<IVertexColumn>(col),
                     txn, picked_indices);
+                tx += grape::GetCurrentTime();
+                timer.record_routine("order_by::vertex_id_topN", tx);
               } else {
+                double tx = -grape::GetCurrentTime();
                 staged_order_by = vertex_property_topN(
                     asc, upper, std::dynamic_pointer_cast<IVertexColumn>(col),
                     txn, prop_name, picked_indices);
+                tx += grape::GetCurrentTime();
+                timer.record_routine("order_by::vertex_property_topN", tx);
               }
             } else {
               LOG(INFO) << "first key is property of not vertex, fallback";
@@ -137,12 +147,21 @@ Context eval_order_by(const algebra::OrderBy& opr, const ReadTransaction& txn,
   }
 
   if (!staged_order_by) {
+    double tx = -grape::GetCurrentTime();
     OrderBy::order_by_with_limit<GeneralComparer>(txn, ctx, cmp, lower, upper);
+    tx += grape::GetCurrentTime();
+    timer.record_routine("order_by::order_by_with_limit", tx);
   } else {
     CHECK_GE(picked_indices.size(), upper);
+    double tx = -grape::GetCurrentTime();
     OrderBy::staged_order_by_with_limit<GeneralComparer>(txn, ctx, cmp, lower,
                                                          upper, picked_indices);
+    tx += grape::GetCurrentTime();
+    timer.record_routine("order_by::staged_order_by_with_limit", tx);
   }
+  t += grape::GetCurrentTime();
+  timer.record_routine(staged_order_by ? "order_by_staged" : "order_by_normal",
+                       t);
   return ctx;
 }
 

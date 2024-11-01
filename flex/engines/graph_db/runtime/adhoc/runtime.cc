@@ -466,7 +466,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
     switch (opr.opr().op_kind_case()) {
     case physical::PhysicalOpr_Operator::OpKindCase::kScan: {
       double t = -grape::GetCurrentTime();
-      ret = eval_scan(opr.opr().scan(), txn, params);
+      ret = eval_scan(opr.opr().scan(), txn, params, timer);
       t += grape::GetCurrentTime();
       timer.record_opr("scan", t);
     } break;
@@ -500,28 +500,28 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           double t = -grape::GetCurrentTime();
           ret = eval_edge_expand_get_v(
               opr.opr().edge(), next_opr.opr().vertex(), txn, std::move(ret),
-              params, opr.meta_data(0));
+              params, timer, opr.meta_data(0));
           t += grape::GetCurrentTime();
           timer.record_opr("edge_expand_get_v", t);
           ++i;
         } else {
           double t = -grape::GetCurrentTime();
           ret = eval_edge_expand(opr.opr().edge(), txn, std::move(ret), params,
-                                 opr.meta_data(0));
+                                 timer, opr.meta_data(0));
           t += grape::GetCurrentTime();
           timer.record_opr("edge_expand", t);
         }
       } else {
         double t = -grape::GetCurrentTime();
         ret = eval_edge_expand(opr.opr().edge(), txn, std::move(ret), params,
-                               opr.meta_data(0));
+                               timer, opr.meta_data(0));
         t += grape::GetCurrentTime();
         timer.record_opr("edge_expand", t);
       }
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kVertex: {
       double t = -grape::GetCurrentTime();
-      ret = eval_get_v(opr.opr().vertex(), txn, std::move(ret), params);
+      ret = eval_get_v(opr.opr().vertex(), txn, std::move(ret), params, timer);
       t += grape::GetCurrentTime();
       timer.record_opr("get_v", t);
     } break;
@@ -543,9 +543,9 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
                                      next_opr.opr().order_by(), ret,
                                      data_types)) {
           double t = -grape::GetCurrentTime();
-          ret = eval_project_order_by(opr.opr().project(),
-                                      next_opr.opr().order_by(), txn,
-                                      std::move(ret), params, data_types);
+          ret = eval_project_order_by(
+              opr.opr().project(), next_opr.opr().order_by(), txn,
+              std::move(ret), timer, params, data_types);
           t += grape::GetCurrentTime();
           timer.record_opr("project_order_by", t);
           ++i;
@@ -566,7 +566,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kOrderBy: {
       double t = -grape::GetCurrentTime();
-      ret = eval_order_by(opr.opr().order_by(), txn, std::move(ret));
+      ret = eval_order_by(opr.opr().order_by(), txn, std::move(ret), timer);
       t += grape::GetCurrentTime();
       timer.record_opr("order_by", t);
     } break;
@@ -668,6 +668,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           ret = eval_path_expand_p(opr.opr().path(), txn, std::move(ret),
                                    params, opr.meta_data(0), alias);
           t += grape::GetCurrentTime();
+          timer.record_opr("path_expand_p", t);
         }
       } else {
         LOG(FATAL) << "not support";
@@ -693,7 +694,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           ctx2.set(alias, ctx.get(tag));
           ctx2.reshuffle(offset);
           ctx2 = runtime_eval_impl(op.right_plan(), std::move(ctx2), txn,
-                                   params, timer);
+                                   params, timer, true);
           double t = -grape::GetCurrentTime();
           ret = eval_join(txn, params, op, std::move(ctx), std::move(ctx2));
           t += grape::GetCurrentTime();
