@@ -1,4 +1,5 @@
 #include "flex/engines/graph_db/app/cypher_app_utils.h"
+#include "flex/planner/graph_planner.h"
 
 #include <sys/wait.h>  // for waitpid()
 #include <unistd.h>    // for fork() and execvp()
@@ -151,91 +152,36 @@ bool generate_plan(
 
   const std::string compiler_config_path =
       "/tmp/compiler_config_" + thread_id + ".yaml";
-  const std::string query_file = "/tmp/temp" + thread_id + ".cypher";
-  const std::string output_file = "/tmp/temp" + thread_id + ".pb";
+  // const std::string query_file = "/tmp/temp" + thread_id + ".cypher";
+  // const std::string output_file = "/tmp/temp" + thread_id + ".pb";
   const std::string jar_path = std::string(graphscope_dir) +
                                "/interactive_engine/compiler/target/"
                                "compiler-0.0.1-SNAPSHOT.jar:" +
                                std::string(graphscope_dir) +
-                               "/interactive_engine/compiler/target/libs/*";
+                               "/interactive_engine/compiler/target/libs/";
   const std::string djna_path =
-      std::string("-Djna.library.path=") + std::string(graphscope_dir) +
+      std::string(graphscope_dir) +
       "/interactive_engine/executor/ir/target/release/";
-  const std::string schema_path = "-Dgraph.schema=" + compiler_yaml;
+  const std::string schema_path = compiler_yaml;
   auto raw_query = query;  // decompress(query);
-  {
-    std::ofstream out(query_file);
-    out << query;
-    out.close();
-  }
+
   generate_compiler_configs(compiler_yaml, statistics, compiler_config_path);
 
   // call compiler to generate plan
   {
-    pid_t pid = fork();
+    // pid_t pid = fork();
 
-    if (pid == -1) {
-      std::cerr << "Fork failed!" << std::endl;
+    gs::jni::GraphPlannerWrapper planner(jar_path, djna_path, compiler_yaml,
+                                         statistics);
+    if (!planner.is_valid()) {
+      LOG(ERROR) << "Invalid GraphPlannerWrapper.";
       return false;
-    } else if (pid == 0) {
-      const char* const args[] = {
-          "java",
-          "-cp",
-          jar_path.c_str(),
-          schema_path.c_str(),
-          djna_path.c_str(),
-          "com.alibaba.graphscope.common.ir.tools.GraphPlanner",
-          compiler_config_path.c_str(),
-          query_file.c_str(),
-          output_file.c_str(),
-          "/tmp/temp.cypher.yaml",
-          nullptr  // execvp expects a null-terminated array
-      };
-      execvp(args[0], const_cast<char* const*>(args));
-
-      std::cerr << "Exec failed!" << std::endl;
-      return false;
-    } else {
-      int status;
-      waitpid(pid, &status, 0);
-      if (WIFEXITED(status)) {
-        std::cout << "Child exited with status " << WEXITSTATUS(status)
-                  << std::endl;
-      }
-
-      {
-        std::ifstream file(output_file, std::ios::binary);
-
-        if (!file.is_open()) {
-          return false;
-        }
-
-        file.seekg(0, std::ios::end);
-        size_t size = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        std::string buffer;
-        buffer.resize(size);
-
-        file.read(&buffer[0], size);
-
-        file.close();
-        physical::PhysicalPlan plan;
-        if (!plan.ParseFromString(std::string(buffer))) {
-          return false;
-        }
-
-        plan_cache[query] = plan;
-      }
-      // clean up temp files
-      {
-        unlink(output_file.c_str());
-        unlink(query_file.c_str());
-        unlink(compiler_config_path.c_str());
-        // unlink("/tmp/temp.cypher.yaml");
-        // unlink("/tmp/temp.cypher.yaml_extra_config.yaml");
-      }
     }
+    auto plan = planner.CompilePlan(compiler_config_path, raw_query);
+
+    plan_cache[query] = plan;
+    // clean up temp files
+    { unlink(compiler_config_path.c_str()); }
   }
 
   return true;

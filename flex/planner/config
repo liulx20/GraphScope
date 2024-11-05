@@ -1,0 +1,18 @@
+compiler:
+  planner:
+    is_on: true
+    opt: CBO
+    rules:
+      - FilterIntoJoinRule
+      - FilterMatchRule
+      - NotMatchToAntiJoinRule
+      - ExtendIntersectRule
+      - ExpandGetVFusionRule
+      - FlatJoinToExpandRule
+      - FieldTrimRule
+    trim_class_names: GraphLogicalExpand
+    join_min_pattern_size: 15
+  endpoint:
+    default_listen_address: localhost
+  query_timeout: 40000
+  physical.opt.config: proto
