@@ -43,14 +43,15 @@ struct SessionLocalContext;
 
 struct GraphDBConfig {
   GraphDBConfig(const Schema& schema_, const std::string& data_dir_,
-                int thread_num_ = 1)
+                int thread_num_ = 1, const std::string& compiler_config_ = "")
       : schema(schema_),
         data_dir(data_dir_),
         thread_num(thread_num_),
         warmup(false),
         enable_monitoring(false),
         enable_auto_compaction(false),
-        memory_level(1) {}
+        memory_level(1),
+        compiler_config(compiler_config_) {}
 
   Schema schema;
   std::string data_dir;
@@ -66,6 +67,7 @@ struct GraphDBConfig {
     3 - force hugepages;
   */
   int memory_level;
+  std::string compiler_config;
 };
 
 struct QueryCache {

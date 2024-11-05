@@ -39,7 +39,8 @@ int main(int argc, char** argv) {
       "data-path,d", bpo::value<std::string>(), "data directory path")(
       "warmup,w", bpo::value<bool>()->default_value(false),
       "warmup graph data")("memory-level,m",
-                           bpo::value<int>()->default_value(1));
+                           bpo::value<int>()->default_value(1))(
+      "compiler-config,c", bpo::value<std::string>(), "compiler config file");
   google::InitGoogleLogging(argv[0]);
   FLAGS_logtostderr = true;
 
@@ -87,6 +88,10 @@ int main(int argc, char** argv) {
     LOG(FATAL) << "Failed to load schema: " << schema.status().error_message();
   }
   gs::GraphDBConfig config(schema.value(), data_path, shard_num);
+  if (vm.count("compiler-config")) {
+    config.compiler_config = vm["compiler-config"].as<std::string>();
+  }
+
   config.memory_level = memory_level;
   if (config.memory_level >= 2) {
     config.enable_auto_compaction = true;

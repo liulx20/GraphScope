@@ -231,10 +231,33 @@ Result<bool> GraphDB::Open(const GraphDBConfig& config) {
     });
   }
 
-  unlink((work_dir_ + "/statistics.json").c_str());
-  unlink((work_dir_ + "/.compiler.yaml").c_str());
+  unlink((work_dir_ + "/.statistics.json").c_str());
+  unlink((work_dir_ + "/.compiler_schema.yaml").c_str());
+  unlink((work_dir_ + "/.compiler_config.yaml").c_str());
   graph_.generateStatistics(work_dir_);
   query_cache_.cache.clear();
+
+  {
+    std::string compiler_config_path = config.compiler_config;
+    if (!compiler_config_path.empty()) {
+      std::ifstream ifs(compiler_config_path);
+
+      std::string content((std::istreambuf_iterator<char>(ifs)),
+                          (std::istreambuf_iterator<char>()));
+      ifs.close();
+      std::ofstream ofs(work_dir_ + "/.compiler_config.yaml");
+      ofs << content << "\n";
+      ofs << "  meta:\n"
+             "    reader:\n"
+             "      schema:\n"
+          << "        uri: " << work_dir_ << "/.compiler_schema.yaml" << "\n"
+          << "        interval: 1000 # ms\n"
+          << "      statistics:\n"
+          << "        uri: " << work_dir_ << "/.statistics.json" << "\n"
+          << "        interval: 86400000 # ms\n";
+      ofs.close();
+    }
+  }
 
   return Result<bool>(true);
 }

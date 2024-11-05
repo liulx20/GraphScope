@@ -134,8 +134,7 @@ void generate_compiler_configs(const std::string& graph_yaml,
 }
 
 bool generate_plan(
-    const std::string& query, const std::string& statistics,
-    const std::string& compiler_yaml,
+    const std::string& query, const std::string& work_dir,
     std::unordered_map<std::string, physical::PhysicalPlan>& plan_cache) {
   // dump query to file
   const char* graphscope_dir = getenv("GRAPHSCOPE_DIR");
@@ -144,14 +143,10 @@ bool generate_plan(
     graphscope_dir = "../../../GraphScope/";
   }
 
-  auto id = std::this_thread::get_id();
+  std::string statistics = work_dir + "/.statistics.json";
+  std::string compiler_yaml = work_dir + "/.compiler_schema.yaml";
+  std::string compiler_config_path = work_dir + "/.compiler_config.yaml";
 
-  std::stringstream ss;
-  ss << id;
-  std::string thread_id = ss.str();
-
-  const std::string compiler_config_path =
-      "/tmp/compiler_config_" + thread_id + ".yaml";
   // const std::string query_file = "/tmp/temp" + thread_id + ".cypher";
   // const std::string output_file = "/tmp/temp" + thread_id + ".pb";
   const std::string jar_path = std::string(graphscope_dir) +
@@ -164,8 +159,6 @@ bool generate_plan(
       "/interactive_engine/executor/ir/target/release/";
   const std::string schema_path = compiler_yaml;
   auto raw_query = query;  // decompress(query);
-
-  generate_compiler_configs(compiler_yaml, statistics, compiler_config_path);
 
   // call compiler to generate plan
   {
@@ -180,8 +173,6 @@ bool generate_plan(
     auto plan = planner.CompilePlan(compiler_config_path, raw_query);
 
     plan_cache[query] = plan;
-    // clean up temp files
-    { unlink(compiler_config_path.c_str()); }
   }
 
   return true;

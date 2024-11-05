@@ -499,7 +499,7 @@ const CsrBase* MutablePropertyFragment::get_ie_csr(label_t label,
 
 void MutablePropertyFragment::generateStatistics(
     const std::string& work_dir) const {
-  std::string filename = work_dir + "/statistics.json";
+  std::string filename = work_dir + "/.statistics.json";
   std::string yaml_content = "schema:\n";
   yaml_content += "  vertex_types:\n";
   size_t vertex_count = 0;
@@ -673,7 +673,7 @@ void MutablePropertyFragment::generateStatistics(
     out.close();
   }
   {
-    std::string yaml_filename = work_dir + "/.compiler.yaml";
+    std::string yaml_filename = work_dir + "/.compiler_schema.yaml";
     std::ofstream out(yaml_filename);
     out << yaml_content;
     out.close();
