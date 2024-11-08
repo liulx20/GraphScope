@@ -233,10 +233,12 @@ bool parse_idx_predicate(const algebra::IndexPredicate& predicate,
   return true;
 }
 
-Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
+Context eval_scan(const physical::Scan& scan_opr,
+                  const GraphReadInterface& graph,
                   const std::map<std::string, std::string>& params,
                   OprTimer& timer) {
-  double tx = -grape::GetCurrentTime();
+  TimerUnit tx;
+  tx.start();
   label_t label;
   int64_t vertex_id;
   int alias;
@@ -244,8 +246,7 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
   bool scan_oid;
   if (is_find_vertex(scan_opr, params, label, vertex_id, alias, scan_oid)) {
     auto ret =
-        Scan::find_vertex_with_id(txn, label, vertex_id, alias, scan_oid);
-    tx += grape::GetCurrentTime();
+        Scan::find_vertex_with_id(graph, label, vertex_id, alias, scan_oid);
     timer.record_routine("scan::find_vertex_with_id", tx);
     return ret;
   }
@@ -263,11 +264,11 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
     const auto& scan_opr_params = scan_opr.params();
     for (const auto& table : scan_opr_params.tables()) {
       // exclude invalid vertex label id
-      if (txn.schema().vertex_label_num() <= table.id()) {
+      if (graph.schema().vertex_label_num() <= table.id()) {
         continue;
       }
       scan_params.tables.push_back(table.id());
-      const auto& pks = txn.schema().get_vertex_primary_key(table.id());
+      const auto& pks = graph.schema().get_vertex_primary_key(table.id());
       if (pks.size() > 1) {
         LOG(FATAL) << "only support one primary key";
       }
@@ -286,44 +287,40 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
                                   scan_oid));
 
         auto sp_vertex_pred = parse_special_vertex_predicate(
-            scan_opr_params.predicate(), txn, params);
+            scan_opr_params.predicate(), graph, params);
         if (sp_vertex_pred == nullptr) {
           auto expr =
-              parse_expression(txn, ctx, params, scan_opr_params.predicate(),
+              parse_expression(graph, ctx, params, scan_opr_params.predicate(),
                                VarType::kVertexVar);
           if (scan_oid) {
             auto ret = Scan::filter_oids(
-                txn, scan_params,
+                graph, scan_params,
                 [&expr, oids](label_t label, vid_t vid) {
                   return expr->eval_vertex(label, vid, 0).as_bool();
                 },
                 oids);
-            tx += grape::GetCurrentTime();
             timer.record_routine("scan::filter_oids0", tx);
             return ret;
           } else {
             auto ret = Scan::filter_gids(
-                txn, scan_params,
+                graph, scan_params,
                 [&expr, oids](label_t label, vid_t vid) {
                   return expr->eval_vertex(label, vid, 0).as_bool();
                 },
                 oids);
-            tx += grape::GetCurrentTime();
             timer.record_routine("scan::filter_gids0", tx);
             return ret;
           }
         } else {
           if (scan_oid) {
             auto ret = Scan::filter_oids_with_special_vertex_predicate(
-                txn, scan_params, *sp_vertex_pred, oids);
-            tx += grape::GetCurrentTime();
+                graph, scan_params, *sp_vertex_pred, oids);
             timer.record_routine(
                 "scan::filter_oids_with_special_vertex_predicate0", tx);
             return ret;
           } else {
             auto ret = Scan::filter_gids_with_special_vertex_predicate(
-                txn, scan_params, *sp_vertex_pred, oids);
-            tx += grape::GetCurrentTime();
+                graph, scan_params, *sp_vertex_pred, oids);
             timer.record_routine(
                 "scan::filter_gids_with_special_vertex_predicate0", tx);
             return ret;
@@ -338,15 +335,13 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
 
         if (scan_oid) {
           auto ret = Scan::filter_oids(
-              txn, scan_params, [](label_t label, vid_t vid) { return true; },
+              graph, scan_params, [](label_t label, vid_t vid) { return true; },
               oids);
-          tx += grape::GetCurrentTime();
           timer.record_routine("scan::filter_oids1", tx);
           return ret;
         } else {
           auto ret = Scan::filter_gids(
-              txn, scan_params, [](label_t, vid_t) { return true; }, oids);
-          tx += grape::GetCurrentTime();
+              graph, scan_params, [](label_t, vid_t) { return true; }, oids);
           timer.record_routine("scan::filter_gids1", tx);
           return ret;
         }
@@ -358,20 +353,19 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
                                   scan_oid));
 
         auto sp_vertex_pred = parse_special_vertex_predicate(
-            scan_opr_params.predicate(), txn, params);
+            scan_opr_params.predicate(), graph, params);
         if (sp_vertex_pred == nullptr) {
           Context ctx;
           auto expr =
-              parse_expression(txn, ctx, params, scan_opr_params.predicate(),
+              parse_expression(graph, ctx, params, scan_opr_params.predicate(),
                                VarType::kVertexVar);
           if (scan_oid) {
             auto ret = Scan::filter_oids(
-                txn, scan_params,
+                graph, scan_params,
                 [&expr, oids](label_t label, vid_t vid) {
                   return expr->eval_vertex(label, vid, 0).as_bool();
                 },
                 oids);
-            tx += grape::GetCurrentTime();
             timer.record_routine("scan::filter_oids2", tx);
             return ret;
           } else {
@@ -380,20 +374,18 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
               gids.push_back(oids[i].AsInt64());
             }
             auto ret = Scan::filter_gids(
-                txn, scan_params,
+                graph, scan_params,
                 [&expr, gids](label_t label, vid_t vid) {
                   return expr->eval_vertex(label, vid, 0).as_bool();
                 },
                 gids);
-            tx += grape::GetCurrentTime();
             timer.record_routine("scan::filter_gids2", tx);
             return ret;
           }
         } else {
           if (scan_oid) {
             auto ret = Scan::filter_oids_with_special_vertex_predicate(
-                txn, scan_params, *sp_vertex_pred, oids);
-            tx += grape::GetCurrentTime();
+                graph, scan_params, *sp_vertex_pred, oids);
             timer.record_routine(
                 "scan::filter_oids_with_special_vertex_predicate1", tx);
             return ret;
@@ -403,8 +395,7 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
               gids.push_back(oids[i].AsInt64());
             }
             auto ret = Scan::filter_gids_with_special_vertex_predicate(
-                txn, scan_params, *sp_vertex_pred, gids);
-            tx += grape::GetCurrentTime();
+                graph, scan_params, *sp_vertex_pred, gids);
             timer.record_routine(
                 "scan::filter_gids_with_special_vertex_predicate1", tx);
             return ret;
@@ -419,9 +410,8 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
 
         if (scan_oid) {
           auto ret = Scan::filter_oids(
-              txn, scan_params, [](label_t label, vid_t vid) { return true; },
+              graph, scan_params, [](label_t label, vid_t vid) { return true; },
               oids);
-          tx += grape::GetCurrentTime();
           timer.record_routine("scan::filter_oids3", tx);
           return ret;
         } else {
@@ -430,8 +420,7 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
             gids.push_back(oids[i].AsInt64());
           }
           auto ret = Scan::filter_gids(
-              txn, scan_params, [](label_t, vid_t) { return true; }, gids);
-          tx += grape::GetCurrentTime();
+              graph, scan_params, [](label_t, vid_t) { return true; }, gids);
           timer.record_routine("scan::filter_gids3", tx);
           return ret;
         }
@@ -440,32 +429,30 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
 
     if (scan_opr_params.has_predicate()) {
       auto sp_vertex_pred = parse_special_vertex_predicate(
-          scan_opr_params.predicate(), txn, params);
+          scan_opr_params.predicate(), graph, params);
       if (sp_vertex_pred == nullptr) {
         Context ctx;
-        auto expr = parse_expression(
-            txn, ctx, params, scan_opr_params.predicate(), VarType::kVertexVar);
+        auto expr =
+            parse_expression(graph, ctx, params, scan_opr_params.predicate(),
+                             VarType::kVertexVar);
         if (expr->is_optional()) {
           auto ret = Scan::scan_vertex(
-              txn, scan_params, [&expr](label_t label, vid_t vid) {
+              graph, scan_params, [&expr](label_t label, vid_t vid) {
                 return expr->eval_vertex(label, vid, 0, 0).as_bool();
               });
-          tx += grape::GetCurrentTime();
           timer.record_routine("scan::scan_vertex0", tx);
           return ret;
         } else {
           auto ret = Scan::scan_vertex(
-              txn, scan_params, [&expr](label_t label, vid_t vid) {
+              graph, scan_params, [&expr](label_t label, vid_t vid) {
                 return expr->eval_vertex(label, vid, 0).as_bool();
               });
-          tx += grape::GetCurrentTime();
           timer.record_routine("scan::scan_vertex1", tx);
           return ret;
         }
       } else {
         auto ret = Scan::scan_vertex_with_special_vertex_predicate(
-            txn, scan_params, *sp_vertex_pred);
-        tx += grape::GetCurrentTime();
+            graph, scan_params, *sp_vertex_pred);
         timer.record_routine("scan::scan_vertex_with_special_vertex_predicate",
                              tx);
         return ret;
@@ -473,9 +460,8 @@ Context eval_scan(const physical::Scan& scan_opr, const ReadTransaction& txn,
     }
 
     if ((!scan_opr.has_idx_predicate()) && (!scan_opr_params.has_predicate())) {
-      auto ret = Scan::scan_vertex(txn, scan_params,
+      auto ret = Scan::scan_vertex(graph, scan_params,
                                    [](label_t, vid_t) { return true; });
-      tx += grape::GetCurrentTime();
       timer.record_routine("scan::scan_vertex2", tx);
       return ret;
     }

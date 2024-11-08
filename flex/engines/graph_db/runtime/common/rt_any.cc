@@ -394,55 +394,52 @@ bool RTAny::as_bool() const {
   if (type_ == RTAnyType::kNull) {
     return false;
   }
-  CHECK(type_ == RTAnyType::kBoolValue)
-      << "type_ = " << static_cast<int>(type_.type_enum_);
+  assert(type_ == RTAnyType::kBoolValue);
   return value_.b_val;
 }
 int RTAny::as_int32() const {
-  CHECK(type_ == RTAnyType::kI32Value)
-      << "type_ = " << static_cast<int>(type_.type_enum_);
+  assert(type_ == RTAnyType::kI32Value);
   return value_.i32_val;
 }
 int64_t RTAny::as_int64() const {
-  CHECK(type_ == RTAnyType::kI64Value)
-      << "type_ = " << static_cast<int>(type_.type_enum_);
+  assert(type_ == RTAnyType::kI64Value);
   return value_.i64_val;
 }
 uint64_t RTAny::as_uint64() const {
-  CHECK(type_ == RTAnyType::kU64Value);
+  assert(type_ == RTAnyType::kU64Value);
   return value_.u64_val;
 }
 Day RTAny::as_date32() const {
-  CHECK(type_ == RTAnyType::kDate32);
+  assert(type_ == RTAnyType::kDate32);
   return value_.day;
 }
 
 Date RTAny::as_timestamp() const {
-  CHECK(type_ == RTAnyType::kTimestamp);
+  assert(type_ == RTAnyType::kTimestamp);
   return value_.date;
 }
 
 double RTAny::as_double() const {
-  CHECK(type_ == RTAnyType::kF64Value);
+  assert(type_ == RTAnyType::kF64Value);
   return value_.f64_val;
 }
 
 VertexRecord RTAny::as_vertex() const {
-  CHECK(type_ == RTAnyType::kVertex);
+  assert(type_ == RTAnyType::kVertex);
   return value_.vertex;
 }
 
 const EdgeRecord& RTAny::as_edge() const {
-  CHECK(type_ == RTAnyType::kEdge);
+  assert(type_ == RTAnyType::kEdge);
   return value_.edge;
 }
 const std::set<std::string>& RTAny::as_string_set() const {
-  CHECK(type_ == RTAnyType::kStringSetValue);
+  assert(type_ == RTAnyType::kStringSetValue);
   return *value_.str_set;
 }
 
 Set RTAny::as_set() const {
-  CHECK(type_ == RTAnyType::kSet);
+  assert(type_ == RTAnyType::kSet);
   return value_.set;
 }
 
@@ -458,27 +455,27 @@ std::string_view RTAny::as_string() const {
 }
 
 List RTAny::as_list() const {
-  CHECK(type_ == RTAnyType::kList);
+  assert(type_ == RTAnyType::kList);
   return value_.list;
 }
 
 Path RTAny::as_path() const {
-  CHECK(type_ == RTAnyType::kPath);
+  assert(type_ == RTAnyType::kPath);
   return value_.p;
 }
 
 Tuple RTAny::as_tuple() const {
-  CHECK(type_ == RTAnyType::kTuple);
+  assert(type_ == RTAnyType::kTuple);
   return value_.t;
 }
 
 Map RTAny::as_map() const {
-  CHECK(type_ == RTAnyType::kMap);
+  assert(type_ == RTAnyType::kMap);
   return value_.map;
 }
 
 Relation RTAny::as_relation() const {
-  CHECK(type_ == RTAnyType::kRelation);
+  assert(type_ == RTAnyType::kRelation);
   return value_.relation;
 }
 
@@ -636,7 +633,7 @@ RTAny RTAny::operator+(const RTAny& other) const {
 }
 
 RTAny RTAny::operator-(const RTAny& other) const {
-  // CHECK(type_ == other.type_);
+  // assert(type_ == other.type_);
 
   if (type_ == RTAnyType::kI64Value && other.type_ == RTAnyType::kI32Value) {
     return RTAny::from_int64(value_.i64_val - other.value_.i32_val);
@@ -656,7 +653,7 @@ RTAny RTAny::operator-(const RTAny& other) const {
 }
 
 RTAny RTAny::operator/(const RTAny& other) const {
-  // CHECK(type_ == other.type_);
+  // assert(type_ == other.type_);
   bool has_i64 = false;
   bool has_f64 = false;
   double left_f64 = 0;
@@ -738,8 +735,7 @@ void RTAny::sink_impl(common::Value* value) const {
   } else if (type_ == RTAnyType::kStringSetValue) {
     LOG(FATAL) << "not support string set sink";
   } else if (type_ == RTAnyType::kDate32) {
-    LOG(FATAL) << "not support date32 sink";
-    value->set_i64(value_.day.to_u32());
+    value->set_i64(value_.day.to_timestamp());
   } else if (type_ == RTAnyType::kTimestamp) {
     value->set_i64(value_.date.milli_second);
   } else if (type_ == RTAnyType::kBoolValue) {
@@ -800,29 +796,28 @@ static void sink_edge_data(const EdgeData& any, common::Value* value) {
   }
 }
 
-void sink_vertex(const gs::ReadTransaction& txn, const VertexRecord& vertex,
+void sink_vertex(const GraphReadInterface& graph, const VertexRecord& vertex,
                  results::Vertex* v) {
   v->mutable_label()->set_id(vertex.label_);
   v->set_id(encode_unique_vertex_id(vertex.label_, vertex.vid_));
   //  TODO: add properties
-  const auto& names =
-      txn.graph().schema().get_vertex_property_names(vertex.label_);
+  const auto& names = graph.schema().get_vertex_property_names(vertex.label_);
   for (size_t i = 0; i < names.size(); ++i) {
     auto prop = v->add_properties();
     prop->mutable_key()->set_name(names[i]);
-    sink_any(txn.graph().get_vertex_table(vertex.label_).at(vertex.vid_, i),
+    sink_any(graph.GetVertexProperty(vertex.label_, vertex.vid_, i),
              prop->mutable_value());
   }
 }
-void RTAny::sink(const ReadTransaction& txn, Encoder& encoder) const {
+void RTAny::sink(const GraphReadInterface& graph, Encoder& encoder) const {
   if (type_ == RTAnyType::kList) {
     encoder.put_int(value_.list.size());
     for (size_t i = 0; i < value_.list.size(); ++i) {
-      value_.list.get(i).sink(txn, encoder);
+      value_.list.get(i).sink(graph, encoder);
     }
   } else if (type_ == RTAnyType::kTuple) {
     for (size_t i = 0; i < value_.t.size(); ++i) {
-      value_.t.get(i).sink(txn, encoder);
+      value_.t.get(i).sink(graph, encoder);
     }
   } else if (type_ == RTAnyType::kStringValue) {
     encoder.put_string_view(value_.str_val);
@@ -851,7 +846,7 @@ void RTAny::sink(const ReadTransaction& txn, Encoder& encoder) const {
     LOG(FATAL) << "not support for " << static_cast<int>(type_.type_enum_);
   }
 }
-void RTAny::sink(const gs::ReadTransaction& txn, int id,
+void RTAny::sink(const GraphReadInterface& graph, int id,
                  results::Column* col) const {
   col->mutable_name_or_id()->set_id(id);
   if (type_ == RTAnyType::kList) {
@@ -872,7 +867,7 @@ void RTAny::sink(const gs::ReadTransaction& txn, int id,
     }
   } else if (type_ == RTAnyType::kVertex) {
     auto v = col->mutable_entry()->mutable_element()->mutable_vertex();
-    sink_vertex(txn, value_.vertex, v);
+    sink_vertex(graph, value_.vertex, v);
 
   } else if (type_ == RTAnyType::kMap) {
     auto mp = col->mutable_entry()->mutable_map();
@@ -887,7 +882,7 @@ void RTAny::sink(const gs::ReadTransaction& txn, int id,
       ret->mutable_key()->set_str(keys[i]);
       if (vals[i].type_ == RTAnyType::kVertex) {
         auto v = ret->mutable_value()->mutable_element()->mutable_vertex();
-        sink_vertex(txn, vals[i].as_vertex(), v);
+        sink_vertex(graph, vals[i].as_vertex(), v);
       } else {
         vals[i].sink_impl(
             ret->mutable_value()->mutable_element()->mutable_object());
@@ -905,7 +900,7 @@ void RTAny::sink(const gs::ReadTransaction& txn, int id,
     e->set_src_id(encode_unique_vertex_id(label.src_label, src));
     e->set_dst_id(encode_unique_vertex_id(label.dst_label, dst));
     e->set_id(encode_unique_edge_id(edge_label, src, dst));
-    auto& prop_names = txn.schema().get_edge_property_names(
+    auto& prop_names = graph.schema().get_edge_property_names(
         label.src_label, label.dst_label, label.edge_label);
     if (prop_names.size() == 1) {
       auto props = e->add_properties();

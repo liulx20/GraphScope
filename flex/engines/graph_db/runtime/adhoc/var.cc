@@ -23,7 +23,7 @@ namespace gs {
 
 namespace runtime {
 
-Var::Var(const ReadTransaction& txn, const Context& ctx,
+Var::Var(const GraphReadInterface& graph, const Context& ctx,
          const common::Variable& pb, VarType var_type)
     : getter_(nullptr) {
   int tag = -1;
@@ -38,7 +38,7 @@ Var::Var(const ReadTransaction& txn, const Context& ctx,
   if (type_ == RTAnyType::kUnknown) {
     if (pb.has_tag()) {
       tag = pb.tag().id();
-      CHECK(ctx.get(tag) != nullptr);
+      assert(ctx.get(tag) != nullptr);
       type_ = ctx.get(tag)->elem_type();
     } else if (pb.has_property() && pb.property().has_label()) {
       type_ = RTAnyType::kI64Value;
@@ -48,8 +48,7 @@ Var::Var(const ReadTransaction& txn, const Context& ctx,
   }
 
   if (pb.has_tag() || var_type == VarType::kPathVar) {
-    CHECK(ctx.get(tag) != nullptr)
-        << "tag not found - " << tag << " " << pb.DebugString();
+    assert(ctx.get(tag) != nullptr);
     if (ctx.get(tag)->column_type() == ContextColumnType::kVertex) {
       if (pb.has_property()) {
         auto& pt = pb.property();
@@ -60,20 +59,20 @@ Var::Var(const ReadTransaction& txn, const Context& ctx,
             if (type_ == RTAnyType::kStringValue) {
               getter_ =
                   std::make_shared<VertexIdPathAccessor<std::string_view>>(
-                      txn, ctx, tag);
+                      graph, ctx, tag);
             } else if (type_ == RTAnyType::kI32Value) {
               getter_ = std::make_shared<VertexIdPathAccessor<int32_t>>(
-                  txn, ctx, tag);
+                  graph, ctx, tag);
             } else if (type_ == RTAnyType::kI64Value) {
               getter_ = std::make_shared<VertexIdPathAccessor<int64_t>>(
-                  txn, ctx, tag);
+                  graph, ctx, tag);
             } else {
               LOG(FATAL) << "not support for "
                          << static_cast<int>(type_.type_enum_);
             }
           } else {
-            getter_ = create_vertex_property_path_accessor(txn, ctx, tag, type_,
-                                                           pt.key().name());
+            getter_ = create_vertex_property_path_accessor(
+                graph, ctx, tag, type_, pt.key().name());
           }
         } else if (pt.has_label()) {
           getter_ = create_vertex_label_path_accessor(ctx, tag);
@@ -96,7 +95,7 @@ Var::Var(const ReadTransaction& txn, const Context& ctx,
         if (pt.has_key()) {
           auto name = pt.key().name();
           getter_ =
-              create_edge_property_path_accessor(txn, name, ctx, tag, type_);
+              create_edge_property_path_accessor(graph, name, ctx, tag, type_);
         } else if (pt.has_label()) {
           getter_ = create_edge_label_path_accessor(ctx, tag);
         } else {
@@ -131,17 +130,19 @@ Var::Var(const ReadTransaction& txn, const Context& ctx,
             if (type_ == RTAnyType::kStringValue) {
               getter_ =
                   std::make_shared<VertexIdVertexAccessor<std::string_view>>(
-                      txn);
+                      graph);
             } else if (type_ == RTAnyType::kI32Value) {
-              getter_ = std::make_shared<VertexIdVertexAccessor<int32_t>>(txn);
+              getter_ =
+                  std::make_shared<VertexIdVertexAccessor<int32_t>>(graph);
             } else if (type_ == RTAnyType::kI64Value) {
-              getter_ = std::make_shared<VertexIdVertexAccessor<int64_t>>(txn);
+              getter_ =
+                  std::make_shared<VertexIdVertexAccessor<int64_t>>(graph);
             } else {
               LOG(FATAL) << "not support for "
                          << static_cast<int>(type_.type_enum_);
             }
           } else {
-            getter_ = create_vertex_property_vertex_accessor(txn, type_,
+            getter_ = create_vertex_property_vertex_accessor(graph, type_,
                                                              pt.key().name());
           }
         } else if (pt.has_label()) {
@@ -150,14 +151,14 @@ Var::Var(const ReadTransaction& txn, const Context& ctx,
           LOG(FATAL) << "xxx, " << pt.item_case();
         }
       } else {
-        getter_ = std::make_shared<VertexIdVertexAccessor<int64_t>>(txn);
+        getter_ = std::make_shared<VertexIdVertexAccessor<int64_t>>(graph);
       }
     } else if (var_type == VarType::kEdgeVar) {
       if (pb.has_property()) {
         auto& pt = pb.property();
         if (pt.has_key()) {
           auto name = pt.key().name();
-          getter_ = create_edge_property_edge_accessor(txn, name, type_);
+          getter_ = create_edge_property_edge_accessor(graph, name, type_);
         } else {
           LOG(FATAL) << "not support";
         }

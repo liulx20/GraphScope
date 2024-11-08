@@ -20,6 +20,7 @@ namespace gs {
 namespace runtime {
 
 void OprTimer::output(const std::string& path) const {
+#ifdef RT_PROFILE
   std::ofstream fout(path);
   fout << "Total time: " << total_time_ << std::endl;
   fout << "============= operators =============" << std::endl;
@@ -37,15 +38,19 @@ void OprTimer::output(const std::string& path) const {
          << pair.second / total_time_ * 100.0 << "%)" << std::endl;
   }
   fout << "=====================================" << std::endl;
+#endif
 }
 
 void OprTimer::clear() {
+#ifdef RT_PROFILE
   opr_timers_.clear();
   routine_timers_.clear();
   total_time_ = 0;
+#endif
 }
 
 OprTimer& OprTimer::operator+=(const OprTimer& other) {
+#ifdef RT_PROFILE
   total_time_ += other.total_time_;
   for (const auto& pair : other.opr_timers_) {
     opr_timers_[pair.first] += pair.second;
@@ -53,6 +58,7 @@ OprTimer& OprTimer::operator+=(const OprTimer& other) {
   for (const auto& pair : other.routine_timers_) {
     routine_timers_[pair.first] += pair.second;
   }
+#endif
   return *this;
 }
 
@@ -449,10 +455,11 @@ bool try_reuse_left_plan_column(const physical::Join& op, int& Tag,
 }
 
 Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
-                          const ReadTransaction& txn,
+                          const GraphReadInterface& graph,
                           const std::map<std::string, std::string>& params,
                           OprTimer& timer, bool skip_scan = false) {
   Context ret = ctx;
+  TimerUnit t;
 
   // LOG(INFO) << plan.DebugString();
 
@@ -466,9 +473,8 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
     assert(opr.has_opr());
     switch (opr.opr().op_kind_case()) {
     case physical::PhysicalOpr_Operator::OpKindCase::kScan: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_scan(opr.opr().scan(), txn, params, timer);
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_scan(opr.opr().scan(), graph, params, timer);
       timer.record_opr("scan", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kEdge: {
@@ -483,14 +489,13 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
                      plan.plan(i + 3).opr().vertex(),
                      plan.plan(i + 4).opr().edge(),
                      plan.plan(i + 5).opr().select(), ret)) {
-        double t = -grape::GetCurrentTime();
+        t.start();
         ret = eval_tc(
             opr.opr().edge(), plan.plan(i + 1).opr().group_by(),
             plan.plan(i + 2).opr().edge(), plan.plan(i + 3).opr().vertex(),
-            plan.plan(i + 4).opr().edge(), plan.plan(i + 5).opr().select(), txn,
-            std::move(ret), params, opr.meta_data(0),
+            plan.plan(i + 4).opr().edge(), plan.plan(i + 5).opr().select(),
+            graph, std::move(ret), params, opr.meta_data(0),
             plan.plan(i + 2).meta_data(0), plan.plan(i + 4).meta_data(0));
-        t += grape::GetCurrentTime();
         timer.record_opr("edge_expand_tc", t);
         i += 5;
       } else if ((i + 1) < opr_num) {
@@ -498,32 +503,29 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
         if (next_opr.opr().has_vertex() &&
             edge_expand_get_v_fusable(opr.opr().edge(), next_opr.opr().vertex(),
                                       ret, opr.meta_data(0))) {
-          double t = -grape::GetCurrentTime();
+          t.start();
           ret = eval_edge_expand_get_v(
-              opr.opr().edge(), next_opr.opr().vertex(), txn, std::move(ret),
+              opr.opr().edge(), next_opr.opr().vertex(), graph, std::move(ret),
               params, timer, opr.meta_data(0));
-          t += grape::GetCurrentTime();
           timer.record_opr("edge_expand_get_v", t);
           ++i;
         } else {
-          double t = -grape::GetCurrentTime();
-          ret = eval_edge_expand(opr.opr().edge(), txn, std::move(ret), params,
-                                 timer, opr.meta_data(0));
-          t += grape::GetCurrentTime();
+          t.start();
+          ret = eval_edge_expand(opr.opr().edge(), graph, std::move(ret),
+                                 params, timer, opr.meta_data(0));
           timer.record_opr("edge_expand", t);
         }
       } else {
-        double t = -grape::GetCurrentTime();
-        ret = eval_edge_expand(opr.opr().edge(), txn, std::move(ret), params,
+        t.start();
+        ret = eval_edge_expand(opr.opr().edge(), graph, std::move(ret), params,
                                timer, opr.meta_data(0));
-        t += grape::GetCurrentTime();
         timer.record_opr("edge_expand", t);
       }
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kVertex: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_get_v(opr.opr().vertex(), txn, std::move(ret), params, timer);
-      t += grape::GetCurrentTime();
+      t.start();
+      ret =
+          eval_get_v(opr.opr().vertex(), graph, std::move(ret), params, timer);
       timer.record_opr("get_v", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kProject: {
@@ -543,50 +545,44 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
             project_order_by_fusable(opr.opr().project(),
                                      next_opr.opr().order_by(), ret,
                                      data_types)) {
-          double t = -grape::GetCurrentTime();
+          t.start();
           ret = eval_project_order_by(
-              opr.opr().project(), next_opr.opr().order_by(), txn,
+              opr.opr().project(), next_opr.opr().order_by(), graph,
               std::move(ret), timer, params, data_types);
-          t += grape::GetCurrentTime();
           timer.record_opr("project_order_by", t);
           ++i;
         } else {
-          double t = -grape::GetCurrentTime();
-          ret = eval_project(opr.opr().project(), txn, std::move(ret), params,
+          t.start();
+          ret = eval_project(opr.opr().project(), graph, std::move(ret), params,
                              data_types);
-          t += grape::GetCurrentTime();
           timer.record_opr("project", t);
         }
       } else {
-        double t = -grape::GetCurrentTime();
-        ret = eval_project(opr.opr().project(), txn, std::move(ret), params,
+        t.start();
+        ret = eval_project(opr.opr().project(), graph, std::move(ret), params,
                            data_types);
-        t += grape::GetCurrentTime();
         timer.record_opr("project", t);
       }
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kOrderBy: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_order_by(opr.opr().order_by(), txn, std::move(ret), timer);
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_order_by(opr.opr().order_by(), graph, std::move(ret), timer);
       timer.record_opr("order_by", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kGroupBy: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_group_by(opr.opr().group_by(), txn, std::move(ret));
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_group_by(opr.opr().group_by(), graph, std::move(ret));
       timer.record_opr("group_by", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kDedup: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_dedup(opr.opr().dedup(), txn, std::move(ret));
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_dedup(opr.opr().dedup(), graph, std::move(ret));
       timer.record_opr("dedup", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kSelect: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_select(opr.opr().select(), txn, std::move(ret), params, timer);
-      t += grape::GetCurrentTime();
+      t.start();
+      ret =
+          eval_select(opr.opr().select(), graph, std::move(ret), params, timer);
       timer.record_opr("select", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kPath: {
@@ -596,12 +592,11 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
         int limit_upper = -1;
         if (is_shortest_path_with_order_by_limit(plan, i, path_len_alias,
                                                  vertex_alias, limit_upper)) {
-          double t = -grape::GetCurrentTime();
+          t.start();
           ret = eval_shortest_path_with_order_by_length_limit(
-              opr.opr().path(), txn, std::move(ret), params, opr.meta_data(0),
+              opr.opr().path(), graph, std::move(ret), params, opr.meta_data(0),
               plan.plan(i + 2).opr().vertex(), vertex_alias, path_len_alias,
               limit_upper);
-          t += grape::GetCurrentTime();
           timer.record_opr("shortest_path_with_order_by_length_limit", t);
           i += 4;
           break;
@@ -616,10 +611,10 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           } else {
             v_alias = vertex.alias().value();
           }
-          double t = -grape::GetCurrentTime();
-          ret = eval_shortest_path(opr.opr().path(), txn, std::move(ret),
-                                   params, opr.meta_data(0), vertex, v_alias);
-          t += grape::GetCurrentTime();
+          t.start();
+          ret = eval_shortest_path(opr.opr().path(), graph, std::move(ret),
+                                   params, timer, opr.meta_data(0), vertex,
+                                   v_alias);
           timer.record_opr("shortest_path", t);
           i += 2;
           break;
@@ -633,12 +628,11 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           } else {
             v_alias = vertex.alias().value();
           }
-          double t = -grape::GetCurrentTime();
-          ret = eval_all_shortest_paths(opr.opr().path(), txn, std::move(ret),
+          t.start();
+          ret = eval_all_shortest_paths(opr.opr().path(), graph, std::move(ret),
                                         params, opr.meta_data(0), vertex,
                                         v_alias);
-          t += grape::GetCurrentTime();
-          timer.record_opr("all_shortest_paths", t);
+          timer.record_opr("#### all_shortest_paths", t);
           i += 2;
           break;
         }
@@ -654,10 +648,9 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           if (next_opr.opr().vertex().has_alias()) {
             alias = next_opr.opr().vertex().alias().value();
           }
-          double t = -grape::GetCurrentTime();
-          ret = eval_path_expand_v(opr.opr().path(), txn, std::move(ret),
-                                   params, opr.meta_data(0), alias);
-          t += grape::GetCurrentTime();
+          t.start();
+          ret = eval_path_expand_v(opr.opr().path(), graph, std::move(ret),
+                                   params, timer, opr.meta_data(0), alias);
           timer.record_opr("path_expand_v", t);
           ++i;
         } else {
@@ -665,10 +658,9 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           if (opr.opr().path().has_alias()) {
             alias = opr.opr().path().alias().value();
           }
-          double t = -grape::GetCurrentTime();
-          ret = eval_path_expand_p(opr.opr().path(), txn, std::move(ret),
+          t.start();
+          ret = eval_path_expand_p(opr.opr().path(), graph, std::move(ret),
                                    params, opr.meta_data(0), alias);
-          t += grape::GetCurrentTime();
           timer.record_opr("path_expand_p", t);
         }
       } else {
@@ -687,30 +679,28 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
         int tag = -1;
         int alias = -1;
         if (try_reuse_left_plan_column(op, tag, alias)) {
-          auto ctx = runtime_eval_impl(op.left_plan(), std::move(ret), txn,
+          auto ctx = runtime_eval_impl(op.left_plan(), std::move(ret), graph,
                                        params, timer);
           Context ctx2;
           std::vector<size_t> offset;
           ctx.get(tag)->generate_dedup_offset(offset);
           ctx2.set(alias, ctx.get(tag));
           ctx2.reshuffle(offset);
-          ctx2 = runtime_eval_impl(op.right_plan(), std::move(ctx2), txn,
+          ctx2 = runtime_eval_impl(op.right_plan(), std::move(ctx2), graph,
                                    params, timer, true);
-          double t = -grape::GetCurrentTime();
-          ret = eval_join(txn, params, op, std::move(ctx), std::move(ctx2));
-          t += grape::GetCurrentTime();
+          t.start();
+          ret = eval_join(graph, params, op, std::move(ctx), std::move(ctx2));
           timer.record_opr("join_reuse", t);
           break;
         }
       }
       Context ret_dup(ret);
-      auto ctx =
-          runtime_eval_impl(op.left_plan(), std::move(ret), txn, params, timer);
-      auto ctx2 = runtime_eval_impl(op.right_plan(), std::move(ret_dup), txn,
+      auto ctx = runtime_eval_impl(op.left_plan(), std::move(ret), graph,
+                                   params, timer);
+      auto ctx2 = runtime_eval_impl(op.right_plan(), std::move(ret_dup), graph,
                                     params, timer);
-      double t = -grape::GetCurrentTime();
-      ret = eval_join(txn, params, op, std::move(ctx), std::move(ctx2));
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_join(graph, params, op, std::move(ctx), std::move(ctx2));
       timer.record_opr("join", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kIntersect: {
@@ -721,24 +711,21 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
       for (size_t i = 0; i < num; ++i) {
         Context n_ctx;
         n_ctx.set_prev_context(&ret);
-        ctxs.push_back(runtime_eval_impl(op.sub_plans(i), std::move(n_ctx), txn,
-                                         params, timer));
+        ctxs.push_back(runtime_eval_impl(op.sub_plans(i), std::move(n_ctx),
+                                         graph, params, timer));
       }
-      double t = -grape::GetCurrentTime();
-      ret = eval_intersect(txn, op, std::move(ret), std::move(ctxs));
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_intersect(graph, op, std::move(ret), std::move(ctxs));
       timer.record_opr("intersect", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kLimit: {
-      double t = -grape::GetCurrentTime();
+      t.start();
       ret = eval_limit(opr.opr().limit(), std::move(ret));
-      t += grape::GetCurrentTime();
       timer.record_opr("limit", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kUnfold: {
-      double t = -grape::GetCurrentTime();
+      t.start();
       ret = eval_unfold(opr.opr().unfold(), std::move(ret));
-      t += grape::GetCurrentTime();
       timer.record_opr("unfold", t);
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kUnion: {
@@ -749,11 +736,10 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
         Context n_ctx = ret;
 
         ctxs.emplace_back(runtime_eval_impl(op.sub_plans(i), std::move(n_ctx),
-                                            txn, params, timer));
+                                            graph, params, timer));
       }
-      double t = -grape::GetCurrentTime();
+      t.start();
       ret = eval_union(std::move(ctxs));
-      t += grape::GetCurrentTime();
       timer.record_opr("union", t);
     } break;
     default:
@@ -771,20 +757,21 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
 }
 
 Context runtime_eval(const physical::PhysicalPlan& plan,
-                     const ReadTransaction& txn,
+                     const GraphReadInterface& graph,
                      const std::map<std::string, std::string>& params,
                      OprTimer& timer) {
-  double t = -grape::GetCurrentTime();
-  auto ret = runtime_eval_impl(plan, Context(), txn, params, timer);
-  t += grape::GetCurrentTime();
+  TimerUnit t;
+  t.start();
+  auto ret = runtime_eval_impl(plan, Context(), graph, params, timer);
   timer.add_total(t);
   return ret;
 }
 
 WriteContext runtime_eval_impl(const physical::PhysicalPlan& plan,
-                               WriteContext&& ctx, InsertTransaction& txn,
+                               WriteContext&& ctx, GraphInsertInterface& graph,
                                const std::map<std::string, std::string>& params,
                                OprTimer& timer) {
+  TimerUnit t;
   int opr_num = plan.plan_size();
   WriteContext ret = ctx;
   for (int i = 0; i < opr_num; ++i) {
@@ -792,37 +779,32 @@ WriteContext runtime_eval_impl(const physical::PhysicalPlan& plan,
     assert(opr.has_opr());
     switch (opr.opr().op_kind_case()) {
     case physical::PhysicalOpr_Operator::OpKindCase::kProject: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_project(opr.opr().project(), txn, std::move(ret), params);
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_project(opr.opr().project(), graph, std::move(ret), params);
       timer.record_opr("project", t);
       break;
     }
     case physical::PhysicalOpr_Operator::OpKindCase::kLoad: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_load(opr.opr().load(), txn, std::move(ret), params);
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_load(opr.opr().load(), graph, std::move(ret), params);
       timer.record_opr("load", t);
       break;
     }
     case physical::PhysicalOpr_Operator::OpKindCase::kSink: {
-      double t = -grape::GetCurrentTime();
-      txn.Commit();
-      t += grape::GetCurrentTime();
+      t.start();
+      graph.Commit();
       timer.record_opr("commit", t);
       break;
     }
     case physical::PhysicalOpr_Operator::OpKindCase::kUnfold: {
-      double t = -grape::GetCurrentTime();
+      t.start();
       ret = eval_unfold(opr.opr().unfold(), std::move(ret));
-      t += grape::GetCurrentTime();
       timer.record_opr("unfold", t);
       break;
     }
     case physical::PhysicalOpr_Operator::OpKindCase::kDedup: {
-      double t = -grape::GetCurrentTime();
-      ret = eval_dedup(opr.opr().dedup(), txn, std::move(ret));
-      t += grape::GetCurrentTime();
+      t.start();
+      ret = eval_dedup(opr.opr().dedup(), graph, std::move(ret));
       timer.record_opr("dedup", t);
       break;
     }
@@ -837,12 +819,12 @@ WriteContext runtime_eval_impl(const physical::PhysicalPlan& plan,
 }
 // for insert transaction
 WriteContext runtime_eval(const physical::PhysicalPlan& plan,
-                          InsertTransaction& txn,
+                          GraphInsertInterface& graph,
                           const std::map<std::string, std::string>& params,
                           OprTimer& timer) {
-  double t = -grape::GetCurrentTime();
-  auto ret = runtime_eval_impl(plan, WriteContext(), txn, params, timer);
-  t += grape::GetCurrentTime();
+  TimerUnit t;
+  t.start();
+  auto ret = runtime_eval_impl(plan, WriteContext(), graph, params, timer);
   timer.add_total(t);
   return ret;
 }

@@ -41,11 +41,12 @@ VOpt parse_opt(const physical::GetV_VOpt& opt) {
   }
 }
 
-Context eval_get_v(const physical::GetV& opr, const ReadTransaction& txn,
+Context eval_get_v(const physical::GetV& opr, const GraphReadInterface& graph,
                    Context&& ctx,
                    const std::map<std::string, std::string>& params,
                    OprTimer& timer) {
-  double tx = -grape::GetCurrentTime();
+  TimerUnit tx;
+  tx.start();
   int tag = -1;
   if (opr.has_tag()) {
     tag = opr.tag().value();
@@ -82,46 +83,42 @@ Context eval_get_v(const physical::GetV& opr, const ReadTransaction& txn,
             ctx.set(p.alias, input_vertex_list_ptr);
             return ctx;
           } else {
-            GeneralVertexPredicate pred(txn, ctx, params,
+            GeneralVertexPredicate pred(graph, ctx, params,
                                         query_params.predicate());
             auto ret =
-                GetV::get_vertex_from_vertices(txn, std::move(ctx), p, pred);
-            tx += grape::GetCurrentTime();
+                GetV::get_vertex_from_vertices(graph, std::move(ctx), p, pred);
             timer.record_routine("get_v::get_vertex_from_vertices0", tx);
             return ret;
           }
         } else if (is_pk_exact_check(query_params.predicate(), params,
                                      exact_pk_label, exact_pk)) {
           vid_t index = std::numeric_limits<vid_t>::max();
-          txn.GetVertexIndex(exact_pk_label, exact_pk, index);
+          graph.GetVertexIndex(exact_pk_label, exact_pk, index);
           ExactVertexPredicate pred(exact_pk_label, index);
 
           auto ret =
-              GetV::get_vertex_from_vertices(txn, std::move(ctx), p, pred);
-          tx += grape::GetCurrentTime();
+              GetV::get_vertex_from_vertices(graph, std::move(ctx), p, pred);
           timer.record_routine("get_v::get_vertex_from_vertices1", tx);
           return ret;
         } else {
-          GeneralVertexPredicate pred(txn, ctx, params,
+          GeneralVertexPredicate pred(graph, ctx, params,
                                       query_params.predicate());
           auto ret =
-              GetV::get_vertex_from_vertices(txn, std::move(ctx), p, pred);
-          tx += grape::GetCurrentTime();
+              GetV::get_vertex_from_vertices(graph, std::move(ctx), p, pred);
           timer.record_routine("get_v::get_vertex_from_vertices2", tx);
           return ret;
         }
       } else if (opt == VOpt::kEnd || opt == VOpt::kStart) {
-        GeneralVertexPredicate pred(txn, ctx, params, query_params.predicate());
-        auto ret = GetV::get_vertex_from_edges(txn, std::move(ctx), p, pred);
-        tx += grape::GetCurrentTime();
+        GeneralVertexPredicate pred(graph, ctx, params,
+                                    query_params.predicate());
+        auto ret = GetV::get_vertex_from_edges(graph, std::move(ctx), p, pred);
         timer.record_routine("get_v::get_vertex_from_edges0", tx);
         return ret;
       }
     } else {
       if (opt == VOpt::kEnd || opt == VOpt::kStart || opt == VOpt::kOther) {
-        auto ret = GetV::get_vertex_from_edges(txn, std::move(ctx), p,
+        auto ret = GetV::get_vertex_from_edges(graph, std::move(ctx), p,
                                                DummyVertexPredicate());
-        tx += grape::GetCurrentTime();
         timer.record_routine("get_v::get_vertex_from_edges1", tx);
         return ret;
       }

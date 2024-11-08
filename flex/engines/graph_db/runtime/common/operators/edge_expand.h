@@ -18,11 +18,11 @@
 
 #include <set>
 
-#include "flex/engines/graph_db/database/read_transaction.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
 #include "flex/engines/graph_db/runtime/common/columns/edge_columns.h"
 #include "flex/engines/graph_db/runtime/common/columns/vertex_columns.h"
 #include "flex/engines/graph_db/runtime/common/context.h"
+#include "flex/engines/graph_db/runtime/common/graph_interface.h"
 #include "flex/engines/graph_db/runtime/common/operators/edge_expand_impl.h"
 
 #include "glog/logging.h"
@@ -38,10 +38,12 @@ struct EdgeExpandParams {
   bool is_optional;
 };
 
+class OprTimer;
+
 class EdgeExpand {
  public:
   template <typename PRED_T>
-  static Context expand_edge(const ReadTransaction& txn, Context&& ctx,
+  static Context expand_edge(const GraphReadInterface& graph, Context&& ctx,
                              const EdgeExpandParams& params,
                              const PRED_T& pred) {
     if (params.is_optional) {
@@ -56,8 +58,9 @@ class EdgeExpand {
       if (input_vertex_list_type == VertexColumnType::kSingle) {
         auto casted_input_vertex_list =
             std::dynamic_pointer_cast<SLVertexColumn>(input_vertex_list_ptr);
-        auto pair = expand_edge_impl<PRED_T>(
-            txn, *casted_input_vertex_list, params.labels[0], pred, params.dir);
+        auto pair =
+            expand_edge_impl<PRED_T>(graph, *casted_input_vertex_list,
+                                     params.labels[0], pred, params.dir);
         if (pair.first != nullptr) {
           ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
           return ctx;
@@ -69,7 +72,7 @@ class EdgeExpand {
         label_t output_vertex_label = params.labels[0].src_label;
         label_t edge_label = params.labels[0].edge_label;
 
-        auto& props = txn.schema().get_edge_properties(
+        auto& props = graph.schema().get_edge_properties(
             params.labels[0].src_label, params.labels[0].dst_label,
             params.labels[0].edge_label);
         PropertyType pt = PropertyType::kEmpty;
@@ -85,13 +88,13 @@ class EdgeExpand {
 
         foreach_vertex(input_vertex_list,
                        [&](size_t index, label_t label, vid_t v) {
-                         auto ie_iter = txn.GetInEdgeIterator(
+                         auto ie_iter = graph.GetInEdgeIterator(
                              label, v, output_vertex_label, edge_label);
                          while (ie_iter.IsValid()) {
                            auto nbr = ie_iter.GetNeighbor();
                            if (pred(params.labels[0], nbr, v, ie_iter.GetData(),
                                     Direction::kIn, index)) {
-                             CHECK(ie_iter.GetData().type == pt);
+                             assert(ie_iter.GetData().type == pt);
                              builder.push_back_opt(nbr, v, ie_iter.GetData());
                              shuffle_offset.push_back(index);
                            }
@@ -108,7 +111,7 @@ class EdgeExpand {
         label_t edge_label = params.labels[0].edge_label;
         label_t src_label = params.labels[0].src_label;
 
-        auto& props = txn.schema().get_edge_properties(
+        auto& props = graph.schema().get_edge_properties(
             params.labels[0].src_label, params.labels[0].dst_label,
             params.labels[0].edge_label);
         PropertyType pt = PropertyType::kEmpty;
@@ -127,13 +130,13 @@ class EdgeExpand {
                          if (label != src_label) {
                            return;
                          }
-                         auto oe_iter = txn.GetOutEdgeIterator(
+                         auto oe_iter = graph.GetOutEdgeIterator(
                              label, v, output_vertex_label, edge_label);
                          while (oe_iter.IsValid()) {
                            auto nbr = oe_iter.GetNeighbor();
                            if (pred(params.labels[0], v, nbr, oe_iter.GetData(),
                                     Direction::kOut, index)) {
-                             CHECK(oe_iter.GetData().type == pt);
+                             assert(oe_iter.GetData().type == pt);
                              builder.push_back_opt(v, nbr, oe_iter.GetData());
                              shuffle_offset.push_back(index);
                            }
@@ -153,7 +156,7 @@ class EdgeExpand {
             *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.v_tag));
         std::vector<std::pair<LabelTriplet, PropertyType>> label_props;
         for (auto& triplet : params.labels) {
-          auto& props = txn.schema().get_edge_properties(
+          auto& props = graph.schema().get_edge_properties(
               triplet.src_label, triplet.dst_label, triplet.edge_label);
           PropertyType pt = PropertyType::kEmpty;
           if (!props.empty()) {
@@ -167,15 +170,14 @@ class EdgeExpand {
             input_vertex_list, [&](size_t index, label_t label, vid_t v) {
               for (auto& label_prop : label_props) {
                 auto& triplet = label_prop.first;
-                auto& pt = label_prop.second;
                 if (label == triplet.src_label) {
-                  auto oe_iter = txn.GetOutEdgeIterator(
+                  auto oe_iter = graph.GetOutEdgeIterator(
                       label, v, triplet.dst_label, triplet.edge_label);
                   while (oe_iter.IsValid()) {
                     auto nbr = oe_iter.GetNeighbor();
                     if (pred(triplet, v, nbr, oe_iter.GetData(),
                              Direction::kOut, index)) {
-                      CHECK(oe_iter.GetData().type == pt);
+                      assert(oe_iter.GetData().type == label_prop.second);
                       builder.push_back_opt(triplet, v, nbr, oe_iter.GetData(),
                                             Direction::kOut);
                       shuffle_offset.push_back(index);
@@ -184,13 +186,13 @@ class EdgeExpand {
                   }
                 }
                 if (label == triplet.dst_label) {
-                  auto ie_iter = txn.GetInEdgeIterator(
+                  auto ie_iter = graph.GetInEdgeIterator(
                       label, v, triplet.src_label, triplet.edge_label);
                   while (ie_iter.IsValid()) {
                     auto nbr = ie_iter.GetNeighbor();
                     if (pred(triplet, nbr, v, ie_iter.GetData(), Direction::kIn,
                              index)) {
-                      CHECK(ie_iter.GetData().type == pt);
+                      assert(ie_iter.GetData().type == label_prop.second);
                       builder.push_back_opt(triplet, nbr, v, ie_iter.GetData(),
                                             Direction::kIn);
                       shuffle_offset.push_back(index);
@@ -207,7 +209,7 @@ class EdgeExpand {
             *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.v_tag));
         std::vector<std::pair<LabelTriplet, PropertyType>> label_props;
         for (auto& triplet : params.labels) {
-          auto& props = txn.schema().get_edge_properties(
+          auto& props = graph.schema().get_edge_properties(
               triplet.src_label, triplet.dst_label, triplet.edge_label);
           PropertyType pt = PropertyType::kEmpty;
           if (!props.empty()) {
@@ -221,16 +223,15 @@ class EdgeExpand {
             input_vertex_list, [&](size_t index, label_t label, vid_t v) {
               for (auto& label_prop : label_props) {
                 auto& triplet = label_prop.first;
-                auto& pt = label_prop.second;
                 if (label != triplet.src_label)
                   continue;
-                auto oe_iter = txn.GetOutEdgeIterator(
+                auto oe_iter = graph.GetOutEdgeIterator(
                     label, v, triplet.dst_label, triplet.edge_label);
                 while (oe_iter.IsValid()) {
                   auto nbr = oe_iter.GetNeighbor();
                   if (pred(triplet, v, nbr, oe_iter.GetData(), Direction::kOut,
                            index)) {
-                    CHECK(oe_iter.GetData().type == pt);
+                    assert(oe_iter.GetData().type == label_prop.second);
                     builder.push_back_opt(triplet, v, nbr, oe_iter.GetData());
                     shuffle_offset.push_back(index);
                   }
@@ -246,29 +247,29 @@ class EdgeExpand {
   }
 
   static Context expand_edge_with_special_edge_predicate(
-      const ReadTransaction& txn, Context&& ctx, const EdgeExpandParams& params,
-      const SPEdgePredicate& pred) {
+      const GraphReadInterface& graph, Context&& ctx,
+      const EdgeExpandParams& params, const SPEdgePredicate& pred) {
     if (params.is_optional) {
       LOG(FATAL) << "not support optional edge expand";
     }
     if (pred.data_type() == RTAnyType::kI64Value) {
       if (pred.type() == SPEdgePredicateType::kPropertyGT) {
         return expand_edge<EdgePropertyGTPredicate<int64_t>>(
-            txn, std::move(ctx), params,
+            graph, std::move(ctx), params,
             dynamic_cast<const EdgePropertyGTPredicate<int64_t>&>(pred));
       } else if (pred.type() == SPEdgePredicateType::kPropertyLT) {
         return expand_edge<EdgePropertyLTPredicate<int64_t>>(
-            txn, std::move(ctx), params,
+            graph, std::move(ctx), params,
             dynamic_cast<const EdgePropertyLTPredicate<int64_t>&>(pred));
       }
     } else if (pred.data_type() == RTAnyType::kI32Value) {
       if (pred.type() == SPEdgePredicateType::kPropertyGT) {
         return expand_edge<EdgePropertyGTPredicate<int>>(
-            txn, std::move(ctx), params,
+            graph, std::move(ctx), params,
             dynamic_cast<const EdgePropertyGTPredicate<int>&>(pred));
       } else if (pred.type() == SPEdgePredicateType::kPropertyLT) {
         return expand_edge<EdgePropertyLTPredicate<int>>(
-            txn, std::move(ctx), params,
+            graph, std::move(ctx), params,
             dynamic_cast<const EdgePropertyLTPredicate<int>&>(pred));
       }
     }
@@ -276,12 +277,13 @@ class EdgeExpand {
     return Context();
   }
 
-  static Context expand_edge_without_predicate(const ReadTransaction& txn,
+  static Context expand_edge_without_predicate(const GraphReadInterface& graph,
                                                Context&& ctx,
-                                               const EdgeExpandParams& params);
+                                               const EdgeExpandParams& params,
+                                               OprTimer& timer);
 
   template <typename PRED_T>
-  static Context expand_vertex(const ReadTransaction& txn, Context&& ctx,
+  static Context expand_vertex(const GraphReadInterface& graph, Context&& ctx,
                                const EdgeExpandParams& params,
                                const PRED_T& pred) {
     if (params.is_optional) {
@@ -295,21 +297,21 @@ class EdgeExpand {
     if (input_vertex_list_type == VertexColumnType::kSingle) {
       auto casted_input_vertex_list =
           std::dynamic_pointer_cast<SLVertexColumn>(input_vertex_list);
-      auto pair = expand_vertex_impl<PRED_T>(txn, *casted_input_vertex_list,
+      auto pair = expand_vertex_impl<PRED_T>(graph, *casted_input_vertex_list,
                                              params.labels, params.dir, pred);
       ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
       return ctx;
     } else if (input_vertex_list_type == VertexColumnType::kMultiple) {
       auto casted_input_vertex_list =
           std::dynamic_pointer_cast<MLVertexColumn>(input_vertex_list);
-      auto pair = expand_vertex_impl<PRED_T>(txn, *casted_input_vertex_list,
+      auto pair = expand_vertex_impl<PRED_T>(graph, *casted_input_vertex_list,
                                              params.labels, params.dir, pred);
       ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
       return ctx;
     } else if (input_vertex_list_type == VertexColumnType::kMultiSegment) {
       auto casted_input_vertex_list =
           std::dynamic_pointer_cast<MSVertexColumn>(input_vertex_list);
-      auto pair = expand_vertex_impl<PRED_T>(txn, *casted_input_vertex_list,
+      auto pair = expand_vertex_impl<PRED_T>(graph, *casted_input_vertex_list,
                                              params.labels, params.dir, pred);
       ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
       return ctx;
@@ -319,7 +321,8 @@ class EdgeExpand {
     }
   }
 
-  static Context expand_vertex_ep_lt(const ReadTransaction& txn, Context&& ctx,
+  static Context expand_vertex_ep_lt(const GraphReadInterface& graph,
+                                     Context&& ctx,
                                      const EdgeExpandParams& params,
                                      const std::string& ep_val) {
     if (params.is_optional) {
@@ -337,8 +340,8 @@ class EdgeExpand {
       std::vector<std::tuple<label_t, label_t, Direction>> label_dirs;
       std::vector<PropertyType> ed_types;
       for (auto& triplet : params.labels) {
-        if (!txn.schema().exist(triplet.src_label, triplet.dst_label,
-                                triplet.edge_label)) {
+        if (!graph.schema().exist(triplet.src_label, triplet.dst_label,
+                                  triplet.edge_label)) {
           continue;
         }
         if (triplet.src_label == input_label &&
@@ -346,7 +349,7 @@ class EdgeExpand {
              (params.dir == Direction::kBoth))) {
           label_dirs.emplace_back(triplet.dst_label, triplet.edge_label,
                                   Direction::kOut);
-          const auto& properties = txn.schema().get_edge_properties(
+          const auto& properties = graph.schema().get_edge_properties(
               triplet.src_label, triplet.dst_label, triplet.edge_label);
           if (properties.empty()) {
             ed_types.push_back(PropertyType::Empty());
@@ -360,7 +363,7 @@ class EdgeExpand {
              (params.dir == Direction::kBoth))) {
           label_dirs.emplace_back(triplet.src_label, triplet.edge_label,
                                   Direction::kIn);
-          const auto& properties = txn.schema().get_edge_properties(
+          const auto& properties = graph.schema().get_edge_properties(
               triplet.src_label, triplet.dst_label, triplet.edge_label);
           if (properties.empty()) {
             ed_types.push_back(PropertyType::Empty());
@@ -387,32 +390,32 @@ class EdgeExpand {
       const PropertyType& ed_type = ed_types[0];
       if (ed_type == PropertyType::Date()) {
         Date max_value(std::stoll(ep_val));
-        std::vector<GraphView<Date>*> views;
+        std::vector<GraphReadInterface::graph_view_t<Date>> views;
         for (auto& t : label_dirs) {
           label_t nbr_label = std::get<0>(t);
           label_t edge_label = std::get<1>(t);
           Direction dir = std::get<2>(t);
           if (dir == Direction::kOut) {
-            views.emplace_back(new GraphView(txn.GetOutgoingGraphView<Date>(
-                input_label, nbr_label, edge_label)));
+            views.emplace_back(graph.GetOutgoingGraphView<Date>(
+                input_label, nbr_label, edge_label));
           } else {
             CHECK(dir == Direction::kIn);
-            views.emplace_back(new GraphView(txn.GetIncomingGraphView<Date>(
-                input_label, nbr_label, edge_label)));
+            views.emplace_back(graph.GetIncomingGraphView<Date>(
+                input_label, nbr_label, edge_label));
           }
         }
         MSVertexColumnBuilder builder;
         size_t csr_idx = 0;
         std::vector<size_t> offsets;
-        for (auto csr : views) {
+        for (auto& csr : views) {
           label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
           // label_t edge_label = std::get<1>(label_dirs[csr_idx]);
           // Direction dir = std::get<2>(label_dirs[csr_idx]);
           size_t idx = 0;
           builder.start_label(nbr_label);
           for (auto v : casted_input_vertex_list->vertices()) {
-            csr->foreach_edges_lt(v, max_value, [&](const MutableNbr<Date>& e) {
-              builder.push_back_opt(e.neighbor);
+            csr.foreach_edges_lt(v, max_value, [&](vid_t nbr, const Date& e) {
+              builder.push_back_opt(nbr);
               offsets.push_back(idx);
             });
             ++idx;
@@ -420,9 +423,6 @@ class EdgeExpand {
           ++csr_idx;
         }
         std::shared_ptr<IContextColumn> col = builder.finish();
-        for (auto ptr : views) {
-          delete ptr;
-        }
         ctx.set_with_reshuffle(params.alias, col, offsets);
         return ctx;
       } else {
@@ -433,7 +433,8 @@ class EdgeExpand {
       return ctx;
     }
   }
-  static Context expand_vertex_ep_gt(const ReadTransaction& txn, Context&& ctx,
+  static Context expand_vertex_ep_gt(const GraphReadInterface& graph,
+                                     Context&& ctx,
                                      const EdgeExpandParams& params,
                                      const std::string& ep_val) {
     if (params.is_optional) {
@@ -451,8 +452,8 @@ class EdgeExpand {
       std::vector<std::tuple<label_t, label_t, Direction>> label_dirs;
       std::vector<PropertyType> ed_types;
       for (auto& triplet : params.labels) {
-        if (!txn.schema().exist(triplet.src_label, triplet.dst_label,
-                                triplet.edge_label)) {
+        if (!graph.schema().exist(triplet.src_label, triplet.dst_label,
+                                  triplet.edge_label)) {
           continue;
         }
         if (triplet.src_label == input_label &&
@@ -460,7 +461,7 @@ class EdgeExpand {
              (params.dir == Direction::kBoth))) {
           label_dirs.emplace_back(triplet.dst_label, triplet.edge_label,
                                   Direction::kOut);
-          const auto& properties = txn.schema().get_edge_properties(
+          const auto& properties = graph.schema().get_edge_properties(
               triplet.src_label, triplet.dst_label, triplet.edge_label);
           if (properties.empty()) {
             ed_types.push_back(PropertyType::Empty());
@@ -474,7 +475,7 @@ class EdgeExpand {
              (params.dir == Direction::kBoth))) {
           label_dirs.emplace_back(triplet.src_label, triplet.edge_label,
                                   Direction::kIn);
-          const auto& properties = txn.schema().get_edge_properties(
+          const auto& properties = graph.schema().get_edge_properties(
               triplet.src_label, triplet.dst_label, triplet.edge_label);
           if (properties.empty()) {
             ed_types.push_back(PropertyType::Empty());
@@ -502,43 +503,36 @@ class EdgeExpand {
       if (se) {
         if (ed_type == PropertyType::Date()) {
           Date max_value(std::stoll(ep_val));
-          std::vector<GraphView<Date>*> views;
+          std::vector<GraphReadInterface::graph_view_t<Date>> views;
           for (auto& t : label_dirs) {
             label_t nbr_label = std::get<0>(t);
             label_t edge_label = std::get<1>(t);
             Direction dir = std::get<2>(t);
             if (dir == Direction::kOut) {
-              views.emplace_back(new GraphView(txn.GetOutgoingGraphView<Date>(
-                  input_label, nbr_label, edge_label)));
+              views.emplace_back(graph.GetOutgoingGraphView<Date>(
+                  input_label, nbr_label, edge_label));
             } else {
               CHECK(dir == Direction::kIn);
-              views.emplace_back(new GraphView(txn.GetIncomingGraphView<Date>(
-                  input_label, nbr_label, edge_label)));
+              views.emplace_back(graph.GetIncomingGraphView<Date>(
+                  input_label, nbr_label, edge_label));
             }
           }
           SLVertexColumnBuilder builder(std::get<0>(label_dirs[0]));
           size_t csr_idx = 0;
           std::vector<size_t> offsets;
-          // LOG(INFO) << "hit!!!";
-          for (auto csr : views) {
-            // label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-            // label_t edge_label = std::get<1>(label_dirs[csr_idx]);
-            // Direction dir = std::get<2>(label_dirs[csr_idx]);
+          for (auto& csr : views) {
             size_t idx = 0;
             for (auto v : casted_input_vertex_list->vertices()) {
-              csr->foreach_edges_gt(v, max_value,
-                                    [&](const MutableNbr<Date>& e, Date& val) {
-                                      builder.push_back_opt(e.neighbor);
-                                      offsets.push_back(idx);
-                                    });
+              csr.foreach_edges_gt(v, max_value,
+                                   [&](vid_t nbr, const Date& val) {
+                                     builder.push_back_opt(nbr);
+                                     offsets.push_back(idx);
+                                   });
               ++idx;
             }
             ++csr_idx;
           }
           std::shared_ptr<IContextColumn> col = builder.finish();
-          for (auto ptr : views) {
-            delete ptr;
-          }
           ctx.set_with_reshuffle(params.alias, col, offsets);
           return ctx;
         } else {
@@ -547,45 +541,39 @@ class EdgeExpand {
       } else {
         if (ed_type == PropertyType::Date()) {
           Date max_value(std::stoll(ep_val));
-          std::vector<GraphView<Date>*> views;
+          std::vector<GraphReadInterface::graph_view_t<Date>> views;
           for (auto& t : label_dirs) {
             label_t nbr_label = std::get<0>(t);
             label_t edge_label = std::get<1>(t);
             Direction dir = std::get<2>(t);
             if (dir == Direction::kOut) {
-              views.emplace_back(new GraphView(txn.GetOutgoingGraphView<Date>(
-                  input_label, nbr_label, edge_label)));
+              views.emplace_back(graph.GetOutgoingGraphView<Date>(
+                  input_label, nbr_label, edge_label));
             } else {
               CHECK(dir == Direction::kIn);
-              views.emplace_back(new GraphView(txn.GetIncomingGraphView<Date>(
-                  input_label, nbr_label, edge_label)));
+              views.emplace_back(graph.GetIncomingGraphView<Date>(
+                  input_label, nbr_label, edge_label));
             }
           }
           MSVertexColumnBuilder builder;
           size_t csr_idx = 0;
           std::vector<size_t> offsets;
-          // LOG(INFO) << "hit!!!";
-          for (auto csr : views) {
+          for (auto& csr : views) {
             label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-            // label_t edge_label = std::get<1>(label_dirs[csr_idx]);
-            // Direction dir = std::get<2>(label_dirs[csr_idx]);
             size_t idx = 0;
             builder.start_label(nbr_label);
             LOG(INFO) << "start label: " << static_cast<int>(nbr_label);
             for (auto v : casted_input_vertex_list->vertices()) {
-              csr->foreach_edges_gt(v, max_value,
-                                    [&](const MutableNbr<Date>& e, Date& val) {
-                                      builder.push_back_opt(e.neighbor);
-                                      offsets.push_back(idx);
-                                    });
+              csr.foreach_edges_gt(v, max_value,
+                                   [&](vid_t nbr, const Date& val) {
+                                     builder.push_back_opt(nbr);
+                                     offsets.push_back(idx);
+                                   });
               ++idx;
             }
             ++csr_idx;
           }
           std::shared_ptr<IContextColumn> col = builder.finish();
-          for (auto ptr : views) {
-            delete ptr;
-          }
           ctx.set_with_reshuffle(params.alias, col, offsets);
           return ctx;
         } else {
@@ -614,42 +602,42 @@ class EdgeExpand {
   };
 
   static Context expand_vertex_with_special_vertex_predicate(
-      const ReadTransaction& txn, Context&& ctx, const EdgeExpandParams& params,
-      const SPVertexPredicate& pred) {
+      const GraphReadInterface& graph, Context&& ctx,
+      const EdgeExpandParams& params, const SPVertexPredicate& pred) {
     if (params.is_optional) {
       LOG(FATAL) << "not support optional edge expand";
     }
     if (pred.type() == SPVertexPredicateType::kIdEQ) {
       return expand_vertex<SPVPWrapper<VertexIdEQPredicateBeta>>(
-          txn, std::move(ctx), params,
+          graph, std::move(ctx), params,
           SPVPWrapper(dynamic_cast<const VertexIdEQPredicateBeta&>(pred)));
     } else {
       if (pred.data_type() == RTAnyType::kI64Value) {
         if (pred.type() == SPVertexPredicateType::kPropertyLT) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyLTPredicateBeta<int64_t>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyLTPredicateBeta<int64_t>&>(
                       pred)));
         } else if (pred.type() == SPVertexPredicateType::kPropertyGT) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyGTPredicateBeta<int64_t>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyGTPredicateBeta<int64_t>&>(
                       pred)));
         } else if (pred.type() == SPVertexPredicateType::kPropertyLE) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyLEPredicateBeta<int64_t>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyLEPredicateBeta<int64_t>&>(
                       pred)));
         } else if (pred.type() == SPVertexPredicateType::kPropertyBetween) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyBetweenPredicateBeta<int64_t>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(dynamic_cast<
                           const VertexPropertyBetweenPredicateBeta<int64_t>&>(
                   pred)));
@@ -657,7 +645,7 @@ class EdgeExpand {
           CHECK(pred.type() == SPVertexPredicateType::kPropertyEQ);
           return expand_vertex<
               SPVPWrapper<VertexPropertyEQPredicateBeta<int64_t>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyEQPredicateBeta<int64_t>&>(
                       pred)));
@@ -666,28 +654,28 @@ class EdgeExpand {
         if (pred.type() == SPVertexPredicateType::kPropertyLT) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyLTPredicateBeta<Date>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyLTPredicateBeta<Date>&>(
                       pred)));
         } else if (pred.type() == SPVertexPredicateType::kPropertyGT) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyGTPredicateBeta<Date>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyGTPredicateBeta<Date>&>(
                       pred)));
         } else if (pred.type() == SPVertexPredicateType::kPropertyLE) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyLEPredicateBeta<Date>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyLEPredicateBeta<Date>&>(
                       pred)));
         } else if (pred.type() == SPVertexPredicateType::kPropertyBetween) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyBetweenPredicateBeta<Date>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyBetweenPredicateBeta<Date>&>(
                       pred)));
@@ -695,7 +683,7 @@ class EdgeExpand {
           CHECK(pred.type() == SPVertexPredicateType::kPropertyEQ);
           return expand_vertex<
               SPVPWrapper<VertexPropertyEQPredicateBeta<Date>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<const VertexPropertyEQPredicateBeta<Date>&>(
                       pred)));
@@ -704,7 +692,7 @@ class EdgeExpand {
         if (pred.type() == SPVertexPredicateType::kPropertyEQ) {
           return expand_vertex<
               SPVPWrapper<VertexPropertyEQPredicateBeta<std::string_view>>>(
-              txn, std::move(ctx), params,
+              graph, std::move(ctx), params,
               SPVPWrapper(
                   dynamic_cast<
                       const VertexPropertyEQPredicateBeta<std::string_view>&>(
@@ -717,7 +705,7 @@ class EdgeExpand {
   }
 
   static Context expand_vertex_without_predicate(
-      const ReadTransaction& txn, Context&& ctx,
+      const GraphReadInterface& graph, Context&& ctx,
       const EdgeExpandParams& params);
 };
 
