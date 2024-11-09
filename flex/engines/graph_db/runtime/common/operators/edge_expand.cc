@@ -157,10 +157,13 @@ static Context expand_edge_without_predicate_optional_impl(
 
 Context EdgeExpand::expand_edge_without_predicate(
     const GraphReadInterface& graph, Context&& ctx,
-    const EdgeExpandParams& params) {
+    const EdgeExpandParams& params, OprTimer& timer) {
   if (params.is_optional) {
-    return expand_edge_without_predicate_optional_impl(graph, std::move(ctx),
-                                                       params);
+    double tx = -grape::GetCurrentTime();
+    auto ret = expand_edge_without_predicate_optional_impl(
+        graph, std::move(ctx), params);
+    tx += grape::GetCurrentTime();
+    timer.record_routine("#### expand_edge_without_predicate_optional", tx);
   }
   std::vector<size_t> shuffle_offset;
 

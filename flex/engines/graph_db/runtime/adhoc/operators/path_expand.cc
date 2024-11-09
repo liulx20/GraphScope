@@ -16,6 +16,7 @@
 #include "flex/engines/graph_db/runtime/common/operators/path_expand.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
+#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 #include "flex/engines/graph_db/runtime/adhoc/utils.h"
 
 namespace gs {
@@ -25,6 +26,7 @@ namespace runtime {
 Context eval_path_expand_v(const physical::PathExpand& opr,
                            const GraphReadInterface& graph, Context&& ctx,
                            const std::map<std::string, std::string>& params,
+                           OprTimer& timer,
                            const physical::PhysicalOpr_MetaData& meta,
                            int alias) {
   int start_tag = opr.has_start_tag() ? opr.start_tag().value() : -1;
@@ -56,7 +58,11 @@ Context eval_path_expand_v(const physical::PathExpand& opr,
     if (query_params.has_predicate()) {
       LOG(FATAL) << "not support";
     } else {
-      return PathExpand::edge_expand_v(graph, std::move(ctx), pep);
+      double tx = -grape::GetCurrentTime();
+      auto ret = PathExpand::edge_expand_v(graph, std::move(ctx), pep);
+      tx += grape::GetCurrentTime();
+      timer.record_routine("#### edge_expand_v", tx);
+      return ret;
     }
   } else {
     LOG(FATAL) << "not support";
@@ -147,6 +153,7 @@ Context eval_shortest_path_with_order_by_length_limit(
 Context eval_shortest_path(const physical::PathExpand& opr,
                            const GraphReadInterface& graph, Context&& ctx,
                            const std::map<std::string, std::string>& params,
+                           OprTimer& timer,
                            const physical::PhysicalOpr_MetaData& meta,
                            const physical::GetV& v_opr, int v_alias) {
   CHECK(opr.has_start_tag());
@@ -173,8 +180,12 @@ Context eval_shortest_path(const physical::PathExpand& opr,
     CHECK(graph.GetVertexIndex(spp.labels[0].dst_label, vertex, vid))
         << "vertex not found";
     auto v = std::make_pair(spp.labels[0].dst_label, vid);
-    return PathExpand::single_source_single_dest_shortest_path(
+    double tx = -grape::GetCurrentTime();
+    auto ret = PathExpand::single_source_single_dest_shortest_path(
         graph, std::move(ctx), spp, v);
+    tx += grape::GetCurrentTime();
+    timer.record_routine("#### single_source_single_dest_shortest_path", tx);
+    return ret;
   } else {
     if (v_opr.has_params() && v_opr.params().has_predicate()) {
       auto sp_vertex_pred = parse_special_vertex_predicate(

@@ -620,7 +620,8 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           }
           double t = -grape::GetCurrentTime();
           ret = eval_shortest_path(opr.opr().path(), graph, std::move(ret),
-                                   params, opr.meta_data(0), vertex, v_alias);
+                                   params, timer, opr.meta_data(0), vertex,
+                                   v_alias);
           t += grape::GetCurrentTime();
           timer.record_opr("shortest_path", t);
           i += 2;
@@ -640,7 +641,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
                                         params, opr.meta_data(0), vertex,
                                         v_alias);
           t += grape::GetCurrentTime();
-          timer.record_opr("all_shortest_paths", t);
+          timer.record_opr("#### all_shortest_paths", t);
           i += 2;
           break;
         }
@@ -658,7 +659,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           }
           double t = -grape::GetCurrentTime();
           ret = eval_path_expand_v(opr.opr().path(), graph, std::move(ret),
-                                   params, opr.meta_data(0), alias);
+                                   params, timer, opr.meta_data(0), alias);
           t += grape::GetCurrentTime();
           timer.record_opr("path_expand_v", t);
           ++i;
