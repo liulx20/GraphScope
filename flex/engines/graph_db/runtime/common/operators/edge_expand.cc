@@ -164,6 +164,7 @@ Context EdgeExpand::expand_edge_without_predicate(
         graph, std::move(ctx), params);
     tx += grape::GetCurrentTime();
     timer.record_routine("#### expand_edge_without_predicate_optional", tx);
+    return ret;
   }
   std::vector<size_t> shuffle_offset;
 
