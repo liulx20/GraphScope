@@ -276,12 +276,26 @@ class MSVertexPropertyColumn : public IValueColumn<T> {
 
   std::shared_ptr<IContextColumn> set_vertex_column(
       std::shared_ptr<IContextColumn> vertices) const override {
-    auto ret = std::make_shared<MSVertexPropertyColumn<T>>();
-    ret->vertices_col_ = std::dynamic_pointer_cast<MSVertexColumn>(vertices);
-    CHECK(ret->vertices_col_ != nullptr);
-    ret->vertices_ = ret->vertices_col_.get();
-    ret->prop_cols_ = prop_cols_;
-    return ret;
+    auto casted_vertex_col = std::dynamic_pointer_cast<IVertexColumn>(vertices);
+    if (casted_vertex_col->vertex_column_type() ==
+        VertexColumnType::kMultiple) {
+      auto ret = std::make_shared<MLVertexPropertyColumn<T>>();
+      ret->vertices_col_ = std::dynamic_pointer_cast<MLVertexColumn>(vertices);
+      CHECK(ret->vertices_col_ != nullptr);
+      ret->vertices_ = ret->vertices_col_.get();
+      ret->prop_cols_ = prop_cols_;
+      return ret;
+    } else if (casted_vertex_col->vertex_column_type() ==
+               VertexColumnType::kMultiSegment) {
+      auto ret = std::make_shared<MSVertexPropertyColumn<T>>();
+      ret->vertices_col_ = std::dynamic_pointer_cast<MSVertexColumn>(vertices);
+      CHECK(ret->vertices_col_ != nullptr);
+      ret->vertices_ = ret->vertices_col_.get();
+      ret->prop_cols_ = prop_cols_;
+      return ret;
+    } else {
+      LOG(FATAL) << "not supposed to be single vertex column";
+    }
   }
 
   T get_value(size_t idx) const override {
