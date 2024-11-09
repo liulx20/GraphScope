@@ -554,14 +554,14 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
         } else {
           double t = -grape::GetCurrentTime();
           ret = eval_project(opr.opr().project(), graph, std::move(ret), params,
-                             data_types);
+                             timer, data_types);
           t += grape::GetCurrentTime();
           timer.record_opr("project", t);
         }
       } else {
         double t = -grape::GetCurrentTime();
         ret = eval_project(opr.opr().project(), graph, std::move(ret), params,
-                           data_types);
+                           timer, data_types);
         t += grape::GetCurrentTime();
         timer.record_opr("project", t);
       }
