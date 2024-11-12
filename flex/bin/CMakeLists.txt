@@ -45,3 +45,10 @@ install_without_export_flex_target(bulk_loader)
 add_executable(stored_procedure_runner stored_procedure_runner.cc)
 target_link_libraries(stored_procedure_runner flex_rt_mutable_graph flex_utils flex_graph_db ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${Boost_LIBRARIES})
 install_without_export_flex_target(stored_procedure_runner)
+
+
+include_directories(${Boost_INCLUDE_DIRS})
+include_directories(../third_party/odps/include)
+add_executable(incremental_loader incremental_loader.cc ../storages/rt_mutable_graph/loader/odps_fragment_loader.cc)
+target_link_libraries(incremental_loader flex_rt_mutable_graph flex_utils ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${Boost_LIBRARIES})
+install_without_export_flex_target(incremental_loader)

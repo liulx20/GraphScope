@@ -34,7 +34,7 @@
 #include "flex/storages/rt_mutable_graph/loader/loader_factory.h"
 #include "flex/storages/rt_mutable_graph/loading_config.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
-#include "flex/third_party/httplib.h"
+// #include "flex/third_party/httplib.h"
 #include "grape/util.h"
 #include "storage_api.hpp"
 #include "storage_api_arrow.hpp"
@@ -158,6 +158,55 @@ class ODPSTableRecordBatchSupplier : public IRecordBatchSupplier {
   std::shared_ptr<arrow::TableBatchReader> reader_;
 };
 
+class ODPSFragmentLoaderImpl {
+ public:
+  ODPSFragmentLoaderImpl(const Schema& schema,
+                         const LoadingConfig& loading_config,
+                         int32_t thread_num = 1)
+      : schema_(schema),
+        loading_config_(loading_config),
+        thread_num_(thread_num) {
+    odps_read_client_.init();
+  }
+
+  void parseLocation(const std::string& odps_table_path,
+                     TableIdentifier& table_identifier,
+                     std::vector<std::string>& partition_names,
+                     std::vector<std::string>& selected_partitions);
+
+  void loadVertices(
+      std::function<
+          void(label_t, const std::vector<std::string>&,
+               std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+                   label_t, const std::string&, const LoadingConfig&, int)>
+                   supplier_creator)>&& consumer);
+
+  void loadEdges(
+      std::function<void(
+          label_t, label_t, label_t, const std::vector<std::string>& filenames,
+          std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+              label_t, label_t, label_t, const std::string&,
+              const LoadingConfig&, int)>)>&& consumer);
+
+  std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+      label_t, const std::string&, const LoadingConfig&, int)>
+  addVertices(label_t v_label_id, const std::vector<std::string>& v_files);
+
+  std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+      label_t, label_t, label_t, const std::string&, const LoadingConfig&, int)>
+  addEdges(label_t src_label_id, label_t dst_label_id, label_t e_label_id,
+           const std::vector<std::string>& e_files);
+
+  std::vector<std::string> columnMappingsToSelectedCols(
+      const std::vector<std::tuple<size_t, std::string, std::string>>&
+          column_mappings);
+
+ private:
+  const Schema& schema_;
+  const LoadingConfig& loading_config_;
+  int32_t thread_num_;
+  ODPSReadClient odps_read_client_;
+};
 /*
  * ODPSFragmentLoader is used to load graph data from ODPS Table.
  * It fetch the data via ODPS tunnel/halo API.
@@ -171,7 +220,8 @@ class ODPSFragmentLoader : public AbstractArrowFragmentLoader {
  public:
   ODPSFragmentLoader(const std::string& work_dir, const Schema& schema,
                      const LoadingConfig& loading_config)
-      : AbstractArrowFragmentLoader(work_dir, schema, loading_config) {}
+      : AbstractArrowFragmentLoader(work_dir, schema, loading_config),
+        impl_(schema, loading_config, loading_config_.GetParallelism()) {}
 
   static std::shared_ptr<IFragmentLoader> Make(
       const std::string& work_dir, const Schema& schema,
@@ -182,27 +232,11 @@ class ODPSFragmentLoader : public AbstractArrowFragmentLoader {
   Result<bool> LoadFragment() override;
 
  private:
-  void init();
-
-  void parseLocation(const std::string& odps_table_path,
-                     TableIdentifier& table_identifier,
-                     std::vector<std::string>& partition_names,
-                     std::vector<std::string>& selected_partitions);
-
   void loadVertices();
 
   void loadEdges();
 
-  void addVertices(label_t v_label_id, const std::vector<std::string>& v_files);
-
-  void addEdges(label_t src_label_id, label_t dst_label_id, label_t e_label_id,
-                const std::vector<std::string>& e_files);
-
-  std::vector<std::string> columnMappingsToSelectedCols(
-      const std::vector<std::tuple<size_t, std::string, std::string>>&
-          column_mappings);
-
-  ODPSReadClient odps_read_client_;
+  ODPSFragmentLoaderImpl impl_;
 
   static const bool registered_;
 };

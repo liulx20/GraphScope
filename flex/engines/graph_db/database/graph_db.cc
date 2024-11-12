@@ -15,6 +15,7 @@
 
 #include "flex/engines/graph_db/database/graph_db.h"
 #include "flex/engines/graph_db/app/adhoc_app.h"
+#include "flex/engines/graph_db/app/batch_update_app.h"
 #include "flex/engines/graph_db/app/builtin/count_vertices.h"
 #include "flex/engines/graph_db/app/builtin/k_hop_neighbors.h"
 #include "flex/engines/graph_db/app/builtin/pagerank.h"
@@ -423,6 +424,9 @@ void GraphDB::initApps(
       std::make_shared<HQPSAdhocWriteAppFactory>();
   app_factories_[Schema::ADHOC_READ_PLUGIN_ID] =
       std::make_shared<AdhocReadAppFactory>();
+
+  app_factories_[Schema::BATCH_UPDATE_PLUGIN_ID] =
+      std::make_shared<BatchUpdateAppFactory>();
 
   size_t valid_plugins = 0;
   for (auto& path_and_index : plugins) {

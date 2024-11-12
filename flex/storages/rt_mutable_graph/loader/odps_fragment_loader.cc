@@ -358,11 +358,9 @@ std::shared_ptr<IFragmentLoader> ODPSFragmentLoader::Make(
   return std::shared_ptr<IFragmentLoader>(
       new ODPSFragmentLoader(work_dir, schema, loading_config));
 }
-void ODPSFragmentLoader::init() { odps_read_client_.init(); }
 
 Result<bool> ODPSFragmentLoader::LoadFragment() {
   try {
-    init();
     loadVertices();
     loadEdges();
 
@@ -378,10 +376,35 @@ Result<bool> ODPSFragmentLoader::LoadFragment() {
   return Result<bool>(true);
 }
 
+void ODPSFragmentLoader::loadVertices() {
+  impl_.loadVertices(
+      [this](label_t v_label_id, const std::vector<std::string>& v_files,
+             std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+                 label_t, const std::string&, const LoadingConfig&, int)>
+                 supplier_creator) {
+        AbstractArrowFragmentLoader::AddVerticesRecordBatch(v_label_id, v_files,
+                                                            supplier_creator);
+      });
+}
+
+void ODPSFragmentLoader::loadEdges() {
+  impl_.loadEdges(
+      [this](label_t src_label_id, label_t dst_label_id, label_t e_label_id,
+             const std::vector<std::string>& filenames,
+             std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+                 label_t, label_t, label_t, const std::string&,
+                 const LoadingConfig&, int)>
+                 supplier_creator) {
+        AbstractArrowFragmentLoader::AddEdgesRecordBatch(
+            src_label_id, dst_label_id, e_label_id, filenames,
+            supplier_creator);
+      });
+}
+
 // odps_table_path is like /project_name/table_name/partition_name
 // partition : pt1
 // selected partitions pt1=1,
-void ODPSFragmentLoader::parseLocation(
+void ODPSFragmentLoaderImpl::parseLocation(
     const std::string& odps_table_path, TableIdentifier& table_identifier,
     std::vector<std::string>& res_partitions,
     std::vector<std::string>& selected_partitions) {
@@ -409,8 +432,10 @@ void ODPSFragmentLoader::parseLocation(
   }
 }
 
-void ODPSFragmentLoader::addVertices(label_t v_label_id,
-                                     const std::vector<std::string>& v_files) {
+std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+    label_t, const std::string&, const LoadingConfig&, int)>
+ODPSFragmentLoaderImpl::addVertices(label_t v_label_id,
+                                    const std::vector<std::string>& v_files) {
   auto record_batch_supplier_creator = [this](
                                            label_t label_id,
                                            const std::string& v_file,
@@ -445,11 +470,17 @@ void ODPSFragmentLoader::addVertices(label_t v_label_id,
     }
     return suppliers;
   };
-  return AbstractArrowFragmentLoader::AddVerticesRecordBatch(
-      v_label_id, v_files, record_batch_supplier_creator);
+  return record_batch_supplier_creator;
+  // return AbstractArrowFragmentLoader::AddVerticesRecordBatch(
+  //   v_label_id, v_files, record_batch_supplier_creator);
 }
 
-void ODPSFragmentLoader::loadVertices() {
+void ODPSFragmentLoaderImpl::loadVertices(
+    std::function<
+        void(label_t, const std::vector<std::string>&,
+             std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+                 label_t, const std::string&, const LoadingConfig&, int)>
+                 supplier_creator)>&& consumer) {
   auto vertex_sources = loading_config_.GetVertexLoadingMeta();
   if (vertex_sources.empty()) {
     LOG(INFO) << "Skip loading vertices since no vertex source is specified.";
@@ -462,7 +493,7 @@ void ODPSFragmentLoader::loadVertices() {
          ++iter) {
       auto v_label_id = iter->first;
       auto v_files = iter->second;
-      addVertices(v_label_id, v_files);
+      consumer(v_label_id, v_files, addVertices(v_label_id, v_files));
     }
   } else {
     // copy vertex_sources and edge sources to vector, since we need to
@@ -484,7 +515,8 @@ void ODPSFragmentLoader::loadVertices() {
             break;
           }
           auto v_label_id = vertex_files[cur].first;
-          addVertices(v_label_id, vertex_files[cur].second);
+          consumer(v_label_id, vertex_files[cur].second,
+                   addVertices(v_label_id, vertex_files[cur].second));
         }
       });
     }
@@ -498,9 +530,11 @@ void ODPSFragmentLoader::loadVertices() {
 
 ////////////////Loading edges/////////////////
 
-void ODPSFragmentLoader::addEdges(label_t src_label_i, label_t dst_label_i,
-                                  label_t edge_label_i,
-                                  const std::vector<std::string>& table_paths) {
+std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+    label_t, label_t, label_t, const std::string&, const LoadingConfig&, int)>
+ODPSFragmentLoaderImpl::addEdges(label_t src_label_i, label_t dst_label_i,
+                                 label_t edge_label_i,
+                                 const std::vector<std::string>& table_paths) {
   auto lambda = [this](label_t src_label_id, label_t dst_label_id,
                        label_t e_label_id, const std::string& table_path,
                        const LoadingConfig& loading_config, int worker_num) {
@@ -553,11 +587,17 @@ void ODPSFragmentLoader::addEdges(label_t src_label_i, label_t dst_label_i,
     return suppliers;
   };
 
-  AbstractArrowFragmentLoader::AddEdgesRecordBatch(
-      src_label_i, dst_label_i, edge_label_i, table_paths, lambda);
+  return lambda;
+  // AbstractArrowFragmentLoader::AddEdgesRecordBatch(
+  //   src_label_i, dst_label_i, edge_label_i, table_paths, lambda);
 }
 
-void ODPSFragmentLoader::loadEdges() {
+void ODPSFragmentLoaderImpl::loadEdges(
+    std::function<
+        void(label_t, label_t, label_t, const std::vector<std::string>&,
+             std::function<std::vector<std::shared_ptr<IRecordBatchSupplier>>(
+                 label_t, label_t, label_t, const std::string&,
+                 const LoadingConfig&, int)>)>&& consumer) {
   auto& edge_sources = loading_config_.GetEdgeLoadingMeta();
 
   if (edge_sources.empty()) {
@@ -572,7 +612,8 @@ void ODPSFragmentLoader::loadEdges() {
       auto& dst_label_id = std::get<1>(iter->first);
       auto& e_label_id = std::get<2>(iter->first);
       auto& e_files = iter->second;
-      addEdges(src_label_id, dst_label_id, e_label_id, e_files);
+      consumer(src_label_id, dst_label_id, e_label_id, e_files,
+               addEdges(src_label_id, dst_label_id, e_label_id, e_files));
     }
   } else {
     std::vector<std::pair<typename LoadingConfig::edge_triplet_type,
@@ -597,7 +638,9 @@ void ODPSFragmentLoader::loadEdges() {
           auto dst_label_id = std::get<1>(edge_file.first);
           auto e_label_id = std::get<2>(edge_file.first);
           auto& file_names = edge_file.second;
-          addEdges(src_label_id, dst_label_id, e_label_id, file_names);
+          consumer(
+              src_label_id, dst_label_id, e_label_id, file_names,
+              addEdges(src_label_id, dst_label_id, e_label_id, file_names));
         }
       });
     }
@@ -608,7 +651,7 @@ void ODPSFragmentLoader::loadEdges() {
   }
 }
 
-std::vector<std::string> ODPSFragmentLoader::columnMappingsToSelectedCols(
+std::vector<std::string> ODPSFragmentLoaderImpl::columnMappingsToSelectedCols(
     const std::vector<std::tuple<size_t, std::string, std::string>>&
         column_mappings) {
   std::vector<std::string> selected_cols;

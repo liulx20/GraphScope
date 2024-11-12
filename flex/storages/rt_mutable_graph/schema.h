@@ -31,10 +31,11 @@ class Schema {
   // How many built-in plugins are there.
   // Currently only one builtin plugin, SERVER_APP is supported.
   static constexpr uint8_t RESERVED_PLUGIN_NUM = 1;
-  static constexpr uint8_t MAX_PLUGIN_ID = 248;
+  static constexpr uint8_t MAX_PLUGIN_ID = 247;
   static constexpr uint8_t ADHOC_READ_PLUGIN_ID = 253;
   static constexpr uint8_t HQPS_ADHOC_READ_PLUGIN_ID = 254;
   static constexpr uint8_t HQPS_ADHOC_WRITE_PLUGIN_ID = 255;
+
   static constexpr const char* HQPS_ADHOC_READ_PLUGIN_ID_STR = "\xFE";
   static constexpr const char* HQPS_ADHOC_WRITE_PLUGIN_ID_STR = "\xFF";
   static constexpr const char* ADHOC_READ_PLUGIN_ID_STR = "\xFD";
@@ -57,6 +58,7 @@ class Schema {
   static constexpr uint8_t BUILTIN_TVSP_PLUGIN_ID = 249;
   static constexpr const char* BUILTIN_TVSP_PLUGIN_NAME =
       "shortest_path_among_three";
+  static constexpr uint8_t BATCH_UPDATE_PLUGIN_ID = 248;
   static constexpr const char* BUILTIN_PLUGIN_NAMES[BUILTIN_PLUGIN_NUM] = {
       BUILTIN_COUNT_VERTICES_PLUGIN_NAME, BUILTIN_PAGERANK_PLUGIN_NAME,
       BUILTIN_K_DEGREE_NEIGHBORS_PLUGIN_NAME, BUILTIN_TVSP_PLUGIN_NAME};
