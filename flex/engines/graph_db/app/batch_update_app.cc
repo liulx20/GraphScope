@@ -100,7 +100,6 @@ bool BatchUpdateApp::Query(GraphDBSession& graph, Decoder& input,
       value.type = edge_prop[0];
       deserialize(oarc, value);
     } else {
-      value.type = PropertyType::Record();
       size_t size;
       oarc >> size;
       std::vector<Any> props;
@@ -110,7 +109,7 @@ bool BatchUpdateApp::Query(GraphDBSession& graph, Decoder& input,
         deserialize(oarc, p);
         props.push_back(p);
       }
-      value.value.record = std::move(props);
+      value = Any(props);
     }
     batch.AddEdge(src_label, std::move(src), dst_label, std::move(dst),
                   edge_label, std::move(value));

@@ -551,13 +551,11 @@ class DualCsr<RecordView> : public DualCsrBase {
   void UpdateEdge(vid_t src, vid_t dst, const Any& data, timestamp_t ts,
                   Allocator& alloc) override {
     auto oe_ptr = out_csr_->edge_iter_mut(src);
-    grape::InArchive arc;
+    std::vector<Any> props;
     Record r = data.AsRecord();
     for (size_t i = 0; i < r.len; ++i) {
-      arc << r.props[i];
+      props.emplace_back(r.props[i]);
     }
-    grape::OutArchive oarc;
-    oarc.SetSlice(arc.GetBuffer(), arc.GetSize());
     auto oe = dynamic_cast<MutableCsrEdgeIter<RecordView>*>(oe_ptr.get());
     size_t index = std::numeric_limits<size_t>::max();
     while (oe != nullptr && oe->is_valid()) {
@@ -579,10 +577,10 @@ class DualCsr<RecordView> : public DualCsrBase {
       ie->next();
     }
     if (index != std::numeric_limits<size_t>::max()) {
-      table_.ingest(index, oarc);
+      table_.insert(index, props);
     } else {
       size_t row_id = table_idx_.fetch_add(1);
-      table_.ingest(row_id, oarc);
+      table_.insert(row_id, props);
       in_csr_->put_edge_with_index(dst, src, row_id, ts, alloc);
       out_csr_->put_edge_with_index(src, dst, row_id, ts, alloc);
     }

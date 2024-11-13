@@ -153,9 +153,10 @@ class HttpClientPool {
 
   bool send_post_request(const std::string& path, const std::string& body) {
     auto client = acquire();
-
-    auto res =
-        client->Post(path.c_str(), body.data(), body.size(), "text/plain");
+    std::string encoder = body;
+    encoder.push_back(static_cast<char>(0));
+    auto res = client->Post(path.c_str(), encoder.data(), encoder.size(),
+                            "text/plain");
     bool ret = false;
     if (res) {
       LOG(INFO) << "Response status: " << res->status;
@@ -299,11 +300,10 @@ class IncrementalLoader {
                   types.emplace_back(type);
                 }
                 CHECK(columns.size() == types.size());
-
                 for (size_t i = 0; i < columns.size(); ++i) {
                   auto chunked_array =
                       std::make_shared<arrow::ChunkedArray>(columns[i]);
-                  vecs.emplace_back(parse_properties(chunked_array, type));
+                  vecs.emplace_back(parse_properties(chunked_array, types[i]));
                 }
                 size_t row_num = vecs[0]->size();
                 for (size_t i = 1; i < vecs.size(); ++i) {
@@ -454,6 +454,9 @@ class IncrementalLoader {
               }
             },
             i);
+      }
+      for (auto& t : work_threads) {
+        t.join();
       }
     }
   }
