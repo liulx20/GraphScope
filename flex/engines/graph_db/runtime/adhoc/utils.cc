@@ -102,45 +102,45 @@ std::shared_ptr<IContextColumn> create_column(
 }
 
 std::shared_ptr<IContextColumn> create_column_beta(RTAnyType type) {
-  switch (type.type_enum_) {
-  case RTAnyType::RTAnyTypeImpl::kI64Value:
+  switch (type) {
+  case RTAnyType::kI64Value:
     return std::make_shared<ValueColumn<int64_t>>();
-  case RTAnyType::RTAnyTypeImpl::kStringValue:
+  case RTAnyType::kStringValue:
     return std::make_shared<ValueColumn<std::string_view>>();
-  case RTAnyType::RTAnyTypeImpl::kVertex:
+  case RTAnyType::kVertex:
     return std::make_shared<MLVertexColumn>();
   default:
-    LOG(FATAL) << "unsupport type: " << static_cast<int>(type.type_enum_);
+    LOG(FATAL) << "unsupport type: " << static_cast<int>(type);
     break;
   }
   return nullptr;
 }
 
 std::shared_ptr<IContextColumnBuilder> create_column_builder(RTAnyType type) {
-  switch (type.type_enum_) {
-  case RTAnyType::RTAnyTypeImpl::kI64Value:
+  switch (type) {
+  case RTAnyType::kI64Value:
     return std::make_shared<ValueColumnBuilder<int64_t>>();
-  case RTAnyType::RTAnyTypeImpl::kStringValue:
+  case RTAnyType::kStringValue:
     return std::make_shared<ValueColumnBuilder<std::string_view>>();
-  case RTAnyType::RTAnyTypeImpl::kVertex:
+  case RTAnyType::kVertex:
     return std::make_shared<MLVertexColumnBuilder>();
-  case RTAnyType::RTAnyTypeImpl::kI32Value:
+  case RTAnyType::kI32Value:
     return std::make_shared<ValueColumnBuilder<int32_t>>();
-  case RTAnyType::RTAnyTypeImpl::kDate32:
+  case RTAnyType::kDate32:
     return std::make_shared<ValueColumnBuilder<Day>>();
-  case RTAnyType::RTAnyTypeImpl::kTimestamp:
+  case RTAnyType::kTimestamp:
     return std::make_shared<ValueColumnBuilder<Date>>();
-  case RTAnyType::RTAnyTypeImpl::kU64Value:
+  case RTAnyType::kU64Value:
     return std::make_shared<ValueColumnBuilder<uint64_t>>();
-  case RTAnyType::RTAnyTypeImpl::kBoolValue:
+  case RTAnyType::kBoolValue:
     // fix me
     return std::make_shared<ValueColumnBuilder<bool>>();
-  case RTAnyType::RTAnyTypeImpl::kEdge:
+  case RTAnyType::kEdge:
     return std::make_shared<BDMLEdgeColumnBuilder>();
-  case RTAnyType::RTAnyTypeImpl::kStringSetValue:
+  case RTAnyType::kStringSetValue:
     return std::make_shared<ValueColumnBuilder<std::set<std::string>>>();
   default:
-    LOG(FATAL) << "unsupport type: " << static_cast<int>(type.type_enum_);
+    LOG(FATAL) << "unsupport type: " << static_cast<int>(type);
     break;
   }
   return nullptr;
@@ -659,8 +659,8 @@ bool vertex_property_topN(bool asc, size_t limit,
 
 std::shared_ptr<IContextColumn> build_optional_column_beta(const Expr& expr,
                                                            size_t row_num) {
-  switch (expr.type().type_enum_) {
-  case RTAnyType::RTAnyTypeImpl::kI64Value: {
+  switch (expr.type()) {
+  case RTAnyType::kI64Value: {
     OptionalValueColumnBuilder<int64_t> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -674,7 +674,7 @@ std::shared_ptr<IContextColumn> build_optional_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kI32Value: {
+  case RTAnyType::kI32Value: {
     OptionalValueColumnBuilder<int> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -688,7 +688,7 @@ std::shared_ptr<IContextColumn> build_optional_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kF64Value: {
+  case RTAnyType::kF64Value: {
     OptionalValueColumnBuilder<double> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -702,14 +702,14 @@ std::shared_ptr<IContextColumn> build_optional_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kMap: {
+  case RTAnyType::kMap: {
     auto builder = expr.builder();
     for (size_t i = 0; i < row_num; ++i) {
       builder->push_back_elem(expr.eval_path(i, 0));
     }
     return builder->finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kTuple: {
+  case RTAnyType::kTuple: {
     OptionalValueColumnBuilder<Tuple> builder;
     for (size_t i = 0; i < row_num; ++i) {
       auto v = expr.eval_path(i, 0);
@@ -722,7 +722,7 @@ std::shared_ptr<IContextColumn> build_optional_column_beta(const Expr& expr,
     return builder.finish();
   } break;
   default: {
-    LOG(FATAL) << "not support" << static_cast<int>(expr.type().type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(expr.type());
     break;
   }
   }
@@ -734,8 +734,8 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
   if (expr.is_optional()) {
     return build_optional_column_beta(expr, row_num);
   }
-  switch (expr.type().type_enum_) {
-  case RTAnyType::RTAnyTypeImpl::kI64Value: {
+  switch (expr.type()) {
+  case RTAnyType::kI64Value: {
     ValueColumnBuilder<int64_t> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -744,7 +744,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kStringValue: {
+  case RTAnyType::kStringValue: {
     ValueColumnBuilder<std::string_view> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -753,7 +753,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kDate32: {
+  case RTAnyType::kDate32: {
     ValueColumnBuilder<Day> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -762,14 +762,14 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kTimestamp: {
+  case RTAnyType::kTimestamp: {
     ValueColumnBuilder<Date> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
       builder.push_back_opt(expr.eval_path(i).as_timestamp());
     }
   } break;
-  case RTAnyType::RTAnyTypeImpl::kVertex: {
+  case RTAnyType::kVertex: {
     MLVertexColumnBuilder builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -778,7 +778,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kI32Value: {
+  case RTAnyType::kI32Value: {
     ValueColumnBuilder<int> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -787,7 +787,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
 
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kF64Value: {
+  case RTAnyType::kF64Value: {
     ValueColumnBuilder<double> builder;
     builder.reserve(row_num);
     for (size_t i = 0; i < row_num; ++i) {
@@ -795,15 +795,15 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
     }
     return builder.finish();
   } break;
-  case RTAnyType::RTAnyTypeImpl::kEdge: {
+  case RTAnyType::kEdge: {
     BDMLEdgeColumnBuilder builder;
     for (size_t i = 0; i < row_num; ++i) {
       builder.push_back_elem(expr.eval_path(i));
     }
     return builder.finish();
   }
-  case RTAnyType::RTAnyTypeImpl::kTuple: {
-    if (expr.type().null_able_) {
+  case RTAnyType::kTuple: {
+    if (expr.is_optional()) {
       OptionalValueColumnBuilder<Tuple> builder;
       for (size_t i = 0; i < row_num; ++i) {
         auto v = expr.eval_path(i);
@@ -822,7 +822,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
       return builder.finish();
     }
   }
-  case RTAnyType::RTAnyTypeImpl::kList: {
+  case RTAnyType::kList: {
     auto builder = expr.builder();
     for (size_t i = 0; i < row_num; ++i) {
       builder->push_back_elem(expr.eval_path(i));
@@ -834,7 +834,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
     }
     return builder->finish();
   }
-  case RTAnyType::RTAnyTypeImpl::kMap: {
+  case RTAnyType::kMap: {
     auto builder = expr.builder();
     for (size_t i = 0; i < row_num; ++i) {
       builder->push_back_elem(expr.eval_path(i));
@@ -842,7 +842,7 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
     return builder->finish();
   }
   default:
-    LOG(FATAL) << "not support - " << static_cast<int>(expr.type().type_enum_);
+    LOG(FATAL) << "not support - " << static_cast<int>(expr.type());
     break;
   }
 

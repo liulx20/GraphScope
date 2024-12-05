@@ -18,44 +18,6 @@
 namespace gs {
 
 namespace runtime {
-
-const RTAnyType RTAnyType::kVertex =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kVertex);
-const RTAnyType RTAnyType::kEdge = RTAnyType(RTAnyType::RTAnyTypeImpl::kEdge);
-const RTAnyType RTAnyType::kI64Value =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kI64Value);
-const RTAnyType RTAnyType::kU64Value =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kU64Value);
-const RTAnyType RTAnyType::kI32Value =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kI32Value);
-const RTAnyType RTAnyType::kF64Value =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kF64Value);
-
-const RTAnyType RTAnyType::kBoolValue =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kBoolValue);
-const RTAnyType RTAnyType::kStringValue =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kStringValue);
-const RTAnyType RTAnyType::kVertexSetValue =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kVertexSetValue);
-const RTAnyType RTAnyType::kStringSetValue =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kStringSetValue);
-const RTAnyType RTAnyType::kUnknown =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kUnknown);
-const RTAnyType RTAnyType::kDate32 =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kDate32);
-const RTAnyType RTAnyType::kTimestamp =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kTimestamp);
-const RTAnyType RTAnyType::kPath = RTAnyType(RTAnyType::RTAnyTypeImpl::kPath);
-const RTAnyType RTAnyType::kNull = RTAnyType(RTAnyType::RTAnyTypeImpl::kNull);
-const RTAnyType RTAnyType::kTuple = RTAnyType(RTAnyType::RTAnyTypeImpl::kTuple);
-const RTAnyType RTAnyType::kList = RTAnyType(RTAnyType::RTAnyTypeImpl::kList);
-const RTAnyType RTAnyType::kMap = RTAnyType(RTAnyType::RTAnyTypeImpl::kMap);
-const RTAnyType RTAnyType::kRelation =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kRelation);
-const RTAnyType RTAnyType::kSet = RTAnyType(RTAnyType::RTAnyTypeImpl::kSet);
-const RTAnyType RTAnyType::kEmpty = RTAnyType(RTAnyType::RTAnyTypeImpl::kEmpty);
-const RTAnyType RTAnyType::kRecordView =
-    RTAnyType(RTAnyType::RTAnyTypeImpl::kRecordView);
 RTAny List::get(size_t idx) const { return impl_->get(idx); }
 RTAnyType parse_from_ir_data_type(const ::common::IrDataType& dt) {
   switch (dt.type_case()) {
@@ -109,25 +71,25 @@ RTAnyType parse_from_ir_data_type(const ::common::IrDataType& dt) {
 
 RTAny Tuple::get(size_t idx) const { return impl_->get(idx); }
 PropertyType rt_type_to_property_type(RTAnyType type) {
-  switch (type.type_enum_) {
-  case RTAnyType::RTAnyTypeImpl::kEmpty:
+  switch (type) {
+  case RTAnyType::kEmpty:
     return PropertyType::kEmpty;
-  case RTAnyType::RTAnyTypeImpl::kI64Value:
+  case RTAnyType::kI64Value:
     return PropertyType::kInt64;
-  case RTAnyType::RTAnyTypeImpl::kI32Value:
+  case RTAnyType::kI32Value:
     return PropertyType::kInt32;
-  case RTAnyType::RTAnyTypeImpl::kF64Value:
+  case RTAnyType::kF64Value:
     return PropertyType::kDouble;
-  case RTAnyType::RTAnyTypeImpl::kBoolValue:
+  case RTAnyType::kBoolValue:
     return PropertyType::kBool;
-  case RTAnyType::RTAnyTypeImpl::kStringValue:
+  case RTAnyType::kStringValue:
     return PropertyType::kString;
-  case RTAnyType::RTAnyTypeImpl::kTimestamp:
+  case RTAnyType::kTimestamp:
     return PropertyType::kDate;
-  case RTAnyType::RTAnyTypeImpl::kDate32:
+  case RTAnyType::kDate32:
     return PropertyType::kDay;
   default:
-    LOG(FATAL) << "not support for " << static_cast<int>(type.type_enum_);
+    LOG(FATAL) << "not support for " << static_cast<int>(type);
   }
 }
 RTAny::RTAny() : type_(RTAnyType::kUnknown) {}
@@ -186,7 +148,7 @@ RTAny::RTAny(const EdgeData& val) {
     value_.day = val.value.day_val;
   } else {
     LOG(FATAL) << "Any value: " << val.to_string()
-               << ", type = " << static_cast<int>(val.type.type_enum_);
+               << ", type = " << static_cast<int>(val.type);
   }
 }
 
@@ -222,7 +184,7 @@ RTAny::RTAny(const RTAny& rhs) : type_(rhs.type_) {
   } else if (type_ == RTAnyType::kTimestamp) {
     value_.date = rhs.value_.date;
   } else {
-    LOG(FATAL) << "unexpected type: " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "unexpected type: " << static_cast<int>(type_);
   }
 }
 
@@ -257,7 +219,7 @@ RTAny& RTAny::operator=(const RTAny& rhs) {
   } else if (type_ == RTAnyType::kTimestamp) {
     value_.date = rhs.value_.date;
   } else {
-    LOG(FATAL) << "unexpected type: " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "unexpected type: " << static_cast<int>(type_);
   }
   return *this;
 }
@@ -449,7 +411,7 @@ std::string_view RTAny::as_string() const {
   } else if (type_ == RTAnyType::kUnknown) {
     return std::string_view();
   } else {
-    LOG(FATAL) << "unexpected type" << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "unexpected type" << static_cast<int>(type_);
     return std::string_view();
   }
 }
@@ -480,41 +442,39 @@ Relation RTAny::as_relation() const {
 }
 
 int RTAny::numerical_cmp(const RTAny& other) const {
-  switch (type_.type_enum_) {
-  case RTAnyType::RTAnyTypeImpl::kI64Value:
-    switch (other.type_.type_enum_) {
-    case RTAnyType::RTAnyTypeImpl::kI32Value:
+  switch (type_) {
+  case RTAnyType::kI64Value:
+    switch (other.type_) {
+    case RTAnyType::kI32Value:
       return value_.i64_val - other.value_.i32_val;
-    case RTAnyType::RTAnyTypeImpl::kF64Value:
+    case RTAnyType::kF64Value:
       return value_.i64_val - other.value_.f64_val;
     default:
-      LOG(FATAL) << "not support for "
-                 << static_cast<int>(other.type_.type_enum_);
+      LOG(FATAL) << "not support for " << static_cast<int>(other.type_);
     }
     break;
-  case RTAnyType::RTAnyTypeImpl::kI32Value:
-    switch (other.type_.type_enum_) {
-    case RTAnyType::RTAnyTypeImpl::kI64Value:
+  case RTAnyType::kI32Value:
+    switch (other.type_) {
+    case RTAnyType::kI64Value:
       return value_.i32_val - other.value_.i64_val;
-    case RTAnyType::RTAnyTypeImpl::kF64Value:
+    case RTAnyType::kF64Value:
       return value_.i32_val - other.value_.f64_val;
     default:
-      LOG(FATAL) << "not support for "
-                 << static_cast<int>(other.type_.type_enum_);
+      LOG(FATAL) << "not support for " << static_cast<int>(other.type_);
     }
     break;
-  case RTAnyType::RTAnyTypeImpl::kF64Value:
-    switch (other.type_.type_enum_) {
-    case RTAnyType::RTAnyTypeImpl::kI64Value:
+  case RTAnyType::kF64Value:
+    switch (other.type_) {
+    case RTAnyType::kI64Value:
       return value_.f64_val - other.value_.i64_val;
-    case RTAnyType::RTAnyTypeImpl::kI32Value:
+    case RTAnyType::kI32Value:
       return value_.f64_val - other.value_.i32_val;
     default:
-      LOG(FATAL) << "not support for " << static_cast<int>(type_.type_enum_);
+      LOG(FATAL) << "not support for " << static_cast<int>(type_);
     }
     break;
   default:
-    LOG(FATAL) << "not support for " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not support for " << static_cast<int>(type_);
   }
 }
 inline static bool is_numerical_type(const RTAnyType& type) {
@@ -523,7 +483,7 @@ inline static bool is_numerical_type(const RTAnyType& type) {
 }
 
 bool RTAny::operator<(const RTAny& other) const {
-  if (type_.type_enum_ != other.type_.type_enum_) {
+  if (type_ != other.type_) {
     if (is_numerical_type(type_) && is_numerical_type(other.type_)) {
       return numerical_cmp(other) < 0;
     } else {
@@ -546,13 +506,12 @@ bool RTAny::operator<(const RTAny& other) const {
     return value_.f64_val < other.value_.f64_val;
   }
 
-  LOG(FATAL) << "not support for " << static_cast<int>(type_.type_enum_);
+  LOG(FATAL) << "not support for " << static_cast<int>(type_);
   return true;
 }
 
 bool RTAny::operator==(const RTAny& other) const {
-  // assert(type_ == other.type_);
-  if (type_.type_enum_ != other.type_.type_enum_) {
+  if (type_ != other.type_) {
     if (is_numerical_type(type_) && is_numerical_type(other.type_)) {
       return numerical_cmp(other) == 0;
     } else {
@@ -574,16 +533,7 @@ bool RTAny::operator==(const RTAny& other) const {
     return value_.date == other.value_.date;
   }
 
-  if (type_ == RTAnyType::kI64Value && other.type_ == RTAnyType::kI32Value) {
-    return value_.i64_val == other.value_.i32_val;
-  } else if (type_ == RTAnyType::kI32Value &&
-             other.type_ == RTAnyType::kI64Value) {
-    return value_.i32_val == other.value_.i64_val;
-  } else if (type_ == RTAnyType::kF64Value) {
-    return value_.f64_val == other.value_.f64_val;
-  }
-
-  LOG(FATAL) << "not support..." << static_cast<int>(type_.type_enum_);
+  LOG(FATAL) << "not support..." << static_cast<int>(type_);
   return true;
 }
 
@@ -604,7 +554,7 @@ RTAny RTAny::operator+(const RTAny& other) const {
     left_f64 = value_.f64_val;
     has_f64 = true;
   } else {
-    LOG(FATAL) << "not support" << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(type_);
   }
 
   int64_t right_i64 = 0;
@@ -621,7 +571,7 @@ RTAny RTAny::operator+(const RTAny& other) const {
     right_f64 = other.value_.f64_val;
     has_f64 = true;
   } else {
-    LOG(FATAL) << "not support" << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(type_);
   }
   if (has_f64) {
     return RTAny::from_double(left_f64 + right_f64);
@@ -669,7 +619,7 @@ RTAny RTAny::operator/(const RTAny& other) const {
     left_i64 = value_.i32_val;
     left_f64 = value_.i32_val;
   } else {
-    LOG(FATAL) << "not support" << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(type_);
   }
 
   double right_f64 = 0;
@@ -685,7 +635,7 @@ RTAny RTAny::operator/(const RTAny& other) const {
     right_i64 = other.value_.i32_val;
     right_f64 = other.value_.i32_val;
   } else {
-    LOG(FATAL) << "not support" << static_cast<int>(other.type_.type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(other.type_);
   }
 
   if (has_f64) {
@@ -706,7 +656,7 @@ RTAny RTAny::operator%(const RTAny& other) const {
   } else if (type_ == RTAnyType::kI32Value) {
     left_i64 = value_.i32_val;
   } else {
-    LOG(FATAL) << "not support" << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(type_);
   }
 
   int64_t right_i64 = 0;
@@ -716,7 +666,7 @@ RTAny RTAny::operator%(const RTAny& other) const {
   } else if (other.type_ == RTAnyType::kI32Value) {
     right_i64 = other.value_.i32_val;
   } else {
-    LOG(FATAL) << "not support" << static_cast<int>(other.type_.type_enum_);
+    LOG(FATAL) << "not support" << static_cast<int>(other.type_);
   }
   if (has_i64) {
     return RTAny::from_int64(left_i64 % right_i64);
@@ -751,7 +701,7 @@ void RTAny::sink_impl(common::Value* value) const {
       value->mutable_str_array()->add_item(s.data(), s.size());
     }
   } else {
-    LOG(FATAL) << "not implemented for " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not implemented for " << static_cast<int>(type_);
   }
 }
 
@@ -792,7 +742,7 @@ static void sink_edge_data(const EdgeData& any, common::Value* value) {
     value->set_i64(any.value.date_val.milli_second);
   } else {
     LOG(FATAL) << "Any value: " << any.to_string()
-               << ", type = " << static_cast<int>(any.type.type_enum_);
+               << ", type = " << static_cast<int>(any.type);
   }
 }
 
@@ -843,7 +793,7 @@ void RTAny::sink(const GraphReadInterface& graph, Encoder& encoder) const {
       encoder.put_string_view(s);
     }
   } else {
-    LOG(FATAL) << "not support for " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not support for " << static_cast<int>(type_);
   }
 }
 void RTAny::sink(const GraphReadInterface& graph, int id,
@@ -979,7 +929,7 @@ void RTAny::encode_sig(RTAnyType type, Encoder& encoder) const {
     encoder.put_int(r.src);
     encoder.put_int(r.dst);
   } else {
-    LOG(FATAL) << "not implemented for " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not implemented for " << static_cast<int>(type_);
   }
 }
 
@@ -1042,7 +992,7 @@ std::string RTAny::to_string() const {
   } else if (type_ == RTAnyType::kF64Value) {
     return std::to_string(value_.f64_val);
   } else {
-    LOG(FATAL) << "not implemented for " << static_cast<int>(type_.type_enum_);
+    LOG(FATAL) << "not implemented for " << static_cast<int>(type_);
     return "";
   }
 }

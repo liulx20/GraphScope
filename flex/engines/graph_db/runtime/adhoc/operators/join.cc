@@ -39,17 +39,7 @@ Context eval_join(const GraphReadInterface& graph,
     }
     p.right_columns.push_back(right_keys.Get(i).tag().id());
   }
-  if (opr.has_condition()) {
-    // ctx2.set_prev_context(&ctx);
-    LOG(FATAL) << "join with condition" << opr.condition().DebugString();
-    // auto pred = parse_join_condition(graph, ctx, ctx2, params,
-    // opr.condition());
-    if (opr.join_kind() == physical::Join_JoinKind::Join_JoinKind_INNER) {
-      p.join_type = JoinKind::kInnerJoin;
-    }
-    return ctx;
-    // return Join::join(std::move(ctx), std::move(ctx2), p, pred);
-  }
+
   switch (opr.join_kind()) {
   case physical::Join_JoinKind::Join_JoinKind_INNER:
     p.join_type = JoinKind::kInnerJoin;

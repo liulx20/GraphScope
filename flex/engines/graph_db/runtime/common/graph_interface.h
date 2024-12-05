@@ -177,11 +177,6 @@ class GraphView {
     return AdjListView<EDATA_T>(csr_->get_edges(v), timestamp_);
   }
 
-  /*
-   * void func(vid_t v, const EDATA_T& data) {
-   *     // do something
-   * }
-   */
   template <typename FUNC_T>
   inline void foreach_edges_gt(vid_t v, const EDATA_T& min_value,
                         const FUNC_T& func) const {

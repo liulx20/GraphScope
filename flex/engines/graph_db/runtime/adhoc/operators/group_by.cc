@@ -598,13 +598,16 @@ std::shared_ptr<IContextColumn> apply_reduce(
       if (func.single_tag) {
         auto ret = typed_numeric_sum<int>(ctx.get(func.tag_id), to_aggregate);
         if (ret != nullptr) {
-          // LOG(INFO) << "hit reduce...";
           return ret;
         }
       }
       return numeric_sum<int>(var, to_aggregate);
+    } else if (var.type() == RTAnyType::kI64Value) {
+      return numeric_sum<int64_t>(var, to_aggregate);
+    } else if (var.type() == RTAnyType::kF64Value) {
+      return numeric_sum<double>(var, to_aggregate);
     } else {
-      LOG(FATAL) << "reduce on " << static_cast<int>(var.type().type_enum_)
+      LOG(FATAL) << "reduce on " << static_cast<int>(var.type())
                  << " is not supported...";
     }
   } else if (func.aggregate == AggrKind::kToSet) {
@@ -624,7 +627,7 @@ std::shared_ptr<IContextColumn> apply_reduce(
       }
       return vertex_to_set(var, to_aggregate);
     } else {
-      LOG(FATAL) << "not support" << (int) var.type().type_enum_;
+      LOG(FATAL) << "not support" << (int) var.type();
     }
   } else if (func.aggregate == AggrKind::kCountDistinct) {
     if (func.vars.size() == 1 && func.vars[0].type() == RTAnyType::kVertex) {
@@ -651,7 +654,7 @@ std::shared_ptr<IContextColumn> apply_reduce(
     } else if (var.type() == RTAnyType::kTimestamp) {
       return general_first<Date>(var, to_aggregate);
     } else {
-      LOG(FATAL) << "not support" << static_cast<int>(var.type().type_enum_);
+      LOG(FATAL) << "not support" << static_cast<int>(var.type());
     }
   } else if (func.aggregate == AggrKind::kMin) {
     if (func.vars.size() != 1) {
@@ -693,7 +696,7 @@ std::shared_ptr<IContextColumn> apply_reduce(
     } else if (var.type() == RTAnyType::kI32Value) {
       return value_to_list<int32_t>(var, to_aggregate);
     } else {
-      LOG(FATAL) << "not support" << static_cast<int>(var.type().type_enum_);
+      LOG(FATAL) << "not support" << static_cast<int>(var.type());
     }
   } else if (func.aggregate == AggrKind::kAvg) {
     if (func.vars.size() != 1) {

@@ -858,6 +858,7 @@ class ToFloatExpr : public ExprBase {
       LOG(FATAL) << "invalid type";
     }
   }
+
   ToFloatExpr(std::unique_ptr<ExprBase>&& args) : args(std::move(args)) {}
   RTAny eval_path(size_t idx) const override {
     auto val = args->eval_path(idx);
@@ -889,6 +890,7 @@ class ToFloatExpr : public ExprBase {
  private:
   std::unique_ptr<ExprBase> args;
 };
+
 std::unique_ptr<ExprBase> parse_expression(
     const GraphReadInterface& graph, const Context& ctx,
     const std::map<std::string, std::string>& params,
