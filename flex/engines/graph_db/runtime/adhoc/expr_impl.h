@@ -369,6 +369,7 @@ class LogicalExpr : public ExprBase {
  private:
   std::unique_ptr<ExprBase> lhs_;
   std::unique_ptr<ExprBase> rhs_;
+  std::function<bool(RTAny, RTAny)> op_;
   common::Logical logic_;
 };
 
@@ -476,6 +477,7 @@ class ArithExpr : public ExprBase {
  private:
   std::unique_ptr<ExprBase> lhs_;
   std::unique_ptr<ExprBase> rhs_;
+  std::function<RTAny(RTAny, RTAny)> op_;
   common::Arithmetic arith_;
 };
 
