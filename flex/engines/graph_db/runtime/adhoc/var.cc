@@ -67,8 +67,7 @@ Var::Var(const GraphReadInterface& graph, const Context& ctx,
               getter_ = std::make_shared<VertexIdPathAccessor<int64_t>>(
                   graph, ctx, tag);
             } else {
-              LOG(FATAL) << "not support for "
-                         << static_cast<int>(type_.type_enum_);
+              LOG(FATAL) << "not support for " << static_cast<int>(type_);
             }
           } else {
             getter_ = create_vertex_property_path_accessor(
@@ -138,8 +137,7 @@ Var::Var(const GraphReadInterface& graph, const Context& ctx,
               getter_ =
                   std::make_shared<VertexIdVertexAccessor<int64_t>>(graph);
             } else {
-              LOG(FATAL) << "not support for "
-                         << static_cast<int>(type_.type_enum_);
+              LOG(FATAL) << "not support for " << static_cast<int>(type_);
             }
           } else {
             getter_ = create_vertex_property_vertex_accessor(graph, type_,

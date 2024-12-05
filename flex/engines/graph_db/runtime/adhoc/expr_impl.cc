@@ -389,21 +389,15 @@ RTAny CaseWhenExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
 }
 
 RTAnyType CaseWhenExpr::type() const {
-  RTAnyType type;
-  bool null_able = false;
+  RTAnyType type(RTAnyType::kNull);
   if (when_then_exprs_.size() > 0) {
-    if (when_then_exprs_[0].second->type() == RTAnyType::kNull) {
-      null_able = true;
-    } else {
+    if (when_then_exprs_[0].second->type() != RTAnyType::kNull) {
       type = when_then_exprs_[0].second->type();
     }
   }
-  if (else_expr_->type() == RTAnyType::kNull) {
-    null_able = true;
-  } else {
+  if (else_expr_->type() != RTAnyType::kNull) {
     type = else_expr_->type();
   }
-  type.null_able_ = null_able;
   return type;
 }
 
@@ -463,14 +457,17 @@ template <size_t N, size_t I, typename... Args>
 struct TypedTupleBuilder {
   std::unique_ptr<ExprBase> build_typed_tuple(
       std::array<std::unique_ptr<ExprBase>, N>&& exprs) {
-    switch (exprs[I - 1]->type().type_enum_) {
-    case RTAnyType::RTAnyTypeImpl::kI32Value:
+    switch (exprs[I - 1]->type()) {
+    case RTAnyType::kI32Value:
       return TypedTupleBuilder<N, I - 1, int, Args...>().build_typed_tuple(
           std::move(exprs));
-    case RTAnyType::RTAnyTypeImpl::kI64Value:
+    case RTAnyType::kI64Value:
       return TypedTupleBuilder<N, I - 1, int64_t, Args...>().build_typed_tuple(
           std::move(exprs));
-    case RTAnyType::RTAnyTypeImpl::kStringValue:
+    case RTAnyType::kF64Value:
+      return TypedTupleBuilder<N, I - 1, double, Args...>().build_typed_tuple(
+          std::move(exprs));
+    case RTAnyType::kStringValue:
       return TypedTupleBuilder<N, I - 1, std::string_view, Args...>()
           .build_typed_tuple(std::move(exprs));
     default:
@@ -495,7 +492,6 @@ static RTAny parse_param(const common::DynamicParam& param,
     const std::string& name = param.name();
     if (dt == common::DataType::DATE32) {
       Day val = Day(std::stoll(input.at(name)));
-
       return RTAny::from_date32(val);
     } else if (dt == common::DataType::STRING) {
       const std::string& val = input.at(name);
@@ -509,6 +505,9 @@ static RTAny parse_param(const common::DynamicParam& param,
     } else if (dt == common::DataType::TIMESTAMP) {
       Date val = Date(std::stoll(input.at(name)));
       return RTAny::from_timestamp(val);
+    } else if (dt == common::DataType::DOUBLE) {
+      double val = std::stod(input.at(name));
+      return RTAny::from_double(val);
     }
 
     LOG(FATAL) << "not support type: " << common::DataType_Name(dt);
@@ -570,10 +569,12 @@ static inline int get_proiority(const common::ExprOpr& opr) {
   }
   return 16;
 }
+
 static std::unique_ptr<ExprBase> parse_expression_impl(
     const GraphReadInterface& graph, const Context& ctx,
     const std::map<std::string, std::string>& params,
     const common::Expression& expr, VarType var_type);
+
 static std::unique_ptr<ExprBase> build_expr(
     const GraphReadInterface& graph, const Context& ctx,
     const std::map<std::string, std::string>& params,
@@ -685,7 +686,7 @@ static std::unique_ptr<ExprBase> build_expr(
         return std::make_unique<ExtractExpr<Date>>(std::move(hs),
                                                    opr.extract());
       } else {
-        LOG(FATAL) << "not support" << static_cast<int>(hs->type().type_enum_);
+        LOG(FATAL) << "not support" << static_cast<int>(hs->type());
       }
     }
     case common::ExprOpr::kVars: {

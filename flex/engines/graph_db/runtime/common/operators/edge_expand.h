@@ -272,6 +272,16 @@ class EdgeExpand {
             graph, std::move(ctx), params,
             dynamic_cast<const EdgePropertyLTPredicate<int>&>(pred));
       }
+    } else if (pred.data_type() == RTAnyType::kF64Value) {
+      if (pred.type() == SPEdgePredicateType::kPropertyGT) {
+        return expand_edge<EdgePropertyGTPredicate<double>>(
+            graph, std::move(ctx), params,
+            dynamic_cast<const EdgePropertyGTPredicate<double>&>(pred));
+      } else if (pred.type() == SPEdgePredicateType::kPropertyLT) {
+        return expand_edge<EdgePropertyLTPredicate<double>>(
+            graph, std::move(ctx), params,
+            dynamic_cast<const EdgePropertyLTPredicate<double>&>(pred));
+      }
     }
     LOG(FATAL) << "not impl";
     return Context();

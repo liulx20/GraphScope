@@ -246,8 +246,6 @@ static Context intersect_impl(Context&& ctx, std::vector<Context>&& ctxs,
           *(std::dynamic_pointer_cast<IVertexColumn>(ctxs[0].get(key)));
       auto& vlist1 =
           *(std::dynamic_pointer_cast<IVertexColumn>(ctxs[1].get(key)));
-      //      LOG(INFO) << vlist0.size() << " " << vlist1.size();
-      //      LOG(INFO) << vlist0.is_optional() << " " << vlist1.is_optional();
       if (!vlist0.is_optional() && vlist1.is_optional()) {
         return left_outer_intersect(std::move(ctx), std::move(ctxs[0]),
                                     std::move(ctxs[1]), key);
@@ -278,47 +276,36 @@ static Context intersect_impl(Context&& ctx, std::vector<Context>&& ctxs,
         if (vec1[i].empty() || vec0[i].empty()) {
           continue;
         }
-        if (((vec0.size() < 4 && vec1.size() < 4) || vec0.size() <= 2 ||
-             vec1.size() <= 2)) {
+
+        if (vec0.size() < vec1.size()) {
+          phmap::flat_hash_map<VertexRecord, std::vector<size_t>,
+                               VertexRecordHash>
+              left_map;
           for (auto& j : vec0[i]) {
-            for (auto& k : vec1[i]) {
-              if (vlist0.get_vertex(j) == vlist1.get_vertex(k)) {
-                shuffle_offsets.push_back(j);
+            left_map[vlist0.get_vertex(j)].push_back(j);
+          }
+          for (auto& k : vec1[i]) {
+            auto iter = left_map.find(vlist1.get_vertex(k));
+            if (iter != left_map.end()) {
+              for (auto& idx : iter->second) {
+                shuffle_offsets.push_back(idx);
                 shuffle_offsets_1.push_back(k);
               }
             }
           }
         } else {
-          if (vec0.size() < vec1.size()) {
-            phmap::flat_hash_map<VertexRecord, std::vector<size_t>,
-                                 VertexRecordHash>
-                left_map;
-            for (auto& j : vec0[i]) {
-              left_map[vlist0.get_vertex(j)].push_back(j);
-            }
-            for (auto& k : vec1[i]) {
-              auto iter = left_map.find(vlist1.get_vertex(k));
-              if (iter != left_map.end()) {
-                for (auto& idx : iter->second) {
-                  shuffle_offsets.push_back(idx);
-                  shuffle_offsets_1.push_back(k);
-                }
-              }
-            }
-          } else {
-            phmap::flat_hash_map<VertexRecord, std::vector<size_t>,
-                                 VertexRecordHash>
-                right_map;
-            for (auto& k : vec1[i]) {
-              right_map[vlist1.get_vertex(k)].push_back(k);
-            }
-            for (auto& j : vec0[i]) {
-              auto iter = right_map.find(vlist0.get_vertex(j));
-              if (iter != right_map.end()) {
-                for (auto& idx : iter->second) {
-                  shuffle_offsets.push_back(j);
-                  shuffle_offsets_1.push_back(idx);
-                }
+          phmap::flat_hash_map<VertexRecord, std::vector<size_t>,
+                               VertexRecordHash>
+              right_map;
+          for (auto& k : vec1[i]) {
+            right_map[vlist1.get_vertex(k)].push_back(k);
+          }
+          for (auto& j : vec0[i]) {
+            auto iter = right_map.find(vlist0.get_vertex(j));
+            if (iter != right_map.end()) {
+              for (auto& idx : iter->second) {
+                shuffle_offsets.push_back(j);
+                shuffle_offsets_1.push_back(idx);
               }
             }
           }

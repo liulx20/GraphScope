@@ -639,7 +639,6 @@ class OptionalValueColumn : public IValueColumn<T> {
 
   inline RTAnyType elem_type() const override {
     auto type = TypedConverter<T>::type();
-    type.null_able_ = true;
     return type;
   }
   inline RTAny get_elem(size_t idx) const override {
@@ -715,7 +714,6 @@ class OptionalValueColumn<std::string_view>
       const std::vector<size_t>& offsets) const override;
   RTAnyType elem_type() const override {
     auto type = RTAnyType::kStringValue;
-    type.null_able_ = true;
     return type;
   }
   inline RTAny get_elem(size_t idx) const override {

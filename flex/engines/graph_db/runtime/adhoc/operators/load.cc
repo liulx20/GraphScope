@@ -47,8 +47,6 @@ WriteContext eval_load(const cypher::Load& opr, GraphInsertInterface& graph,
         const auto& prop_value = ctx.get(prop.column().index());
         properties[prop_idx] = prop_value;
       }
-
-      /// const auto& prop_name = prop.name();
     }
     for (int i = 0; i < ctx.row_num(); ++i) {
       std::vector<Any> props;
