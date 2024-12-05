@@ -483,7 +483,7 @@ class MultiPropsEdgePropertyPathAccessor : public IAccessor {
     const auto& e = col_.get_edge(idx);
     auto val = e.prop_;
     auto id = get_index(e.label_triplet_);
-    if (e.prop_.type.type_enum_ != RTAnyType::RTAnyTypeImpl::kRecordView) {
+    if (e.prop_.type != RTAnyType::kRecordView) {
       assert(id == 0);
       return RTAny(val);
     } else {
@@ -498,7 +498,7 @@ class MultiPropsEdgePropertyPathAccessor : public IAccessor {
     auto val = e.prop_;
     auto id = get_index(e.label_triplet_);
 
-    if (e.prop_.type.type_enum_ != RTAnyType::RTAnyTypeImpl::kRecordView) {
+    if (e.prop_.type != RTAnyType::kRecordView) {
       assert(id == 0);
       elem_t ret = e.prop_.as<elem_t>();
 

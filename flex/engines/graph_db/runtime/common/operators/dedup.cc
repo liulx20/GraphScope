@@ -30,16 +30,6 @@ void Dedup::dedup(const GraphReadInterface& graph, Context& ctx,
   } else if (cols.size() == 2) {
     ISigColumn* sig0 = ctx.get(cols[0])->generate_signature();
     ISigColumn* sig1 = ctx.get(cols[1])->generate_signature();
-#if 0
-      std::set<std::pair<size_t, size_t>> sigset;
-      for (size_t r_i = 0; r_i < row_num; ++r_i) {
-        auto cur = std::make_pair(sig0->get_sig(r_i), sig1->get_sig(r_i));
-        if (sigset.find(cur) == sigset.end()) {
-          offsets.push_back(r_i);
-          sigset.insert(cur);
-        }
-      }
-#else
     std::vector<std::tuple<size_t, size_t, size_t>> list;
     for (size_t r_i = 0; r_i < row_num; ++r_i) {
       list.emplace_back(sig0->get_sig(r_i), sig1->get_sig(r_i), r_i);
@@ -56,7 +46,6 @@ void Dedup::dedup(const GraphReadInterface& graph, Context& ctx,
       }
       std::sort(offsets.begin(), offsets.end());
     }
-#endif
     delete sig0;
     delete sig1;
   } else if (cols.size() == 3) {
