@@ -50,127 +50,72 @@ RTAnyType VariableExpr::type() const { return var_.type(); }
 
 LogicalExpr::LogicalExpr(std::unique_ptr<ExprBase>&& lhs,
                          std::unique_ptr<ExprBase>&& rhs, common::Logical logic)
-    : lhs_(std::move(lhs)), rhs_(std::move(rhs)), logic_(logic) {}
+    : lhs_(std::move(lhs)), rhs_(std::move(rhs)), logic_(logic) {
+  switch (logic) {
+  case common::Logical::LT: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return lhs < rhs; };
+    break;
+  }
+  case common::Logical::GT: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return rhs < lhs; };
+    break;
+  }
+  case common::Logical::GE: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return !(lhs < rhs); };
+    break;
+  }
+  case common::Logical::LE: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return !(rhs < lhs); };
+    break;
+  }
+  case common::Logical::EQ: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return lhs == rhs; };
+    break;
+  }
+  case common::Logical::NE: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return !(lhs == rhs); };
+    break;
+  }
+  case common::Logical::AND: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) {
+      return lhs.as_bool() && rhs.as_bool();
+    };
+    break;
+  }
+  case common::Logical::OR: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) {
+      return lhs.as_bool() || rhs.as_bool();
+    };
+    break;
+  }
+  case common::Logical::REGEX: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) {
+      auto lhs_str = std::string(lhs.as_string());
+      auto rhs_str = std::string(rhs.as_string());
+      return std::regex_match(lhs_str, std::regex(rhs_str));
+    };
+    break;
+  }
+  default: {
+    LOG(FATAL) << "not support..." << static_cast<int>(logic);
+    break;
+  }
+  }
+}
 
 RTAny LogicalExpr::eval_path(size_t idx) const {
-  if (logic_ == common::Logical::LT) {
-    bool ret = lhs_->eval_path(idx) < rhs_->eval_path(idx);
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::GT) {
-    bool ret = rhs_->eval_path(idx) < lhs_->eval_path(idx);
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::GE) {
-    bool ret = lhs_->eval_path(idx) < rhs_->eval_path(idx);
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::LE) {
-    bool ret = rhs_->eval_path(idx) < lhs_->eval_path(idx);
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::EQ) {
-    bool ret = (rhs_->eval_path(idx) == lhs_->eval_path(idx));
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::NE) {
-    bool ret = (rhs_->eval_path(idx) == lhs_->eval_path(idx));
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::AND) {
-    bool ret =
-        (rhs_->eval_path(idx).as_bool() && lhs_->eval_path(idx).as_bool());
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::OR) {
-    bool ret =
-        (rhs_->eval_path(idx).as_bool() || lhs_->eval_path(idx).as_bool());
-    return RTAny::from_bool(ret);
-  } else {
-    LOG(FATAL) << "not support..." << static_cast<int>(logic_);
-  }
-  return RTAny::from_bool(false);
+  return RTAny::from_bool(op_(lhs_->eval_path(idx), rhs_->eval_path(idx)));
 }
 
 RTAny LogicalExpr::eval_vertex(label_t label, vid_t v, size_t idx) const {
-  if (logic_ == common::Logical::LT) {
-    bool ret =
-        lhs_->eval_vertex(label, v, idx) < rhs_->eval_vertex(label, v, idx);
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::GT) {
-    bool ret =
-        rhs_->eval_vertex(label, v, idx) < lhs_->eval_vertex(label, v, idx);
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::GE) {
-    bool ret =
-        lhs_->eval_vertex(label, v, idx) < rhs_->eval_vertex(label, v, idx);
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::LE) {
-    bool ret =
-        rhs_->eval_vertex(label, v, idx) < lhs_->eval_vertex(label, v, idx);
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::EQ) {
-    bool ret =
-        (rhs_->eval_vertex(label, v, idx) == lhs_->eval_vertex(label, v, idx));
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::NE) {
-    bool ret =
-        (rhs_->eval_vertex(label, v, idx) == lhs_->eval_vertex(label, v, idx));
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::AND) {
-    bool ret = (rhs_->eval_vertex(label, v, idx).as_bool() &&
-                lhs_->eval_vertex(label, v, idx).as_bool());
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::REGEX) {
-    std::string ret(lhs_->eval_vertex(label, v, idx).as_string());
-    std::string rhs(rhs_->eval_vertex(label, v, idx).as_string());
-    return RTAny::from_bool(std::regex_match(ret, std::regex(rhs)));
-
-  } else if (logic_ == common::Logical::OR) {
-    bool ret = (rhs_->eval_vertex(label, v, idx).as_bool() ||
-                lhs_->eval_vertex(label, v, idx).as_bool());
-    return RTAny::from_bool(ret);
-  } else {
-    LOG(FATAL) << "not support..." << static_cast<int>(logic_);
-  }
-  return RTAny::from_bool(false);
+  return RTAny::from_bool(
+      op_(lhs_->eval_vertex(label, v, idx), rhs_->eval_vertex(label, v, idx)));
 }
 
 RTAny LogicalExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
                              const Any& data, size_t idx) const {
-  if (logic_ == common::Logical::LT) {
-    bool ret = lhs_->eval_edge(label, src, dst, data, idx) <
-               rhs_->eval_edge(label, src, dst, data, idx);
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::GT) {
-    bool ret = rhs_->eval_edge(label, src, dst, data, idx) <
-               lhs_->eval_edge(label, src, dst, data, idx);
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::GE) {
-    bool ret = lhs_->eval_edge(label, src, dst, data, idx) <
-               rhs_->eval_edge(label, src, dst, data, idx);
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::LE) {
-    bool ret = rhs_->eval_edge(label, src, dst, data, idx) <
-               lhs_->eval_edge(label, src, dst, data, idx);
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::EQ) {
-    bool ret = (rhs_->eval_edge(label, src, dst, data, idx) ==
-                lhs_->eval_edge(label, src, dst, data, idx));
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::NE) {
-    bool ret = (rhs_->eval_edge(label, src, dst, data, idx) ==
-                lhs_->eval_edge(label, src, dst, data, idx));
-    return RTAny::from_bool(!ret);
-  } else if (logic_ == common::Logical::AND) {
-    bool ret = (rhs_->eval_edge(label, src, dst, data, idx).as_bool() &&
-                lhs_->eval_edge(label, src, dst, data, idx).as_bool());
-    return RTAny::from_bool(ret);
-  } else if (logic_ == common::Logical::REGEX) {
-    std::string ret(lhs_->eval_edge(label, src, dst, data, idx).as_string());
-    std::string rhs(rhs_->eval_edge(label, src, dst, data, idx).as_string());
-    return RTAny::from_bool(std::regex_match(ret, std::regex(rhs)));
-  } else if (logic_ == common::Logical::OR) {
-    bool ret = (rhs_->eval_edge(label, src, dst, data, idx).as_bool() ||
-                lhs_->eval_edge(label, src, dst, data, idx).as_bool());
-    return RTAny::from_bool(ret);
-  } else {
-    LOG(FATAL) << "not support..." << static_cast<int>(logic_);
-  }
-  return RTAny::from_bool(false);
+  return RTAny::from_bool(op_(lhs_->eval_edge(label, src, dst, data, idx),
+                              rhs_->eval_edge(label, src, dst, data, idx)));
 }
 
 RTAnyType LogicalExpr::type() const { return RTAnyType::kBoolValue; }
@@ -226,43 +171,45 @@ RTAnyType UnaryLogicalExpr::type() const { return RTAnyType::kBoolValue; }
 
 ArithExpr::ArithExpr(std::unique_ptr<ExprBase>&& lhs,
                      std::unique_ptr<ExprBase>&& rhs, common::Arithmetic arith)
-    : lhs_(std::move(lhs)), rhs_(std::move(rhs)), arith_(arith) {}
+    : lhs_(std::move(lhs)), rhs_(std::move(rhs)), arith_(arith) {
+  switch (arith_) {
+  case common::Arithmetic::ADD: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return lhs + rhs; };
+    break;
+  }
+  case common::Arithmetic::SUB: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return lhs - rhs; };
+    break;
+  }
+  case common::Arithmetic::DIV: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return lhs / rhs; };
+    break;
+  }
+  case common::Arithmetic::MOD: {
+    op_ = [](const RTAny& lhs, const RTAny& rhs) { return lhs % rhs; };
+    break;
+  }
+
+  default: {
+    LOG(FATAL) << "not support..." << static_cast<int>(arith);
+    break;
+  }
+  }
+}
 
 RTAny ArithExpr::eval_path(size_t idx) const {
-  switch (arith_) {
-  case common::Arithmetic::ADD:
-    return lhs_->eval_path(idx) + rhs_->eval_path(idx);
-  case common::Arithmetic::SUB:
-    return lhs_->eval_path(idx) - rhs_->eval_path(idx);
-  case common::Arithmetic::DIV:
-    return lhs_->eval_path(idx) / rhs_->eval_path(idx);
-  case common::Arithmetic::MOD:
-    return lhs_->eval_path(idx) % rhs_->eval_path(idx);
-  default:
-    LOG(FATAL) << "not support" << static_cast<int>(arith_);
-  }
-  return RTAny();
+  return op_(lhs_->eval_path(idx), rhs_->eval_path(idx));
 }
 
 RTAny ArithExpr::eval_vertex(label_t label, vid_t v, size_t idx) const {
-  switch (arith_) {
-  case common::Arithmetic::ADD:
-    return lhs_->eval_path(idx) + rhs_->eval_path(idx);
-  default:
-    LOG(FATAL) << "not support";
-  }
-  return RTAny();
+  return op_(lhs_->eval_vertex(label, v, idx),
+             rhs_->eval_vertex(label, v, idx));
 }
 
 RTAny ArithExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
                            const Any& data, size_t idx) const {
-  switch (arith_) {
-  case common::Arithmetic::ADD:
-    return lhs_->eval_path(idx) + rhs_->eval_path(idx);
-  default:
-    LOG(FATAL) << "not support";
-  }
-  return RTAny();
+  return op_(lhs_->eval_edge(label, src, dst, data, idx),
+             rhs_->eval_edge(label, src, dst, data, idx));
 }
 
 RTAnyType ArithExpr::type() const {
