@@ -37,7 +37,7 @@ struct PathExpandParams {
   Direction dir;
   int hop_lower;
   int hop_upper;
-  std::set<int> keep_cols;
+  // std::set<int> keep_cols;
 };
 
 struct ShortestPathParams {

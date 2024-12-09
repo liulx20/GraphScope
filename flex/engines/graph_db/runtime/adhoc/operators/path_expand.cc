@@ -46,11 +46,6 @@ Context eval_path_expand_v(const physical::PathExpand& opr,
   pep.dir = dir;
   pep.hop_lower = opr.hop_range().lower();
   pep.hop_upper = opr.hop_range().upper();
-  for (size_t ci = 0; ci < ctx.col_num(); ++ci) {
-    if (ctx.get(ci) != nullptr) {
-      pep.keep_cols.insert(ci);
-    }
-  }
   pep.start_tag = start_tag;
   pep.labels = parse_label_triplets(meta);
   if (opr.base().edge_expand().expand_opt() ==
@@ -91,11 +86,6 @@ Context eval_path_expand_p(const physical::PathExpand& opr,
   pep.dir = dir;
   pep.hop_lower = opr.hop_range().lower();
   pep.hop_upper = opr.hop_range().upper();
-  for (size_t ci = 0; ci < ctx.col_num(); ++ci) {
-    if (ctx.get(ci) != nullptr) {
-      pep.keep_cols.insert(ci);
-    }
-  }
   pep.start_tag = start_tag;
   pep.labels = parse_label_triplets(meta);
 

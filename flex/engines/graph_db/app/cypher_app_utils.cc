@@ -53,17 +53,15 @@ std::string decompress(const std::string& compressed) {
   strm.zalloc = Z_NULL;
   strm.zfree = Z_NULL;
   strm.opaque = Z_NULL;
-  strm.avail_in = compressed.size();  // 输入字节数
+  strm.avail_in = compressed.size();
   auto vec = base64_decode(compressed);
-  strm.next_in = vec.data();  // 输入数据
+  strm.next_in = vec.data();
 
-  // 初始化解压缩
   if (inflateInit(&strm) != Z_OK)
     return "";
 
   std::string result;
 
-  // 解压缩数据
   do {
     strm.avail_out = sizeof(buffer);
     strm.next_out = buffer;

@@ -13,34 +13,23 @@
  * limitations under the License.
  */
 
-#ifndef RUNTIME_COMMON_OPERATORS_SELECT_H_
-#define RUNTIME_COMMON_OPERATORS_SELECT_H_
-
-#include "flex/engines/graph_db/runtime/common/context.h"
+#include "flex/engines/graph_db/runtime/common/operators/unfold.h"
 
 namespace gs {
 
 namespace runtime {
 
-class Select {
- public:
-  template <typename PRED_T>
-  static Context select(Context&& ctx, const PRED_T& pred) {
-    size_t row_num = ctx.row_num();
-    std::vector<size_t> offsets;
-    for (size_t k = 0; k < row_num; ++k) {
-      if (pred(k)) {
-        offsets.push_back(k);
-      }
-    }
+Context Unfold::unfold(Context&& ctxs, int key, int alias) {
+  auto col = ctxs.get(key);
+  CHECK(col->elem_type() == RTAnyType::kList);
+  auto list_col = std::dynamic_pointer_cast<ListValueColumnBase>(col);
+  auto [ptr, offsets] = list_col->unfold();
 
-    ctx.reshuffle(offsets);
-    return ctx;
-  }
-};
+  ctxs.set_with_reshuffle(alias, ptr, offsets);
+
+  return ctxs;
+}
 
 }  // namespace runtime
 
 }  // namespace gs
-
-#endif  // RUNTIME_COMMON_OPERATORS_SELECT_H_

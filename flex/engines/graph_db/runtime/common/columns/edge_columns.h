@@ -15,6 +15,7 @@
 #ifndef RUNTIME_COMMON_COLUMNS_EDGE_COLUMNS_H_
 #define RUNTIME_COMMON_COLUMNS_EDGE_COLUMNS_H_
 
+#include "flex/engines/graph_db/runtime/common/columns/columns_utils.h"
 #include "flex/engines/graph_db/runtime/common/columns/i_context_column.h"
 #include "flex/utils/property/column.h"
 
@@ -151,26 +152,7 @@ class SDSLEdgeColumn : public IEdgeColumn {
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     // TODO: dedup with property value
-    std::vector<size_t> origin_offsets(size());
-    for (size_t i = 0; i < size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                auto& e1 = edges_[a];
-                auto& e2 = edges_[b];
-                if (e1.first == e2.first) {
-                  return e1.second < e2.second;
-                }
-                return e1.first < e2.first;
-              });
-
-    for (size_t i = 0; i < size(); ++i) {
-      if (i == 0 ||
-          edges_[origin_offsets[i]] != edges_[origin_offsets[i - 1]]) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(edges_, size(), offsets);
   }
 
   ISigColumn* generate_signature() const override {
@@ -200,18 +182,10 @@ class SDSLEdgeColumn : public IEdgeColumn {
 
   template <typename FUNC_T>
   void foreach_edge(const FUNC_T& func) const {
-    if (prop_type_ == PropertyType::kEmpty) {
-      size_t idx = 0;
-      for (auto& e : edges_) {
-        func(idx++, label_, e.first, e.second, EdgeData(grape::EmptyType()),
-             dir_);
-      }
-    } else {
-      size_t idx = 0;
-      for (auto& e : edges_) {
-        func(idx, label_, e.first, e.second, prop_col_->get(idx), dir_);
-        ++idx;
-      }
+    size_t idx = 0;
+    for (auto& e : edges_) {
+      func(idx, label_, e.first, e.second, prop_col_->get(idx), dir_);
+      ++idx;
     }
   }
 
@@ -254,26 +228,7 @@ class OptionalSDSLEdgeColumn : public IEdgeColumn {
   size_t size() const override { return edges_.size(); }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(size());
-    for (size_t i = 0; i < size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                auto& e1 = edges_[a];
-                auto& e2 = edges_[b];
-                if (e1.first == e2.first) {
-                  return e1.second < e2.second;
-                }
-                return e1.first < e2.first;
-              });
-
-    for (size_t i = 0; i < size(); ++i) {
-      if (i == 0 ||
-          edges_[origin_offsets[i]] != edges_[origin_offsets[i - 1]]) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(edges_, size(), offsets);
   }
 
   std::shared_ptr<IContextColumnBuilder> builder() const override {
@@ -305,18 +260,10 @@ class OptionalSDSLEdgeColumn : public IEdgeColumn {
 
   template <typename FUNC_T>
   void foreach_edge(const FUNC_T& func) const {
-    if (prop_type_ == PropertyType::kEmpty) {
-      size_t idx = 0;
-      for (auto& e : edges_) {
-        func(idx++, label_, e.first, e.second, EdgeData(grape::EmptyType()),
-             dir_);
-      }
-    } else {
-      size_t idx = 0;
-      for (auto& e : edges_) {
-        func(idx, label_, e.first, e.second, prop_col_->get(idx), dir_);
-        ++idx;
-      }
+    size_t idx = 0;
+    for (auto& e : edges_) {
+      func(idx, label_, e.first, e.second, prop_col_->get(idx), dir_);
+      ++idx;
     }
   }
 
@@ -327,10 +274,7 @@ class OptionalSDSLEdgeColumn : public IEdgeColumn {
            edges_[idx].second != std::numeric_limits<vid_t>::max();
   }
 
-  std::vector<LabelTriplet> get_labels() const override {
-    // LOG(INFO) << "get_labels: " << label_.to_string() << std::endl;
-    return {label_};
-  }
+  std::vector<LabelTriplet> get_labels() const override { return {label_}; }
 
   EdgeColumnType edge_column_type() const override {
     return EdgeColumnType::kSDSL;
@@ -509,10 +453,7 @@ class OptionalBDSLEdgeColumn : public IEdgeColumn {
            std::get<1>(edges_[idx]) != std::numeric_limits<vid_t>::max();
   }
 
-  std::vector<LabelTriplet> get_labels() const override {
-    //    LOG(INFO) << "get_labels: " << label_.to_string() << std::endl;
-    return {label_};
-  }
+  std::vector<LabelTriplet> get_labels() const override { return {label_}; }
 
   EdgeColumnType edge_column_type() const override {
     return EdgeColumnType::kBDSL;

@@ -564,6 +564,13 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
       }
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kSink: {
+      auto sink = opr.opr().sink();
+      int tags_size = sink.tags_size();
+      std::vector<int> tags;
+      for (int i = 0; i < tags_size; ++i) {
+        tags.emplace_back(sink.tags(i).tag().value());
+      }
+      ret.tag_ids = std::move(tags);
       terminate = true;
     } break;
     case physical::PhysicalOpr_Operator::OpKindCase::kRoot: {

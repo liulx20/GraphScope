@@ -140,14 +140,14 @@ Context eval_order_by(const algebra::OrderBy& opr,
 
   if (!staged_order_by) {
     tx.start();
-    OrderBy::order_by_with_limit<GeneralComparer>(graph, ctx, cmp, lower,
-                                                  upper);
+    ctx = OrderBy::order_by_with_limit<GeneralComparer>(graph, std::move(ctx),
+                                                        cmp, lower, upper);
     timer.record_routine("order_by::order_by_with_limit", tx);
   } else {
     CHECK_GE(picked_indices.size(), upper);
     tx.start();
-    OrderBy::staged_order_by_with_limit<GeneralComparer>(graph, ctx, cmp, lower,
-                                                         upper, picked_indices);
+    ctx = OrderBy::staged_order_by_with_limit<GeneralComparer>(
+        graph, std::move(ctx), cmp, lower, upper, picked_indices);
     timer.record_routine("order_by::staged_order_by_with_limit", tx);
   }
   timer.record_routine(staged_order_by ? "order_by_staged" : "order_by_normal",

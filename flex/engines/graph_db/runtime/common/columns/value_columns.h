@@ -16,6 +16,7 @@
 #ifndef RUNTIME_COMMON_COLUMNS_VALUE_COLUMNS_H_
 #define RUNTIME_COMMON_COLUMNS_VALUE_COLUMNS_H_
 
+#include "flex/engines/graph_db/runtime/common/columns/columns_utils.h"
 #include "flex/engines/graph_db/runtime/common/columns/i_context_column.h"
 #include "flex/engines/graph_db/runtime/common/columns/vertex_columns.h"
 #include "flex/engines/graph_db/runtime/common/rt_any.h"
@@ -95,25 +96,7 @@ class ValueColumn : public IValueColumn<T> {
   }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                // data_[a] == data_[b]
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    for (size_t i = 0; i < data_.size(); ++i) {
-      if (i == 0 ||
-          ((data_[origin_offsets[i]] < data_[origin_offsets[i - 1]]) ||
-           (data_[origin_offsets[i - 1]] < data_[origin_offsets[i]]))) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
   std::shared_ptr<IContextColumn> union_col(
@@ -166,22 +149,7 @@ class ValueColumn<std::string_view> : public IValueColumn<std::string_view> {
   }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    for (size_t i = 0; i < data_.size(); ++i) {
-      if (i == 0 || data_[origin_offsets[i]] != data_[origin_offsets[i - 1]]) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
  private:
@@ -260,25 +228,7 @@ class ListValueColumn : public ListValueColumnBase {
   }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                // data_[a] == data_[b]
-                if (!(data_[a] < data_[b]) && !(data_[b] < data_[a])) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    for (size_t i = 0; i < data_.size(); ++i) {
-      if (i == 0 ||
-          ((data_[origin_offsets[i]] < data_[origin_offsets[i - 1]]) ||
-           (data_[origin_offsets[i - 1]] < data_[origin_offsets[i]]))) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
   std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>> unfold()
@@ -416,23 +366,7 @@ class SetValueColumn : public IValueColumn<Set> {
   }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    for (size_t i = 0; i < data_.size(); ++i) {
-      if (i == 0 ||
-          (!(data_[origin_offsets[i - 1]] == data_[origin_offsets[i]]))) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
  private:
@@ -651,23 +585,7 @@ class OptionalValueColumn : public IValueColumn<T> {
   }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    for (size_t i = 0; i < data_.size(); ++i) {
-      if (i == 0 ||
-          (!(data_[origin_offsets[i - 1]] == data_[origin_offsets[i]]))) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
   bool has_value(size_t idx) const override { return valid_[idx]; }
@@ -722,22 +640,7 @@ class OptionalValueColumn<std::string_view>
   }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    for (size_t i = 0; i < data_.size(); ++i) {
-      if (i == 0 || data_[origin_offsets[i]] != data_[origin_offsets[i - 1]]) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
   bool has_value(size_t idx) const override { return valid_[idx]; }

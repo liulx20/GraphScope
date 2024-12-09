@@ -13,17 +13,13 @@
  * limitations under the License.
  */
 
+#include "flex/engines/graph_db/runtime/common/operators/union.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 
 namespace gs {
 namespace runtime {
 Context eval_union(std::vector<Context>&& ctxs) {
-  CHECK(ctxs.size() == 2);
-  auto& ctx0 = ctxs[0];
-  auto& ctx1 = ctxs[1];
-  CHECK(ctx0.columns.size() == ctx1.columns.size());
-
-  return ctx0.union_ctx(ctx1);
+  return Union::union_op(std::move(ctxs));
 }
 }  // namespace runtime
 }  // namespace gs

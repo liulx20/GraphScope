@@ -156,16 +156,16 @@ typename ValueTypeExtractor<std::tuple<Ts...>>::type invokeTuple(
 class OrderBy {
  public:
   template <typename Comparer>
-  static void order_by_with_limit(const GraphReadInterface& graph, Context& ctx,
-                                  const Comparer& cmp, size_t low,
-                                  size_t high) {
+  static Context order_by_with_limit(const GraphReadInterface& graph,
+                                     Context&& ctx, const Comparer& cmp,
+                                     size_t low, size_t high) {
     if (low == 0 && high >= ctx.row_num()) {
       std::vector<size_t> offsets(ctx.row_num());
       std::iota(offsets.begin(), offsets.end(), 0);
       std::sort(offsets.begin(), offsets.end(),
                 [&](size_t lhs, size_t rhs) { return cmp(lhs, rhs); });
       ctx.reshuffle(offsets);
-      return;
+      return ctx;
     }
     size_t row_num = ctx.row_num();
     std::priority_queue<size_t, std::vector<size_t>, Comparer> queue(cmp);
@@ -188,13 +188,13 @@ class OrderBy {
     }
 
     ctx.reshuffle(offsets);
+    return ctx;
   }
 
   template <typename Comparer>
-  static void staged_order_by_with_limit(const GraphReadInterface& graph,
-                                         Context& ctx, const Comparer& cmp,
-                                         size_t low, size_t high,
-                                         const std::vector<size_t>& indices) {
+  static Context staged_order_by_with_limit(
+      const GraphReadInterface& graph, Context&& ctx, const Comparer& cmp,
+      size_t low, size_t high, const std::vector<size_t>& indices) {
     std::priority_queue<size_t, std::vector<size_t>, Comparer> queue(cmp);
     for (auto i : indices) {
       queue.push(i);
@@ -215,13 +215,14 @@ class OrderBy {
     }
 
     ctx.reshuffle(offsets);
+    return ctx;
   }
 
   template <typename... Args>
-  static void order_by_with_limit_beta(const GraphReadInterface& graph,
-                                       Context& ctx,
-                                       const std::tuple<Args...>& keys,
-                                       size_t low, size_t high) {
+  static Context order_by_with_limit_beta(const GraphReadInterface& graph,
+                                          Context&& ctx,
+                                          const std::tuple<Args...>& keys,
+                                          size_t low, size_t high) {
     size_t row_num = ctx.row_num();
     using value_t = typename ValueTypeExtractor<std::tuple<Args...>>::type;
     std::priority_queue<std::pair<value_t, size_t>,
@@ -247,6 +248,7 @@ class OrderBy {
     }
 
     ctx.reshuffle(offsets);
+    return ctx;
   }
 };
 
