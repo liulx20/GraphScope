@@ -107,9 +107,6 @@ static Context expand_edge_without_predicate_optional_impl(
     } else if (params.dir == Direction::kOut) {
       auto& input_vertex_list =
           *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.v_tag));
-      //      LOG(INFO) << "input vertex size: " << input_vertex_list.size() <<
-      //      " "
-      //              << input_vertex_list.is_optional();
       CHECK(!input_vertex_list.is_optional())
           << "not support optional vertex column as input currently";
       auto& triplet = params.labels[0];

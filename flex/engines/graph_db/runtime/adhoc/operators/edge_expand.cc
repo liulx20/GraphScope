@@ -145,8 +145,6 @@ Context eval_edge_expand(const physical::EdgeExpand& opr,
 
   Direction dir = parse_direction(opr.direction());
   bool is_optional = opr.is_optional();
-  //  LOG(INFO) << opr.DebugString() << " \n row num:" << ctx.row_num();
-  // CHECK(!is_optional);
 
   CHECK(opr.has_params());
   const algebra::QueryParams& query_params = opr.params();
@@ -273,9 +271,6 @@ bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
       return true;
     }
   }
-  return false;
-
-  // VLOG(1) << "direction of edge_expand is not consistent with vopt of get_v";
   return false;
 }
 

@@ -33,7 +33,6 @@ std::shared_ptr<IContextColumn> SDSLEdgeColumn::shuffle(
   if (prop_type_ == PropertyType::kEmpty) {
     for (auto off : offsets) {
       const auto& e = edges_[off];
-
       builder.push_back_endpoints(e.first, e.second);
     }
   } else {

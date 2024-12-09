@@ -380,80 +380,36 @@ class ExtractExpr : public ExprBase {
  public:
   ExtractExpr(std::unique_ptr<ExprBase>&& expr, const common::Extract& extract)
       : expr_(std::move(expr)), extract_(extract) {}
-
-  RTAny eval_path(size_t idx) const override {
+  int32_t eval_impl(const RTAny& val) const {
     if constexpr (std::is_same_v<T, int64_t>) {
-      int32_t val = extract_time_from_milli_second(
-          expr_->eval_path(idx).as_int64(), extract_);
-      return RTAny::from_int32(val);
+      return extract_time_from_milli_second(val.as_int64(), extract_);
     } else if constexpr (std::is_same_v<T, Date>) {
-      int32_t val = extract_time_from_milli_second(
-          expr_->eval_path(idx).as_timestamp().milli_second, extract_);
-      return RTAny::from_int32(val);
+      return extract_time_from_milli_second(val.as_timestamp().milli_second,
+                                            extract_);
+
     } else if constexpr (std::is_same_v<T, Day>) {
       if (extract_.interval() == common::Extract::DAY) {
-        return RTAny::from_int32(expr_->eval_path(idx).as_date32().day());
+        return val.as_date32().day();
       } else if (extract_.interval() == common::Extract::MONTH) {
-        return RTAny::from_int32(expr_->eval_path(idx).as_date32().month());
+        return val.as_date32().month();
       } else if (extract_.interval() == common::Extract::YEAR) {
-        return RTAny::from_int32(expr_->eval_path(idx).as_date32().year());
+        return val.as_date32().year();
       }
     }
     LOG(FATAL) << "not support" << extract_.DebugString();
-    return RTAny(RTAnyType::kNull);
+    return 0;
+  }
+
+  RTAny eval_path(size_t idx) const override {
+    return RTAny::from_int32(eval_impl(expr_->eval_path(idx)));
   }
   RTAny eval_vertex(label_t label, vid_t v, size_t idx) const override {
-    if constexpr (std::is_same_v<T, int64_t>) {
-      int32_t val = extract_time_from_milli_second(
-          expr_->eval_vertex(label, v, idx).as_int64(), extract_);
-      return RTAny::from_int32(val);
-    } else if constexpr (std::is_same_v<T, Date>) {
-      int32_t val = extract_time_from_milli_second(
-          expr_->eval_vertex(label, v, idx).as_timestamp().milli_second,
-          extract_);
-      return RTAny::from_int32(val);
-    } else if constexpr (std::is_same_v<T, Day>) {
-      if (extract_.interval() == common::Extract::DAY) {
-        return RTAny::from_int32(
-            expr_->eval_vertex(label, v, idx).as_date32().day());
-      } else if (extract_.interval() == common::Extract::MONTH) {
-        return RTAny::from_int32(
-            expr_->eval_vertex(label, v, idx).as_date32().month());
-      } else if (extract_.interval() == common::Extract::YEAR) {
-        return RTAny::from_int32(
-            expr_->eval_vertex(label, v, idx).as_date32().year());
-      }
-      LOG(FATAL) << "not support" << extract_.DebugString();
-      return RTAny(RTAnyType::kNull);
-    }
+    return RTAny::from_int32(eval_impl(expr_->eval_vertex(label, v, idx)));
   }
   RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
                   const Any& data, size_t idx) const override {
-    if constexpr (std::is_same_v<T, int64_t>) {
-      int32_t val = extract_time_from_milli_second(
-          expr_->eval_edge(label, src, dst, data, idx).as_int64(), extract_);
-      return RTAny::from_int32(val);
-    } else if constexpr (std::is_same_v<T, Date>) {
-      int32_t val = extract_time_from_milli_second(
-          expr_->eval_edge(label, src, dst, data, idx)
-              .as_timestamp()
-              .milli_second,
-          extract_);
-      return RTAny::from_int32(val);
-    } else if constexpr (std::is_same_v<T, Day>) {
-      if (extract_.interval() == common::Extract::DAY) {
-        return RTAny::from_int32(
-            expr_->eval_edge(label, src, dst, data, idx).as_date32().day());
-      } else if (extract_.interval() == common::Extract::MONTH) {
-        return RTAny::from_int32(
-            expr_->eval_edge(label, src, dst, data, idx).as_date32().month());
-      } else if (extract_.interval() == common::Extract::YEAR) {
-        return RTAny::from_int32(
-            expr_->eval_edge(label, src, dst, data, idx).as_date32().year());
-      }
-      LOG(FATAL) << "not support" << extract_.DebugString();
-      return RTAny(RTAnyType::kNull);
-    }
+    return RTAny::from_int32(
+        eval_impl(expr_->eval_edge(label, src, dst, data, idx)));
   }
 
   RTAnyType type() const override { return RTAnyType::kI32Value; }

@@ -40,14 +40,15 @@ Context eval_dedup(const algebra::Dedup& opr, const GraphReadInterface& graph,
       flag = true;
     } else {
       keys.push_back(tag);
+      vars.emplace_back(
+          [&ctx, tag](size_t i) { return ctx.get(tag)->get_elem(i); });
     }
   }
   if (!flag) {
     Dedup::dedup(graph, ctx, keys);
   } else {
-    Dedup::dedup(graph, ctx, keys, vars);
+    Dedup::dedup(graph, ctx, vars);
   }
-  //  LOG(INFO) << "dedup row num:" << ctx.row_num();
   return ctx;
 }
 

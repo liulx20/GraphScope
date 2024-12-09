@@ -684,7 +684,6 @@ WriteContext eval_project(const physical::Project& opr,
       pairs_cache;
   for (int i = 0; i < mappings_size; ++i) {
     const physical::Project_ExprAlias& m = opr.mappings(i);
-    // LOG(INFO) << "eval project: " << m.expr().DebugString();
     CHECK(m.has_alias());
     CHECK(m.has_expr());
     CHECK(m.expr().operators_size() == 1);

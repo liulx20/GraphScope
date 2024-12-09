@@ -478,9 +478,9 @@ static inline int get_proiority(const common::ExprOpr& opr) {
     case common::Logical::OR:
       return 12;
     case common::Logical::NOT:
-      return 2;
     case common::Logical::WITHIN:
     case common::Logical::WITHOUT:
+    case common::Logical::REGEX:
       return 2;
     case common::Logical::EQ:
     case common::Logical::NE:
@@ -490,8 +490,6 @@ static inline int get_proiority(const common::ExprOpr& opr) {
     case common::Logical::LT:
     case common::Logical::LE:
       return 6;
-    case common::Logical::REGEX:
-      return 2;
     default:
       return 16;
     }

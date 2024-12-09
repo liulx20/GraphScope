@@ -266,7 +266,7 @@ path_expand_vertex_without_predicate_impl(
       }
     }
   }
-  LOG(INFO) << "not implemented...";
+  LOG(FATAL) << "not implemented...";
   std::shared_ptr<IContextColumn> ret(nullptr);
   return std::make_pair(ret, std::vector<size_t>());
 }

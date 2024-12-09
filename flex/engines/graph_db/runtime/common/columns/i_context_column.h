@@ -76,7 +76,7 @@ class SigColumn<Day> : public ISigColumn {
   SigColumn(const std::vector<Day>& data) : data_(data.data()) {}
   ~SigColumn() = default;
   size_t get_sig(size_t idx) const override {
-    return static_cast<size_t>(data_[idx].to_u32());
+    return static_cast<size_t>(data_[idx].to_timestamp());
   }
 
  private:

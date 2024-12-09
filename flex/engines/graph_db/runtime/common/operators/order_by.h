@@ -160,10 +160,8 @@ class OrderBy {
                                   const Comparer& cmp, size_t low,
                                   size_t high) {
     if (low == 0 && high >= ctx.row_num()) {
-      std::vector<size_t> offsets;
-      for (size_t i = 0; i < ctx.row_num(); ++i) {
-        offsets.push_back(i);
-      }
+      std::vector<size_t> offsets(ctx.row_num());
+      std::iota(offsets.begin(), offsets.end(), 0);
       std::sort(offsets.begin(), offsets.end(),
                 [&](size_t lhs, size_t rhs) { return cmp(lhs, rhs); });
       ctx.reshuffle(offsets);
