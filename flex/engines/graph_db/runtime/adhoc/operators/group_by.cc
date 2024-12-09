@@ -621,7 +621,6 @@ std::shared_ptr<IContextColumn> apply_reduce(
       if (func.single_tag) {
         auto ret = typed_vertex_to_set(ctx.get(func.tag_id), to_aggregate);
         if (ret != nullptr) {
-          // LOG(INFO) << "hit reduce...";
           return ret;
         }
       }

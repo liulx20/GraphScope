@@ -31,7 +31,6 @@ class Dedup {
   static void dedup(const GraphReadInterface& graph, Context& ctx,
                     const std::vector<size_t>& cols);
   static void dedup(const GraphReadInterface& graph, Context& ctx,
-                    const std::vector<size_t>& cols,
                     const std::vector<std::function<RTAny(size_t)>>& vars);
 };
 

@@ -159,7 +159,6 @@ class GetV {
     if (column->edge_column_type() == EdgeColumnType::kSDSL) {
       auto& input_edge_list =
           *std::dynamic_pointer_cast<SDSLEdgeColumn>(column);
-      // label_t output_vertex_label = params.tables[0];
       label_t output_vertex_label{0};
       auto edge_label = input_edge_list.get_labels()[0];
 

@@ -111,8 +111,6 @@ WriteContext eval_load(const cypher::Load& opr, GraphInsertInterface& graph,
                       edge_label_id, prop_value.get(i).to_any(prop_type));
       }
     }
-
-    // LOG(FATAL) << opr.DebugString();
   }
   return ctx;
 }

@@ -28,7 +28,7 @@ Direction parse_direction(const physical::EdgeExpand_Direction& dir) {
   } else if (dir == physical::EdgeExpand_Direction_BOTH) {
     return Direction::kBoth;
   }
-  LOG(FATAL) << "not support...";
+  LOG(FATAL) << "not support..." << dir;
   return Direction::kOut;
 }
 

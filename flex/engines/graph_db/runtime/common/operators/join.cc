@@ -79,23 +79,6 @@ static Context single_vertex_column_inner_join(Context&& ctx, Context&& ctx2,
   size_t right_size = casted_right_col->size();
 
   if (left_size < right_size) {
-// std::map<VertexRecord, std::vector<size_t>> left_map;
-#if 0
-          phmap::flat_hash_map<VertexRecord, std::vector<size_t>, VertexRecordHash>
-              left_map;
-          for (size_t r_i = 0; r_i < left_size; ++r_i) {
-            left_map[casted_left_col->get_vertex(r_i)].emplace_back(r_i);
-          }
-          for (size_t r_i = 0; r_i < right_size; ++r_i) {
-            auto iter = left_map.find(casted_right_col->get_vertex(r_i));
-            if (iter != left_map.end()) {
-              for (auto idx : iter->second) {
-                left_offset.emplace_back(idx);
-                right_offset.emplace_back(r_i);
-              }
-            }
-          }
-#else
     phmap::flat_hash_set<VertexRecord, VertexRecordHash> left_set;
     phmap::flat_hash_map<VertexRecord, std::vector<size_t>, VertexRecordHash>
         right_map;
@@ -117,9 +100,7 @@ static Context single_vertex_column_inner_join(Context&& ctx, Context&& ctx2,
         }
       }
     }
-#endif
   } else {
-    // std::map<VertexRecord, std::vector<size_t>> right_map;
     phmap::flat_hash_set<VertexRecord, VertexRecordHash> right_set;
     phmap::flat_hash_map<VertexRecord, std::vector<size_t>, VertexRecordHash>
         left_map;
@@ -174,7 +155,6 @@ static Context dual_vertex_column_inner_join(Context&& ctx, Context&& ctx2,
   size_t right_size = casted_right_col->size();
 
   if (left_size < right_size) {
-    // std::map<VertexRecord, std::vector<size_t>> left_map;
     phmap::flat_hash_set<vertex_pair, VertexRecordHash> left_set;
     phmap::flat_hash_map<vertex_pair, std::vector<size_t>, VertexRecordHash>
         right_map;
@@ -203,7 +183,6 @@ static Context dual_vertex_column_inner_join(Context&& ctx, Context&& ctx2,
       }
     }
   } else {
-    // std::map<VertexRecord, std::vector<size_t>> right_map;
     phmap::flat_hash_map<vertex_pair, std::vector<size_t>, VertexRecordHash>
         right_map;
     for (size_t r_i = 0; r_i < right_size; ++r_i) {
@@ -408,7 +387,6 @@ static Context single_vertex_column_left_outer_join(Context&& ctx,
     }
 #endif
   } else {
-    // std::map<VertexRecord, std::vector<vid_t>> right_map;
     phmap::flat_hash_map<VertexRecord, std::vector<vid_t>, VertexRecordHash>
         right_map;
     if (left_size > 0) {

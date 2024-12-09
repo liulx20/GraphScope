@@ -24,8 +24,10 @@ Context eval_join(const GraphReadInterface& graph,
                   const std::map<std::string, std::string>& params,
                   const physical::Join& opr, Context&& ctx, Context&& ctx2) {
   JoinParams p;
-
+  CHECK(opr.left_keys().size() == opr.right_keys().size())
+      << "join keys size mismatch";
   auto left_keys = opr.left_keys();
+
   for (int i = 0; i < left_keys.size(); i++) {
     if (!left_keys.Get(i).has_tag()) {
       LOG(FATAL) << "left_keys should have tag";
