@@ -109,8 +109,6 @@ std::pair<std::shared_ptr<IContextColumn>, std::vector<std::vector<size_t>>>
 SLVertexColumn::generate_aggregate_offset() const {
   std::vector<std::vector<size_t>> offsets;
   SLVertexColumnBuilder builder(label());
-
-  // std::unordered_map<vid_t, size_t> vertex_to_offset;
   phmap::flat_hash_map<vid_t, size_t> vertex_to_offset;
   size_t idx = 0;
   for (auto v : vertices_) {
@@ -263,8 +261,6 @@ std::pair<std::shared_ptr<IContextColumn>, std::vector<std::vector<size_t>>>
 OptionalSLVertexColumn::generate_aggregate_offset() const {
   std::vector<std::vector<size_t>> offsets;
   OptionalSLVertexColumnBuilder builder(label_);
-
-  // std::unordered_map<vid_t, size_t> vertex_to_offset;
   phmap::flat_hash_map<vid_t, size_t> vertex_to_offset;
   size_t idx = 0;
   for (auto v : vertices_) {

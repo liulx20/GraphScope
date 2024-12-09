@@ -21,7 +21,6 @@ Context eval_union(std::vector<Context>&& ctxs) {
   CHECK(ctxs.size() == 2);
   auto& ctx0 = ctxs[0];
   auto& ctx1 = ctxs[1];
-  //  CHECK(ctx1.row_num() == 0);
   CHECK(ctx0.columns.size() == ctx1.columns.size());
 
   return ctx0.union_ctx(ctx1);

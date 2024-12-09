@@ -911,7 +911,6 @@ class BDMLEdgeColumnBuilder : public IContextColumnBuilder {
                             const EdgeData& data, Direction dir) {
     edges_.emplace_back(index, src, dst, prop_cols_[index]->size(),
                         dir == Direction::kOut);
-    // prop_cols_[index]->resize(prop_cols_[index]->size() + 1);
     set_edge_data(prop_cols_[index].get(), prop_cols_[index]->size(), data);
   }
 
@@ -974,9 +973,6 @@ class OptionalBDSLEdgeColumnBuilder : public IOptionalContextColumnBuilder {
   inline void push_back_null() override {
     edges_.emplace_back(std::numeric_limits<vid_t>::max(),
                         std::numeric_limits<vid_t>::max(), false);
-    /**if (edges_.size() >= prop_col_->size()) {
-      prop_col_->resize(edges_.size() * 2);
-    }*/
   }
 
   std::shared_ptr<IContextColumn> finish() override;

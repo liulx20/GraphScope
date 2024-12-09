@@ -527,7 +527,6 @@ union RTAnyValue {
   double f64_val;
   Day day;
   Date date;
-  // const std::vector<vid_t>* vset;
   const std::set<std::string>* str_set;
   std::string_view str_val;
   Path p;
@@ -567,6 +566,7 @@ class RTAny {
   static RTAny from_string_set(const std::set<std::string>& str_set);
   static RTAny from_date32(Day v);
   static RTAny from_timestamp(Date v);
+
   template <typename... Args>
   static RTAny from_tuple(std::tuple<Args...>&& tuple) {
     RTAny ret;

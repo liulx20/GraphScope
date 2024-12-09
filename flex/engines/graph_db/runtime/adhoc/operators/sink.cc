@@ -36,7 +36,6 @@ void eval_sink(const Context& ctx, const GraphReadInterface& graph,
       val.sink(graph, j, column);
     }
   }
-  // LOG(INFO) << "sink: " << results.DebugString();
   auto res = results.SerializeAsString();
   output.put_bytes(res.data(), res.size());
 }
