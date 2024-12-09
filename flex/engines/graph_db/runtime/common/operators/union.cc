@@ -19,18 +19,12 @@ namespace gs {
 
 namespace runtime {
 
-Context Union::union_op(Context&& ctx1, Context&& ctx2) {
-  CHECK(ctx1.col_num() == ctx2.col_num());
-  size_t col_num = ctx1.col_num();
-  Context ret;
-  for (size_t col_i = 0; col_i < col_num; ++col_i) {
-    if (ctx1.get(col_i) == nullptr) {
-      CHECK(ctx2.get(col_i) == nullptr);
-      continue;
-    }
-    ret.set(col_i, ctx1.get(col_i)->union_col(ctx2.get(col_i)));
-  }
-  return ret;
+Context Union::union_op(std::vector<Context>&& ctxs) {
+  CHECK(ctxs.size() == 2);
+  auto& ctx0 = ctxs[0];
+  auto& ctx1 = ctxs[1];
+  CHECK(ctx0.columns.size() == ctx1.columns.size());
+  return ctx0.union_ctx(ctx1);
 }
 
 }  // namespace runtime

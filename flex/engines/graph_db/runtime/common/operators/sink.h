@@ -24,7 +24,15 @@ namespace runtime {
 
 class Sink {
  public:
-  static void sink(const Context& ctx, Encoder& output);
+  static void sink(const Context& ctx, const GraphReadInterface& graph,
+                   Encoder& output);
+
+  static void sink_encoder(const Context& ctx, const GraphReadInterface& graph,
+                           Encoder& encoder);
+
+  // for debug
+  static void sink_beta(const Context& ctx, const GraphReadInterface& graph,
+                        Encoder& output);
 };
 
 }  // namespace runtime

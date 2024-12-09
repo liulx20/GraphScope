@@ -13,21 +13,15 @@
  * limitations under the License.
  */
 
+#include "flex/engines/graph_db/runtime/common/operators/unfold.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 
 namespace gs {
 namespace runtime {
 Context eval_unfold(const physical::Unfold& opr, Context&& ctx) {
   int key = opr.tag().value();
-  int alias = opr.alias().value();
-  auto col = ctx.get(key);
-  CHECK(col->elem_type() == RTAnyType::kList);
-  auto list_col = std::dynamic_pointer_cast<ListValueColumnBase>(col);
-  auto [ptr, offsets] = list_col->unfold();
-
-  ctx.set_with_reshuffle(alias, ptr, offsets);
-
-  return ctx;
+  int value = opr.alias().value();
+  return Unfold::unfold(std::move(ctx), key, value);
 }
 
 WriteContext eval_unfold(const physical::Unfold& opr, WriteContext&& ctx) {

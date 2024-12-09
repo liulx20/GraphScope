@@ -988,6 +988,7 @@ class EdgePropVec : public EdgePropVecBase {
 template <>
 class EdgePropVec<grape::EmptyType> : public EdgePropVecBase {
  public:
+  EdgePropVec() : size_(0) {}
   ~EdgePropVec() {}
   void push_back(const grape::EmptyType& val) { size_++; }
   void emplace_back(grape::EmptyType&& val) { size_++; }
