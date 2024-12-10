@@ -1,6 +1,6 @@
 #include "flex/engines/graph_db/app/adhoc_app.h"
 
-#include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
+#include "flex/engines/graph_db/runtime/adhoc/operators/retrieve/operators.h"
 
 #include "flex/proto_generated_gie/physical.pb.h"
 
