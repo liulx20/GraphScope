@@ -2,7 +2,6 @@
 #include "flex/engines/graph_db/app/cypher_app_utils.h"
 #include "flex/engines/graph_db/database/graph_db.h"
 
-#include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 
 namespace gs {

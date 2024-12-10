@@ -15,7 +15,8 @@
 #ifndef RUNTIME_ADHOC_RUNTIME_H_
 #define RUNTIME_ADHOC_RUNTIME_H_
 
-#include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
+#include "flex/engines/graph_db/runtime/adhoc/operators/retrieve/operators.h"
+#include "flex/engines/graph_db/runtime/adhoc/operators/update/operators.h"
 #include "flex/engines/graph_db/runtime/common/graph_interface.h"
 #include "flex/proto_generated_gie/physical.pb.h"
 

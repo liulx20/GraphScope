@@ -65,57 +65,6 @@ std::vector<LabelTriplet> parse_label_triplets(
   return labels;
 }
 
-std::shared_ptr<IContextColumn> create_column(
-    const common::IrDataType& data_type) {
-  switch (data_type.type_case()) {
-  case common::IrDataType::kDataType:
-    LOG(FATAL) << "not support";
-    break;
-  case common::IrDataType::kGraphType: {
-    const common::GraphDataType& graph_data_type = data_type.graph_type();
-    common::GraphDataType_GraphElementOpt elem_opt =
-        graph_data_type.element_opt();
-    int label_num = graph_data_type.graph_data_type_size();
-    if (elem_opt == common::GraphDataType_GraphElementOpt::
-                        GraphDataType_GraphElementOpt_VERTEX) {
-      if (label_num == 1) {
-        label_t v_label = static_cast<label_t>(
-            graph_data_type.graph_data_type(0).label().label());
-        return std::make_shared<SLVertexColumn>(v_label);
-      } else if (label_num > 1) {
-        return std::make_shared<MLVertexColumn>();
-      } else {
-        LOG(FATAL) << "unexpected type";
-      }
-    } else if (elem_opt == common::GraphDataType_GraphElementOpt::
-                               GraphDataType_GraphElementOpt_EDGE) {
-      LOG(FATAL) << "unexpected type";
-    } else {
-      LOG(FATAL) << "unexpected type";
-    }
-  } break;
-  default:
-    LOG(FATAL) << "unexpected type";
-    break;
-  }
-  return nullptr;
-}
-
-std::shared_ptr<IContextColumn> create_column_beta(RTAnyType type) {
-  switch (type) {
-  case RTAnyType::kI64Value:
-    return std::make_shared<ValueColumn<int64_t>>();
-  case RTAnyType::kStringValue:
-    return std::make_shared<ValueColumn<std::string_view>>();
-  case RTAnyType::kVertex:
-    return std::make_shared<MLVertexColumn>();
-  default:
-    LOG(FATAL) << "unsupport type: " << static_cast<int>(type);
-    break;
-  }
-  return nullptr;
-}
-
 std::shared_ptr<IContextColumnBuilder> create_column_builder(RTAnyType type) {
   switch (type) {
   case RTAnyType::kI64Value:
@@ -335,7 +284,6 @@ std::shared_ptr<IContextColumn> build_column(
         auto v = expr.eval_path(i).as_timestamp();
         builder.push_back_opt(v);
       }
-
       return builder.finish();
     } break;
     case common::DataType::BOOLEAN: {
@@ -392,7 +340,6 @@ std::shared_ptr<IContextColumn> build_column(
       }
     } else if (elem_opt == common::GraphDataType_GraphElementOpt::
                                GraphDataType_GraphElementOpt_EDGE) {
-      // LOG(FATAL) << "unexpected type";
       BDMLEdgeColumnBuilder builder;
       for (size_t i = 0; i < row_num; ++i) {
         builder.push_back_elem(expr.eval_path(i));
