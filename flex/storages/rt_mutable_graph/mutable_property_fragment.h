@@ -64,9 +64,13 @@ class MutablePropertyFragment {
 
   void Clear();
 
-  Table& get_vertex_table(label_t vertex_label);
+  inline Table& get_vertex_table(label_t vertex_label) {
+    return vertex_data_[vertex_label];
+  }
 
-  const Table& get_vertex_table(label_t vertex_label) const;
+  inline const Table& get_vertex_table(label_t vertex_label) const {
+    return vertex_data_[vertex_label];
+  }
 
   vid_t vertex_num(label_t vertex_label) const;
 
@@ -98,17 +102,33 @@ class MutablePropertyFragment {
                                                label_t neighbor_label,
                                                label_t edge_label) const;
 
-  CsrBase* get_oe_csr(label_t label, label_t neighbor_label,
-                      label_t edge_label);
+  inline CsrBase* get_oe_csr(label_t label, label_t neighbor_label,
+                             label_t edge_label) {
+    size_t index = label * vertex_label_num_ * edge_label_num_ +
+                   neighbor_label * edge_label_num_ + edge_label;
+    return oe_[index];
+  }
 
-  const CsrBase* get_oe_csr(label_t label, label_t neighbor_label,
-                            label_t edge_label) const;
+  inline const CsrBase* get_oe_csr(label_t label, label_t neighbor_label,
+                                   label_t edge_label) const {
+    size_t index = label * vertex_label_num_ * edge_label_num_ +
+                   neighbor_label * edge_label_num_ + edge_label;
+    return oe_[index];
+  }
 
-  CsrBase* get_ie_csr(label_t label, label_t neighbor_label,
-                      label_t edge_label);
+  inline CsrBase* get_ie_csr(label_t label, label_t neighbor_label,
+                             label_t edge_label) {
+    size_t index = neighbor_label * vertex_label_num_ * edge_label_num_ +
+                   label * edge_label_num_ + edge_label;
+    return ie_[index];
+  }
 
-  const CsrBase* get_ie_csr(label_t label, label_t neighbor_label,
-                            label_t edge_label) const;
+  inline const CsrBase* get_ie_csr(label_t label, label_t neighbor_label,
+                                   label_t edge_label) const {
+    size_t index = neighbor_label * vertex_label_num_ * edge_label_num_ +
+                   label * edge_label_num_ + edge_label;
+    return ie_[index];
+  }
 
   void loadSchema(const std::string& filename);
 

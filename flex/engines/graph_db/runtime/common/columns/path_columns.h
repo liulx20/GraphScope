@@ -45,11 +45,11 @@ class GeneralPathColumn : public IPathColumn {
  public:
   GeneralPathColumn() = default;
   ~GeneralPathColumn() {}
-  size_t size() const override { return data_.size(); }
+  inline size_t size() const override { return data_.size(); }
   std::string column_info() const override {
     return "GeneralPathColumn[" + std::to_string(size()) + "]";
   }
-  ContextColumnType column_type() const override {
+  inline ContextColumnType column_type() const override {
     return ContextColumnType::kPath;
   }
   std::shared_ptr<IContextColumn> shuffle(
@@ -57,9 +57,9 @@ class GeneralPathColumn : public IPathColumn {
 
   std::shared_ptr<IContextColumn> optional_shuffle(
       const std::vector<size_t>& offsets) const override;
-  RTAnyType elem_type() const override { return RTAnyType::kPath; }
-  RTAny get_elem(size_t idx) const override { return RTAny(data_[idx]); }
-  const Path& get_path(size_t idx) const override { return data_[idx]; }
+  inline RTAnyType elem_type() const override { return RTAnyType::kPath; }
+  inline RTAny get_elem(size_t idx) const override { return RTAny(data_[idx]); }
+  inline const Path& get_path(size_t idx) const override { return data_[idx]; }
   ISigColumn* generate_signature() const override {
     LOG(FATAL) << "not implemented for " << this->column_info();
     return nullptr;
@@ -110,8 +110,8 @@ class GeneralPathColumnBuilder : public IContextColumnBuilder {
  public:
   GeneralPathColumnBuilder() = default;
   ~GeneralPathColumnBuilder() = default;
-  void push_back_opt(const Path& p) { data_.push_back(p); }
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_opt(const Path& p) { data_.push_back(p); }
+  inline void push_back_elem(const RTAny& val) override {
     data_.push_back(val.as_path());
   }
   void reserve(size_t size) override { data_.reserve(size); }
@@ -136,25 +136,25 @@ class OptionalGeneralPathColumn : public IPathColumn {
  public:
   OptionalGeneralPathColumn() = default;
   ~OptionalGeneralPathColumn() {}
-  size_t size() const override { return data_.size(); }
+  inline size_t size() const override { return data_.size(); }
   std::string column_info() const override {
     return "OptionalGeneralPathColumn[" + std::to_string(size()) + "]";
   }
-  ContextColumnType column_type() const override {
+  inline ContextColumnType column_type() const override {
     return ContextColumnType::kPath;
   }
   std::shared_ptr<IContextColumn> shuffle(
       const std::vector<size_t>& offsets) const override;
-  bool is_optional() const override { return true; }
-  RTAnyType elem_type() const override { return RTAnyType::kPath; }
-  bool has_value(size_t idx) const override { return valids_[idx]; }
-  RTAny get_elem(size_t idx) const override {
+  inline bool is_optional() const override { return true; }
+  inline RTAnyType elem_type() const override { return RTAnyType::kPath; }
+  inline bool has_value(size_t idx) const override { return valids_[idx]; }
+  inline RTAny get_elem(size_t idx) const override {
     if (!valids_[idx]) {
       return RTAny(RTAnyType::kNull);
     }
     return RTAny(data_[idx]);
   }
-  const Path& get_path(size_t idx) const override { return data_[idx]; }
+  inline const Path& get_path(size_t idx) const override { return data_[idx]; }
   ISigColumn* generate_signature() const override {
     LOG(FATAL) << "not implemented for " << this->column_info();
     return nullptr;
@@ -207,15 +207,15 @@ class OptionalGeneralPathColumnBuilder : public IContextColumnBuilder {
  public:
   OptionalGeneralPathColumnBuilder() = default;
   ~OptionalGeneralPathColumnBuilder() = default;
-  void push_back_opt(const Path& p, bool valid) {
+  inline void push_back_opt(const Path& p, bool valid) {
     data_.push_back(p);
     valids_.push_back(valid);
   }
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_elem(const RTAny& val) override {
     data_.push_back(val.as_path());
     valids_.push_back(true);
   }
-  void push_back_null() {
+  inline void push_back_null() {
     data_.push_back(Path());
     valids_.push_back(false);
   }

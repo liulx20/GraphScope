@@ -21,8 +21,9 @@ namespace runtime {
 
 template <typename EDATA_T>
 struct DummyPredicate {
-  bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr_vid,
-                  label_t edge_label, Direction dir, const EDATA_T& ed) const {
+  inline bool operator()(label_t v_label, vid_t v, label_t nbr_label,
+                         vid_t nbr_vid, label_t edge_label, Direction dir,
+                         const EDATA_T& ed) const {
     return true;
   }
 };

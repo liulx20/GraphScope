@@ -31,7 +31,7 @@ struct GeneralPathPredicate {
                        const common::Expression& expr)
       : expr_(graph, ctx, params, expr, VarType::kPathVar) {}
 
-  bool operator()(size_t idx) const {
+  inline bool operator()(size_t idx) const {
     auto val = expr_.eval_path(idx);
     return val.as_bool();
   }
@@ -45,12 +45,12 @@ struct GeneralVertexPredicate {
                          const common::Expression& expr)
       : expr_(graph, ctx, params, expr, VarType::kVertexVar) {}
 
-  bool operator()(label_t label, vid_t v, size_t path_idx) const {
+  inline bool operator()(label_t label, vid_t v, size_t path_idx) const {
     auto val = expr_.eval_vertex(label, v, path_idx);
     return val.as_bool();
   }
 
-  bool operator()(label_t label, vid_t v, size_t path_idx, int) const {
+  inline bool operator()(label_t label, vid_t v, size_t path_idx, int) const {
     auto val = expr_.eval_vertex(label, v, path_idx, 0);
     return val.as_bool();
   }
@@ -61,7 +61,7 @@ struct GeneralVertexPredicate {
 struct ExactVertexPredicate {
   ExactVertexPredicate(label_t label, vid_t vid) : label_(label), vid_(vid) {}
 
-  bool operator()(label_t label, vid_t vid, size_t path_idx) const {
+  inline bool operator()(label_t label, vid_t vid, size_t path_idx) const {
     return (label == label_) && (vid == vid_);
   }
 
@@ -75,8 +75,9 @@ struct GeneralEdgePredicate {
                        const common::Expression& expr)
       : expr_(graph, ctx, params, expr, VarType::kEdgeVar) {}
 
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t path_idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir,
+                         size_t path_idx) const {
     auto val = expr_.eval_edge(label, src, dst, edata, path_idx);
     return val.as_bool();
   }
@@ -90,14 +91,15 @@ struct DummyVertexPredicate {
   }
 
   // for optional vertex
-  bool operator()(label_t label, vid_t v, size_t path_idx, int) const {
+  inline bool operator()(label_t label, vid_t v, size_t path_idx, int) const {
     return true;
   }
 };
 
 struct DummyEdgePredicate {
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t path_idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir,
+                         size_t path_idx) const {
     return true;
   }
 };

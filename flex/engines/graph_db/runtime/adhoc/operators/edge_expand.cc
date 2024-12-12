@@ -27,8 +27,9 @@ namespace runtime {
 
 struct VertexPredicateWrapper {
   VertexPredicateWrapper(const GeneralVertexPredicate& pred) : pred_(pred) {}
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t path_idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir,
+                         size_t path_idx) const {
     if (dir == Direction::kOut) {
       return pred_(label.dst_label, dst, path_idx);
     } else {
@@ -43,8 +44,9 @@ struct VertexEdgePredicateWrapper {
                              const GeneralEdgePredicate& e_pred)
       : v_pred_(v_pred), e_pred_(e_pred) {}
 
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t path_idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir,
+                         size_t path_idx) const {
     if (dir == Direction::kOut) {
       return v_pred_(label.dst_label, dst, path_idx) &&
              e_pred_(label, src, dst, edata, dir, path_idx);
@@ -63,8 +65,9 @@ struct ExactVertexEdgePredicateWrapper {
                                   const GeneralEdgePredicate& e_pred)
       : v_pred_(v_pred), e_pred_(e_pred) {}
 
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t path_idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir,
+                         size_t path_idx) const {
     if (dir == Direction::kOut) {
       return v_pred_(label.dst_label, dst, path_idx) &&
              e_pred_(label, src, dst, edata, dir, path_idx);
@@ -81,8 +84,9 @@ struct ExactVertexEdgePredicateWrapper {
 struct ExactVertexPredicateWrapper {
   ExactVertexPredicateWrapper(const ExactVertexPredicate& pred) : pred_(pred) {}
 
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t path_idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir,
+                         size_t path_idx) const {
     if (dir == Direction::kOut) {
       return pred_(label.dst_label, dst, path_idx);
     } else {

@@ -47,7 +47,7 @@ class SigColumn : public ISigColumn {
  public:
   SigColumn(const std::vector<T>& data) : data_(data.data()) {}
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override {
+  inline size_t get_sig(size_t idx) const override {
     return static_cast<size_t>(data_[idx]);
   }
 
@@ -60,7 +60,7 @@ class SigColumn<Date> : public ISigColumn {
  public:
   SigColumn(const std::vector<Date>& data) : data_(data.data()) {}
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override {
+  inline size_t get_sig(size_t idx) const override {
     return static_cast<size_t>(data_[idx].milli_second);
   }
 
@@ -73,7 +73,7 @@ class SigColumn<Day> : public ISigColumn {
  public:
   SigColumn(const std::vector<Day>& data) : data_(data.data()) {}
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override {
+  inline size_t get_sig(size_t idx) const override {
     return static_cast<size_t>(data_[idx].to_u32());
   }
 
@@ -85,7 +85,7 @@ class SigColumn<VertexRecord> : public ISigColumn {
  public:
   SigColumn(const std::vector<VertexRecord>& data) : data_(data.data()) {}
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override {
+  inline size_t get_sig(size_t idx) const override {
     const auto& v = data_[idx];
     size_t ret = v.label_;
     ret <<= 32;
@@ -102,7 +102,7 @@ class SigColumn<Relation> : public ISigColumn {
  public:
   SigColumn(const std::vector<Relation>& data) : data_(data.data()) {}
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override {
+  inline size_t get_sig(size_t idx) const override {
     LOG(FATAL) << "not implemented";
     return 0;
   }
@@ -129,7 +129,7 @@ class SigColumn<std::string_view> : public ISigColumn {
     }
   }
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
+  inline size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
 
  private:
   std::vector<size_t> sig_list_;
@@ -153,7 +153,7 @@ class SigColumn<std::set<std::string>> : public ISigColumn {
     }
   }
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
+  inline size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
 
  private:
   std::vector<size_t> sig_list_;
@@ -177,7 +177,7 @@ class SigColumn<std::vector<vid_t>> : public ISigColumn {
     }
   }
   ~SigColumn() = default;
-  size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
+  inline size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
 
  private:
   std::vector<size_t> sig_list_;

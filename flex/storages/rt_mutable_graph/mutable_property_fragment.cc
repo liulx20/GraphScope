@@ -390,15 +390,6 @@ const Schema& MutablePropertyFragment::schema() const { return schema_; }
 
 Schema& MutablePropertyFragment::mutable_schema() { return schema_; }
 
-Table& MutablePropertyFragment::get_vertex_table(label_t vertex_label) {
-  return vertex_data_[vertex_label];
-}
-
-const Table& MutablePropertyFragment::get_vertex_table(
-    label_t vertex_label) const {
-  return vertex_data_[vertex_label];
-}
-
 vid_t MutablePropertyFragment::vertex_num(label_t vertex_label) const {
   return static_cast<vid_t>(lf_indexers_[vertex_label].size());
 }
@@ -463,38 +454,6 @@ MutablePropertyFragment::get_incoming_edges_mut(label_t label, vid_t u,
                                                 label_t neighbor_label,
                                                 label_t edge_label) {
   return get_ie_csr(label, neighbor_label, edge_label)->edge_iter_mut(u);
-}
-
-CsrBase* MutablePropertyFragment::get_oe_csr(label_t label,
-                                             label_t neighbor_label,
-                                             label_t edge_label) {
-  size_t index = label * vertex_label_num_ * edge_label_num_ +
-                 neighbor_label * edge_label_num_ + edge_label;
-  return oe_[index];
-}
-
-const CsrBase* MutablePropertyFragment::get_oe_csr(label_t label,
-                                                   label_t neighbor_label,
-                                                   label_t edge_label) const {
-  size_t index = label * vertex_label_num_ * edge_label_num_ +
-                 neighbor_label * edge_label_num_ + edge_label;
-  return oe_[index];
-}
-
-CsrBase* MutablePropertyFragment::get_ie_csr(label_t label,
-                                             label_t neighbor_label,
-                                             label_t edge_label) {
-  size_t index = neighbor_label * vertex_label_num_ * edge_label_num_ +
-                 label * edge_label_num_ + edge_label;
-  return ie_[index];
-}
-
-const CsrBase* MutablePropertyFragment::get_ie_csr(label_t label,
-                                                   label_t neighbor_label,
-                                                   label_t edge_label) const {
-  size_t index = neighbor_label * vertex_label_num_ * edge_label_num_ +
-                 label * edge_label_num_ + edge_label;
-  return ie_[index];
 }
 
 void MutablePropertyFragment::generateStatistics(

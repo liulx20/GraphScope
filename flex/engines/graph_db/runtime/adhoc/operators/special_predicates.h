@@ -209,13 +209,15 @@ class VertexPropertyLTPredicateBeta : public SPVertexPredicate {
 
   ~VertexPropertyLTPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kPropertyLT;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t label, vid_t v) const {
+  inline bool operator()(label_t label, vid_t v) const {
     return columns_[label].get_view(v) < target_;
   }
 
@@ -239,13 +241,15 @@ class VertexPropertyLEPredicateBeta : public SPVertexPredicate {
 
   ~VertexPropertyLEPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kPropertyLE;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t label, vid_t v) const {
+  inline bool operator()(label_t label, vid_t v) const {
     return !(target_ < columns_[label].get_view(v));
   }
 
@@ -269,13 +273,15 @@ class VertexPropertyGTPredicateBeta : public SPVertexPredicate {
 
   ~VertexPropertyGTPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kPropertyGT;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t label, vid_t v) const {
+  inline bool operator()(label_t label, vid_t v) const {
     return target_ < columns_[label].get_view(v);
   }
 
@@ -299,13 +305,15 @@ class VertexPropertyEQPredicateBeta : public SPVertexPredicate {
 
   ~VertexPropertyEQPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kPropertyEQ;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t label, vid_t v) const {
+  inline bool operator()(label_t label, vid_t v) const {
     return target_ == columns_[label].get_view(v);
   }
 
@@ -333,13 +341,15 @@ class VertexPropertyEQPredicateBeta<std::string_view>
 
   ~VertexPropertyEQPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kPropertyEQ;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t label, vid_t v) const {
+  inline bool operator()(label_t label, vid_t v) const {
     return target_ == columns_[label].get_view(v);
   }
 
@@ -365,13 +375,15 @@ class VertexPropertyBetweenPredicateBeta : public SPVertexPredicate {
 
   ~VertexPropertyBetweenPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kPropertyBetween;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t label, vid_t v) const {
+  inline bool operator()(label_t label, vid_t v) const {
     auto val = columns_[label].get_view(v);
     return ((val < to_) && !(val < from_));
   }
@@ -398,12 +410,12 @@ class VertexIdEQPredicateBeta : public SPVertexPredicate {
   }
   ~VertexIdEQPredicateBeta() = default;
 
-  SPVertexPredicateType type() const override {
+  inline SPVertexPredicateType type() const override {
     return SPVertexPredicateType::kIdEQ;
   }
 
-  RTAnyType data_type() const override { return data_type_; }
-  bool operator()(label_t label, vid_t v) const {
+  inline RTAnyType data_type() const override { return data_type_; }
+  inline bool operator()(label_t label, vid_t v) const {
     auto id = graph_.GetVertexId(label, v);
     return id == target_;
   }
@@ -697,15 +709,18 @@ class EdgePropertyLTPredicate : public SPEdgePredicate {
     return SPEdgePredicateType::kPropertyLT;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr,
-                  label_t edge_label, Direction dir, const T& edata) const {
+  inline bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr,
+                         label_t edge_label, Direction dir,
+                         const T& edata) const {
     return edata < target_;
   }
 
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir, size_t idx) const {
     return AnyConverter<T>::from_any(edata) < target_;
   }
 
@@ -722,19 +737,22 @@ class EdgePropertyGTPredicate : public SPEdgePredicate {
 
   ~EdgePropertyGTPredicate() = default;
 
-  SPEdgePredicateType type() const override {
+  inline SPEdgePredicateType type() const override {
     return SPEdgePredicateType::kPropertyGT;
   }
 
-  RTAnyType data_type() const override { return TypedConverter<T>::type(); }
+  inline RTAnyType data_type() const override {
+    return TypedConverter<T>::type();
+  }
 
-  bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr,
-                  label_t edge_label, Direction dir, const T& edata) const {
+  inline bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr,
+                         label_t edge_label, Direction dir,
+                         const T& edata) const {
     return target_ < edata;
   }
 
-  bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& edata, Direction dir, size_t idx) const {
+  inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                         const Any& edata, Direction dir, size_t idx) const {
     return target_ < AnyConverter<T>::from_any(edata);
   }
 

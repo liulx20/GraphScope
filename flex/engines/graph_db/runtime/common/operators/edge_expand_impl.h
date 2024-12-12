@@ -944,8 +944,9 @@ template <typename GPRED_T, typename EDATA_T>
 struct GPredWrapper {
   GPredWrapper(const GPRED_T& gpred) : gpred_(gpred) {}
 
-  bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr_vid,
-                  label_t edge_label, Direction dir, const EDATA_T& ed) const {
+  inline bool operator()(label_t v_label, vid_t v, label_t nbr_label,
+                         vid_t nbr_vid, label_t edge_label, Direction dir,
+                         const EDATA_T& ed) const {
     Any edata = AnyConverter<EDATA_T>::to_any(ed);
     if (dir == Direction::kOut) {
       return gpred_(LabelTriplet(v_label, nbr_label, edge_label), v, nbr_vid,
@@ -963,8 +964,9 @@ template <typename GPRED_T>
 struct GPredWrapper<GPRED_T, Any> {
   GPredWrapper(const GPRED_T& gpred) : gpred_(gpred) {}
 
-  bool operator()(label_t v_label, vid_t v, label_t nbr_label, vid_t nbr_vid,
-                  label_t edge_label, Direction dir, const Any& edata) const {
+  inline bool operator()(label_t v_label, vid_t v, label_t nbr_label,
+                         vid_t nbr_vid, label_t edge_label, Direction dir,
+                         const Any& edata) const {
     if (dir == Direction::kOut) {
       return gpred_(LabelTriplet(v_label, nbr_label, edge_label), v, nbr_vid,
                     edata, Direction::kOut, 0);

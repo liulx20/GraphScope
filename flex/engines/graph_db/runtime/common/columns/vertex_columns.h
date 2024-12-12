@@ -84,14 +84,14 @@ class SLVertexColumn : public SLVertexColumnBase {
   SLVertexColumn(label_t label) : label_(label) {}
   ~SLVertexColumn() = default;
 
-  size_t size() const override { return vertices_.size(); }
+  inline size_t size() const override { return vertices_.size(); }
 
   std::string column_info() const override {
     return "SLVertexColumn(" + std::to_string(label_) + ")[" +
            std::to_string(size()) + "]";
   }
 
-  VertexColumnType vertex_column_type() const override {
+  inline VertexColumnType vertex_column_type() const override {
     return VertexColumnType::kSingle;
   }
 
@@ -112,7 +112,7 @@ class SLVertexColumn : public SLVertexColumnBase {
     return std::dynamic_pointer_cast<IOptionalContextColumnBuilder>(ptr);
   }
 
-  VertexRecord get_vertex(size_t idx) const override {
+  inline VertexRecord get_vertex(size_t idx) const override {
     return {label_, vertices_[idx]};
   }
 
@@ -138,7 +138,7 @@ class SLVertexColumn : public SLVertexColumnBase {
     return ret;
   }
 
-  label_t label() const { return label_; }
+  inline label_t label() const { return label_; }
 
   ISigColumn* generate_signature() const override;
 
@@ -161,11 +161,11 @@ class SLVertexColumnBuilder : public IVertexColumnBuilder {
 
   void reserve(size_t size) override { vertices_.reserve(size); }
 
-  void push_back_vertex(VertexRecord v) override {
+  inline void push_back_vertex(VertexRecord v) override {
     assert(v.label_ == label_);
     vertices_.push_back(v.vid_);
   }
-  void push_back_opt(vid_t v) { vertices_.push_back(v); }
+  inline void push_back_opt(vid_t v) { vertices_.push_back(v); }
 
   std::shared_ptr<IContextColumn> finish() override;
 
@@ -179,7 +179,7 @@ class OptionalSLVertexColumn : public SLVertexColumnBase {
   OptionalSLVertexColumn(label_t label) : label_(label) {}
   ~OptionalSLVertexColumn() = default;
 
-  size_t size() const override { return vertices_.size(); }
+  inline size_t size() const override { return vertices_.size(); }
 
   std::shared_ptr<IContextColumnBuilder> builder() const override {
     auto ptr = std::make_shared<OptionalSLVertexColumnBuilder>(label_);
@@ -190,7 +190,7 @@ class OptionalSLVertexColumn : public SLVertexColumnBase {
     return "OptionalSLVertex[" + std::to_string(size()) + "]";
   }
 
-  VertexColumnType vertex_column_type() const override {
+  inline VertexColumnType vertex_column_type() const override {
     return VertexColumnType::kSingle;
   }
 
@@ -199,13 +199,13 @@ class OptionalSLVertexColumn : public SLVertexColumnBase {
   std::shared_ptr<IContextColumn> optional_shuffle(
       const std::vector<size_t>& offset) const override;
 
-  VertexRecord get_vertex(size_t idx) const override {
+  inline VertexRecord get_vertex(size_t idx) const override {
     return {label_, vertices_[idx]};
   }
 
-  bool is_optional() const override { return true; }
+  inline bool is_optional() const override { return true; }
 
-  bool has_value(size_t idx) const override {
+  inline bool has_value(size_t idx) const override {
     return vertices_[idx] != std::numeric_limits<vid_t>::max();
   }
 
@@ -239,13 +239,13 @@ class OptionalSLVertexColumnBuilder : public IOptionalVertexColumnBuilder {
 
   void reserve(size_t size) override { vertices_.reserve(size); }
 
-  void push_back_vertex(VertexRecord v) override {
+  inline void push_back_vertex(VertexRecord v) override {
     vertices_.push_back(v.vid_);
   }
 
-  void push_back_opt(vid_t v) { vertices_.push_back(v); }
+  inline void push_back_opt(vid_t v) { vertices_.push_back(v); }
 
-  void push_back_null() override {
+  inline void push_back_null() override {
     vertices_.emplace_back(std::numeric_limits<vid_t>::max());
   }
 
@@ -287,14 +287,14 @@ class MSVertexColumn : public IVertexColumn {
     return "MSVertexColumn(" + labels + ")[" + std::to_string(size()) + "]";
   }
 
-  VertexColumnType vertex_column_type() const override {
+  inline VertexColumnType vertex_column_type() const override {
     return VertexColumnType::kMultiSegment;
   }
 
   std::shared_ptr<IContextColumn> shuffle(
       const std::vector<size_t>& offsets) const override;
 
-  VertexRecord get_vertex(size_t idx) const override {
+  inline VertexRecord get_vertex(size_t idx) const override {
     for (auto& pair : vertices_) {
       if (idx < pair.second.size()) {
         return {pair.first, pair.second[idx]};
@@ -321,9 +321,11 @@ class MSVertexColumn : public IVertexColumn {
 
   ISigColumn* generate_signature() const override;
 
-  size_t seg_num() const { return vertices_.size(); }
+  inline size_t seg_num() const { return vertices_.size(); }
 
-  label_t seg_label(size_t seg_id) const { return vertices_[seg_id].first; }
+  inline label_t seg_label(size_t seg_id) const {
+    return vertices_[seg_id].first;
+  }
 
   const std::vector<vid_t>& seg_vertices(size_t seg_id) const {
     return vertices_[seg_id].second;
@@ -365,7 +367,7 @@ class MSVertexColumnBuilder : public IVertexColumnBuilder {
 
   void reserve(size_t size) override {}
 
-  void push_back_vertex(VertexRecord v) override {
+  inline void push_back_vertex(VertexRecord v) override {
     if (v.label_ == cur_label_) {
       cur_list_.push_back(v.vid_);
     } else {
@@ -386,7 +388,7 @@ class MSVertexColumnBuilder : public IVertexColumnBuilder {
     cur_label_ = label;
   }
 
-  void push_back_opt(vid_t v) { cur_list_.push_back(v); }
+  inline void push_back_opt(vid_t v) { cur_list_.push_back(v); }
 
   std::shared_ptr<IContextColumn> finish() override;
 
@@ -406,7 +408,7 @@ class MLVertexColumn : public MLVertexColumnBase {
   MLVertexColumn() = default;
   ~MLVertexColumn() = default;
 
-  size_t size() const override { return vertices_.size(); }
+  inline size_t size() const override { return vertices_.size(); }
 
   std::shared_ptr<IContextColumnBuilder> builder() const override {
     auto ptr = std::make_shared<MLVertexColumnBuilder>(labels_);
@@ -425,7 +427,7 @@ class MLVertexColumn : public MLVertexColumnBase {
     return "MLVertexColumn(" + labels + ")[" + std::to_string(size()) + "]";
   }
 
-  VertexColumnType vertex_column_type() const override {
+  inline VertexColumnType vertex_column_type() const override {
     return VertexColumnType::kMultiple;
   }
 
@@ -434,7 +436,9 @@ class MLVertexColumn : public MLVertexColumnBase {
   std::shared_ptr<IContextColumn> optional_shuffle(
       const std::vector<size_t>& offsets) const override;
 
-  VertexRecord get_vertex(size_t idx) const override { return vertices_[idx]; }
+  inline VertexRecord get_vertex(size_t idx) const override {
+    return vertices_[idx];
+  }
 
   template <typename FUNC_T>
   void foreach_vertex(const FUNC_T& func) const {
@@ -464,7 +468,7 @@ class MLVertexColumnBuilder : public IVertexColumnBuilder {
 
   void reserve(size_t size) override { vertices_.reserve(size); }
 
-  void push_back_vertex(VertexRecord v) override {
+  inline void push_back_vertex(VertexRecord v) override {
     labels_.insert(v.label_);
     vertices_.push_back(v);
   }
@@ -481,7 +485,7 @@ class OptionalMLVertexColumn : public MLVertexColumnBase {
   OptionalMLVertexColumn() = default;
   ~OptionalMLVertexColumn() = default;
 
-  size_t size() const override { return vertices_.size(); }
+  inline size_t size() const override { return vertices_.size(); }
 
   std::shared_ptr<IContextColumnBuilder> builder() const override {
     auto ptr = std::make_shared<OptionalMLVertexColumnBuilder>();
@@ -501,7 +505,7 @@ class OptionalMLVertexColumn : public MLVertexColumnBase {
            "]";
   }
 
-  VertexColumnType vertex_column_type() const override {
+  inline VertexColumnType vertex_column_type() const override {
     return VertexColumnType::kMultiple;
   }
 
@@ -511,11 +515,13 @@ class OptionalMLVertexColumn : public MLVertexColumnBase {
   std::shared_ptr<IContextColumn> optional_shuffle(
       const std::vector<size_t>& offsets) const override;
 
-  VertexRecord get_vertex(size_t idx) const override { return vertices_[idx]; }
+  inline VertexRecord get_vertex(size_t idx) const override {
+    return vertices_[idx];
+  }
 
-  bool is_optional() const override { return true; }
+  inline bool is_optional() const override { return true; }
 
-  bool has_value(size_t idx) const override {
+  inline bool has_value(size_t idx) const override {
     return vertices_[idx].vid_ != std::numeric_limits<vid_t>::max();
   }
 
@@ -542,22 +548,22 @@ class OptionalMLVertexColumnBuilder : public IOptionalVertexColumnBuilder {
 
   void reserve(size_t size) override { vertices_.reserve(size); }
 
-  void push_back_opt(VertexRecord v) {
+  inline void push_back_opt(VertexRecord v) {
     labels_.insert(v.label_);
     vertices_.push_back(v);
   }
 
-  void push_back_vertex(VertexRecord v) override {
+  inline void push_back_vertex(VertexRecord v) override {
     labels_.insert(v.label_);
     vertices_.push_back(v);
   }
 
-  void push_back_null() override {
+  inline void push_back_null() override {
     vertices_.emplace_back(VertexRecord{std::numeric_limits<label_t>::max(),
                                         std::numeric_limits<vid_t>::max()});
   }
 
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_elem(const RTAny& val) override {
     this->push_back_opt(val.as_vertex());
   }
 

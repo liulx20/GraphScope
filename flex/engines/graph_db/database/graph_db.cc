@@ -304,16 +304,6 @@ timestamp_t GraphDB::GetLastCompactionTimestamp() const {
   return last_compaction_ts_;
 }
 
-const MutablePropertyFragment& GraphDB::graph() const { return graph_; }
-MutablePropertyFragment& GraphDB::graph() { return graph_; }
-
-const Schema& GraphDB::schema() const { return graph_.schema(); }
-
-std::shared_ptr<ColumnBase> GraphDB::get_vertex_property_column(
-    uint8_t label, const std::string& col_name) const {
-  return graph_.get_vertex_table(label).get_column(col_name);
-}
-
 AppWrapper GraphDB::CreateApp(uint8_t app_type, int thread_id) {
   if (app_factories_[app_type] == nullptr) {
     LOG(ERROR) << "Stored procedure " << static_cast<int>(app_type)

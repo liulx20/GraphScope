@@ -42,11 +42,11 @@ class AdjListView {
       }
     }
 
-    const_nbr_t& operator*() const { return *ptr_; }
+    inline const_nbr_t& operator*() const { return *ptr_; }
 
-    const_nbr_ptr_t operator->() const { return ptr_; }
+    inline const_nbr_ptr_t operator->() const { return ptr_; }
 
-    nbr_iterator& operator++() {
+    inline nbr_iterator& operator++() {
       ++ptr_;
       while (ptr_ != end_ && ptr_->get_timestamp() > timestamp_) {
         ++ptr_;
@@ -54,11 +54,11 @@ class AdjListView {
       return *this;
     }
 
-    bool operator==(const nbr_iterator& rhs) const {
+    inline bool operator==(const nbr_iterator& rhs) const {
       return (ptr_ == rhs.ptr_);
     }
 
-    bool operator!=(const nbr_iterator& rhs) const {
+    inline bool operator!=(const nbr_iterator& rhs) const {
       return (ptr_ != rhs.ptr_);
     }
 
@@ -74,14 +74,14 @@ class AdjListView {
   AdjListView(const slice_t& slice, timestamp_t timestamp)
       : edges_(slice), timestamp_(timestamp) {}
 
-  nbr_iterator begin() const {
+  inline nbr_iterator begin() const {
     return nbr_iterator(edges_.begin(), edges_.end(), timestamp_);
   }
-  nbr_iterator end() const {
+  inline nbr_iterator end() const {
     return nbr_iterator(edges_.end(), edges_.end(), timestamp_);
   }
 
-  int estimated_degree() const { return edges_.size(); }
+  inline int estimated_degree() const { return edges_.size(); }
 
  private:
   slice_t edges_;
@@ -96,7 +96,7 @@ class GraphView {
         timestamp_(timestamp),
         unsorted_since_(csr.unsorted_since()) {}
 
-  AdjListView<EDATA_T> get_edges(vid_t v) const {
+  inline AdjListView<EDATA_T> get_edges(vid_t v) const {
     return AdjListView<EDATA_T>(csr_.get_edges(v), timestamp_);
   }
 
@@ -238,11 +238,11 @@ class SingleGraphView {
   SingleGraphView(const SingleMutableCsr<EDATA_T>& csr, timestamp_t timestamp)
       : csr_(csr), timestamp_(timestamp) {}
 
-  bool exist(vid_t v) const {
+  inline bool exist(vid_t v) const {
     return (csr_.get_edge(v).timestamp.load() <= timestamp_);
   }
 
-  const MutableNbr<EDATA_T>& get_edge(vid_t v) const {
+  inline const MutableNbr<EDATA_T>& get_edge(vid_t v) const {
     return csr_.get_edge(v);
   }
 
@@ -277,11 +277,11 @@ class SingleImmutableGraphView {
   SingleImmutableGraphView(const SingleImmutableCsr<EDATA_T>& csr)
       : csr_(csr) {}
 
-  bool exist(vid_t v) const {
+  inline bool exist(vid_t v) const {
     return (csr_.get_edge(v).neighbor != std::numeric_limits<vid_t>::max());
   }
 
-  const ImmutableNbr<EDATA_T>& get_edge(vid_t v) const {
+  inline const ImmutableNbr<EDATA_T>& get_edge(vid_t v) const {
     return csr_.get_edge(v);
   }
 
@@ -410,7 +410,7 @@ class ReadTransaction {
     return AdjListView<EDATA_T>(csr->get_edges(v), timestamp_);
   }
 
-  const Schema& schema() const;
+  inline const Schema& schema() const { return graph_.schema(); }
 
   template <typename EDATA_T>
   GraphView<EDATA_T> GetOutgoingGraphView(label_t v_label,

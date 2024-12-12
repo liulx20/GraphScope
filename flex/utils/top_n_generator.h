@@ -31,21 +31,21 @@ struct TopNUnit {
 template <typename T>
 struct TopNAscCmp {
   using elem_t = TopNUnit<T>;
-  bool operator()(const elem_t& lhs, const elem_t& rhs) const {
+  inline bool operator()(const elem_t& lhs, const elem_t& rhs) const {
     return lhs.val < rhs.val;
   }
 
-  bool operator()(const T& lhs, const T& rhs) const { return lhs < rhs; }
+  inline bool operator()(const T& lhs, const T& rhs) const { return lhs < rhs; }
 };
 
 template <typename T>
 struct TopNDescCmp {
   using elem_t = TopNUnit<T>;
-  bool operator()(const elem_t& lhs, const elem_t& rhs) const {
+  inline bool operator()(const elem_t& lhs, const elem_t& rhs) const {
     return rhs.val < lhs.val;
   }
 
-  bool operator()(const T& lhs, const T& rhs) const { return rhs < lhs; }
+  inline bool operator()(const T& lhs, const T& rhs) const { return rhs < lhs; }
 };
 
 // CMP_T lhs > rhs is desc
@@ -57,7 +57,7 @@ class TopNGenerator {
  public:
   TopNGenerator(size_t n) : n_(n), pq_(CMP_T()) {}
 
-  void push(const T& val, size_t idx) {
+  inline void push(const T& val, size_t idx) {
     if (pq_.empty()) {
       pq_.emplace(val, idx);
       return;

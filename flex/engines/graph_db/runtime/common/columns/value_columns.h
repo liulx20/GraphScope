@@ -50,13 +50,13 @@ class ValueColumn : public IValueColumn<T> {
   }
   ~ValueColumn() = default;
 
-  size_t size() const override { return data_.size(); }
+  inline size_t size() const override { return data_.size(); }
 
   std::string column_info() const override {
     return "ValueColumn<" + TypedConverter<T>::name() + ">[" +
            std::to_string(size()) + "]";
   }
-  ContextColumnType column_type() const override {
+  inline ContextColumnType column_type() const override {
     return ContextColumnType::kValue;
   }
 
@@ -76,14 +76,16 @@ class ValueColumn : public IValueColumn<T> {
   std::shared_ptr<IContextColumn> optional_shuffle(
       const std::vector<size_t>& offsets) const override;
 
-  RTAnyType elem_type() const override { return TypedConverter<T>::type(); }
-  RTAny get_elem(size_t idx) const override {
+  inline RTAnyType elem_type() const override {
+    return TypedConverter<T>::type();
+  }
+  inline RTAny get_elem(size_t idx) const override {
     return TypedConverter<T>::from_typed(data_[idx]);
   }
 
-  T get_value(size_t idx) const override { return data_[idx]; }
+  inline T get_value(size_t idx) const override { return data_[idx]; }
 
-  const std::vector<T>& data() const { return data_; }
+  inline const std::vector<T>& data() const { return data_; }
 
   ISigColumn* generate_signature() const override {
     if constexpr (std::is_same_v<T, bool> or std::is_same_v<T, Tuple>) {
@@ -134,13 +136,13 @@ class ValueColumn<std::string_view> : public IValueColumn<std::string_view> {
   ValueColumn() = default;
   ~ValueColumn() = default;
 
-  size_t size() const override { return data_.size(); }
+  inline size_t size() const override { return data_.size(); }
 
   std::string column_info() const override {
     return "ValueColumn<" + TypedConverter<std::string_view>::name() + ">[" +
            std::to_string(size()) + "]";
   }
-  ContextColumnType column_type() const override {
+  inline ContextColumnType column_type() const override {
     return ContextColumnType::kValue;
   }
 
@@ -149,15 +151,17 @@ class ValueColumn<std::string_view> : public IValueColumn<std::string_view> {
         std::make_shared<ValueColumnBuilder<std::string_view>>());
   }
 
-  RTAnyType elem_type() const override { return RTAnyType::kStringValue; }
+  inline RTAnyType elem_type() const override {
+    return RTAnyType::kStringValue;
+  }
   std::shared_ptr<IContextColumn> shuffle(
       const std::vector<size_t>& offsets) const override;
 
-  RTAny get_elem(size_t idx) const override {
+  inline RTAny get_elem(size_t idx) const override {
     return RTAny::from_string(data_[idx]);
   }
 
-  std::string_view get_value(size_t idx) const override {
+  inline std::string_view get_value(size_t idx) const override {
     return std::string_view(data_[idx]);
   }
 
@@ -196,11 +200,11 @@ class ValueColumnBuilder : public IContextColumnBuilder {
   ~ValueColumnBuilder() = default;
 
   void reserve(size_t size) override { data_.reserve(size); }
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_elem(const RTAny& val) override {
     data_.push_back(TypedConverter<T>::to_typed(val));
   }
 
-  void push_back_opt(const T& val) { data_.push_back(val); }
+  inline void push_back_opt(const T& val) { data_.push_back(val); }
 
   std::shared_ptr<IContextColumn> finish() override {
     auto ret = std::make_shared<ValueColumn<T>>();
@@ -608,13 +612,13 @@ class OptionalValueColumn : public IValueColumn<T> {
   OptionalValueColumn() = default;
   ~OptionalValueColumn() = default;
 
-  size_t size() const override { return data_.size(); }
+  inline size_t size() const override { return data_.size(); }
 
   std::string column_info() const override {
     return "OptionalValueColumn<" + TypedConverter<T>::name() + ">[" +
            std::to_string(size()) + "]";
   }
-  ContextColumnType column_type() const override {
+  inline ContextColumnType column_type() const override {
     return ContextColumnType::kOptionalValue;
   }
 
@@ -633,16 +637,16 @@ class OptionalValueColumn : public IValueColumn<T> {
         std::make_shared<OptionalValueColumnBuilder<T>>());
   }
 
-  RTAnyType elem_type() const override {
+  inline RTAnyType elem_type() const override {
     auto type = TypedConverter<T>::type();
     type.null_able_ = true;
     return type;
   }
-  RTAny get_elem(size_t idx) const override {
+  inline RTAny get_elem(size_t idx) const override {
     return TypedConverter<T>::from_typed(data_[idx]);
   }
 
-  T get_value(size_t idx) const override { return data_[idx]; }
+  inline T get_value(size_t idx) const override { return data_[idx]; }
 
   ISigColumn* generate_signature() const override {
     if constexpr (std::is_same_v<T, bool> or std::is_same_v<T, Tuple>) {
@@ -692,13 +696,13 @@ class OptionalValueColumn<std::string_view>
   OptionalValueColumn() = default;
   ~OptionalValueColumn() = default;
 
-  size_t size() const override { return data_.size(); }
+  inline size_t size() const override { return data_.size(); }
 
   std::string column_info() const override {
     return "OptionalValueColumn<" + TypedConverter<std::string_view>::name() +
            ">[" + std::to_string(size()) + "]";
   }
-  ContextColumnType column_type() const override {
+  inline ContextColumnType column_type() const override {
     return ContextColumnType::kOptionalValue;
   }
 
@@ -714,11 +718,11 @@ class OptionalValueColumn<std::string_view>
     type.null_able_ = true;
     return type;
   }
-  RTAny get_elem(size_t idx) const override {
+  inline RTAny get_elem(size_t idx) const override {
     return RTAny::from_string(data_[idx]);
   }
 
-  std::string_view get_value(size_t idx) const override {
+  inline std::string_view get_value(size_t idx) const override {
     return std::string_view(data_[idx]);
   }
 
@@ -746,8 +750,8 @@ class OptionalValueColumn<std::string_view>
     }
   }
 
-  bool has_value(size_t idx) const override { return valid_[idx]; }
-  bool is_optional() const override { return true; }
+  inline bool has_value(size_t idx) const override { return valid_[idx]; }
+  inline bool is_optional() const override { return true; }
 
  private:
   friend class OptionalValueColumnBuilder<std::string_view>;
@@ -766,17 +770,17 @@ class OptionalValueColumnBuilder : public IOptionalContextColumnBuilder {
     valid_.reserve(size);
   }
 
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_elem(const RTAny& val) override {
     data_.push_back(TypedConverter<T>::to_typed(val));
     valid_.push_back(true);
   }
 
-  void push_back_opt(const T& val, bool valid) {
+  inline void push_back_opt(const T& val, bool valid) {
     data_.push_back(val);
     valid_.push_back(valid);
   }
 
-  void push_back_null() override {
+  inline void push_back_null() override {
     data_.emplace_back(T());
     valid_.push_back(false);
   }
@@ -805,17 +809,17 @@ class OptionalValueColumnBuilder<std::string_view>
     valid_.reserve(size);
   }
 
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_elem(const RTAny& val) override {
     data_.push_back(std::string(val.as_string()));
     valid_.push_back(true);
   }
 
-  void push_back_opt(const std::string& val, bool valid) {
+  inline void push_back_opt(const std::string& val, bool valid) {
     data_.push_back(val);
     valid_.push_back(valid);
   }
 
-  void push_back_null() override {
+  inline void push_back_null() override {
     data_.emplace_back();
     valid_.push_back(false);
   }
@@ -839,13 +843,15 @@ class ValueColumnBuilder<std::string_view> : public IContextColumnBuilder {
   ~ValueColumnBuilder() = default;
 
   void reserve(size_t size) override { data_.reserve(size); }
-  void push_back_elem(const RTAny& val) override {
+  inline void push_back_elem(const RTAny& val) override {
     data_.push_back(std::string(val.as_string()));
   }
 
-  void push_back_opt(const std::string& val) { data_.push_back(val); }
+  inline void push_back_opt(const std::string& val) { data_.push_back(val); }
 
-  void push_back_opt(const std::string_view& val) { data_.emplace_back(val); }
+  inline void push_back_opt(const std::string_view& val) {
+    data_.emplace_back(val);
+  }
 
   std::shared_ptr<IContextColumn> finish() override {
     auto ret = std::make_shared<ValueColumn<std::string_view>>();

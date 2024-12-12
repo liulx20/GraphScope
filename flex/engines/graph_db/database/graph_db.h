@@ -149,13 +149,15 @@ class GraphDB {
    */
   UpdateTransaction GetUpdateTransaction(int thread_id = 0);
 
-  const MutablePropertyFragment& graph() const;
-  MutablePropertyFragment& graph();
+  inline const MutablePropertyFragment& graph() const { return graph_; }
+  inline MutablePropertyFragment& graph() { return graph_; }
 
-  const Schema& schema() const;
+  inline const Schema& schema() const { return graph_.schema(); }
 
-  std::shared_ptr<ColumnBase> get_vertex_property_column(
-      uint8_t label, const std::string& col_name) const;
+  inline std::shared_ptr<ColumnBase> get_vertex_property_column(
+      uint8_t label, const std::string& col_name) const {
+    return graph_.get_vertex_table(label).get_column(col_name);
+  }
 
   AppWrapper CreateApp(uint8_t app_type, int thread_id);
 

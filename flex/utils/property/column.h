@@ -197,7 +197,7 @@ class TypedColumn : public ColumnBase {
     set_value(index, AnyConverter<T>::from_any(value));
   }
 
-  T get_view(size_t index) const {
+  inline T get_view(size_t index) const {
     return index < basic_size_ ? basic_buffer_.get(index)
                                : extra_buffer_.get(index - basic_size_);
   }
@@ -535,7 +535,7 @@ class TypedColumn<std::string_view> : public ColumnBase {
     }
   }
 
-  std::string_view get_view(size_t idx) const {
+  inline std::string_view get_view(size_t idx) const {
     return idx < basic_size_ ? basic_buffer_.get(idx)
                              : extra_buffer_.get(idx - basic_size_);
   }

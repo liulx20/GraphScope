@@ -589,8 +589,9 @@ class EdgeExpand {
   struct SPVPWrapper {
     SPVPWrapper(const PRED_T& pred) : pred_(pred) {}
 
-    bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                    const Any& edata, Direction dir, size_t path_idx) const {
+    inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
+                           const Any& edata, Direction dir,
+                           size_t path_idx) const {
       if (dir == Direction::kOut) {
         return pred_(label.dst_label, dst);
       } else {
