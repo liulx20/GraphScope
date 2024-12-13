@@ -16,6 +16,8 @@
 #ifndef RUNTIME_COMMON_CONTEXT_H_
 #define RUNTIME_COMMON_CONTEXT_H_
 
+#include <set>
+
 #include "flex/engines/graph_db/database/read_transaction.h"
 #include "flex/engines/graph_db/runtime/common/columns/i_context_column.h"
 #include "flex/engines/graph_db/runtime/common/columns/value_columns.h"
@@ -75,6 +77,66 @@ class Context {
   const ValueColumn<size_t>& get_offsets() const;
   Context* prev_context;
   std::shared_ptr<ValueColumn<size_t>> offset_ptr;
+};
+
+class ContextMeta {
+ public:
+  ContextMeta() = default;
+  ~ContextMeta() = default;
+
+  bool exist(int alias) const {
+    if (alias == -1) {
+      return head_exists_;
+    }
+    return alias_set_.find(alias) != alias_set_.end();
+  }
+
+  void set(int alias) {
+    if (alias >= 0) {
+      head_ = alias;
+      head_exists_ = true;
+      alias_set_.insert(alias);
+    }
+  }
+
+  void set_with_reshuffle_beta(int alias, const std::set<int>& keep_cols) {
+    head_ = -1;
+    head_exists_ = false;
+    if (alias >= 0) {
+      if (alias_set_.find(alias) != alias_set_.end()) {
+        alias_set_.erase(alias);
+      }
+    }
+    std::vector<int> to_remove;
+    for (auto col : alias_set_) {
+      if (keep_cols.find(col) == keep_cols.end()) {
+        to_remove.push_back(col);
+      }
+    }
+    for (auto col : to_remove) {
+      alias_set_.erase(col);
+    }
+    set(alias);
+  }
+
+  void erase(int alias) { alias_set_.erase(alias); }
+
+  const std::set<int>& columns() const { return alias_set_; }
+
+  void desc() const {
+    std::cout << "===============================================" << std::endl;
+    for (auto col : alias_set_) {
+      std::cout << "col - " << col << std::endl;
+    }
+    if (head_exists_) {
+      std::cout << "head - " << head_ << std::endl;
+    }
+  }
+
+ private:
+  std::set<int> alias_set_;
+  int head_ = -1;
+  bool head_exists_ = false;
 };
 
 class WriteContext {

@@ -484,11 +484,10 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
           plan.plan(i + 3).opr().has_vertex() &&
           plan.plan(i + 4).opr().has_edge() &&
           plan.plan(i + 5).opr().has_select() &&
-          tc_fusable(opr.opr().edge(), plan.plan(i + 1).opr().group_by(),
-                     plan.plan(i + 2).opr().edge(),
-                     plan.plan(i + 3).opr().vertex(),
-                     plan.plan(i + 4).opr().edge(),
-                     plan.plan(i + 5).opr().select(), ret)) {
+          tc_fusable(
+              opr.opr().edge(), plan.plan(i + 1).opr().group_by(),
+              plan.plan(i + 2).opr().edge(), plan.plan(i + 3).opr().vertex(),
+              plan.plan(i + 4).opr().edge(), plan.plan(i + 5).opr().select())) {
         t.start();
         ret = eval_tc(
             opr.opr().edge(), plan.plan(i + 1).opr().group_by(),
@@ -502,7 +501,7 @@ Context runtime_eval_impl(const physical::PhysicalPlan& plan, Context&& ctx,
         const physical::PhysicalOpr& next_opr = plan.plan(i + 1);
         if (next_opr.opr().has_vertex() &&
             edge_expand_get_v_fusable(opr.opr().edge(), next_opr.opr().vertex(),
-                                      ret, opr.meta_data(0))) {
+                                      opr.meta_data(0))) {
           t.start();
           ret = eval_edge_expand_get_v(
               opr.opr().edge(), next_opr.opr().vertex(), graph, std::move(ret),

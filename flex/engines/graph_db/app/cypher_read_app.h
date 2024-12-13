@@ -19,6 +19,7 @@
 #include "flex/engines/graph_db/database/graph_db_session.h"
 
 #include "flex/engines/graph_db/runtime/adhoc/runtime.h"
+#include "flex/engines/graph_db/runtime/execute/pipeline.h"
 #include "flex/proto_generated_gie/physical.pb.h"
 
 namespace gs {
@@ -37,6 +38,7 @@ class CypherReadApp : public ReadAppBase {
  private:
   const GraphDB& db_;
   std::unordered_map<std::string, physical::PhysicalPlan> plan_cache_;
+  std::unordered_map<std::string, runtime::ReadPipeline> pipeline_cache_;
   runtime::OprTimer timer_;
 };
 

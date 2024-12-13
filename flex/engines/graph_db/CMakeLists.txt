@@ -8,6 +8,7 @@ target_include_directories(flex_graph_db PUBLIC $<BUILD_INTERFACE:${CMAKE_CURREN
 target_link_libraries(flex_graph_db flex_rt_mutable_graph flex_utils ${GLOG_LIBRARIES} ${LIBGRAPELITE_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 target_link_libraries(flex_graph_db hqps_plan_proto)
 target_link_libraries(flex_graph_db runtime_adhoc)
+target_link_libraries(flex_graph_db runtime_execute)
 install_flex_target(flex_graph_db)
 
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/database/graph_db.h

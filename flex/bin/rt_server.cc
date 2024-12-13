@@ -16,6 +16,7 @@
 #include "grape/util.h"
 
 #include "flex/engines/graph_db/database/graph_db.h"
+#include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 #include "flex/engines/http_server/graph_db_service.h"
 #include "flex/engines/http_server/options.h"
 
@@ -81,6 +82,9 @@ int main(int argc, char** argv) {
 
   double t0 = -grape::GetCurrentTime();
   auto& db = gs::GraphDB::get();
+
+  auto& parser = gs::runtime::PlanParser::get();
+  parser.init();
 
   {
     std::error_code ec;

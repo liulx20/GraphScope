@@ -8,4 +8,7 @@ add_library(runtime_adhoc SHARED ${ADHOC_SOURCES})
 target_link_libraries(runtime_adhoc runtime_common)
 install_flex_target(runtime_adhoc)
 
-
+file(GLOB_RECURSE EXECUTE_SOURCES "execute/*.cc")
+add_library(runtime_execute SHARED ${EXECUTE_SOURCES})
+target_link_libraries(runtime_execute runtime_common runtime_adhoc)
+install_flex_target(runtime_execute)

@@ -56,6 +56,11 @@ bool project_order_by_fusable(
     const physical::Project& project_opr, const algebra::OrderBy& order_by_opr,
     const Context& ctx, const std::vector<common::IrDataType>& data_types);
 
+bool project_order_by_fusable_beta(
+    const physical::Project& project_opr, const algebra::OrderBy& order_by_opr,
+    const ContextMeta& ctx_meta,
+    const std::vector<common::IrDataType>& data_types);
+
 Context eval_shortest_path_with_order_by_length_limit(
     const physical::PathExpand& opr, const GraphReadInterface& graph,
     Context&& ctx, const std::map<std::string, std::string>& params,
@@ -103,7 +108,7 @@ Context eval_edge_expand(const physical::EdgeExpand& opr,
                          const physical::PhysicalOpr_MetaData& meta);
 
 bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
-                               const physical::GetV& v_opr, const Context& ctx,
+                               const physical::GetV& v_opr,
                                const physical::PhysicalOpr_MetaData& meta);
 
 bool tc_fusable(const physical::EdgeExpand& ee_opr0,
@@ -111,7 +116,7 @@ bool tc_fusable(const physical::EdgeExpand& ee_opr0,
                 const physical::EdgeExpand& ee_opr1,
                 const physical::GetV& v_opr1,
                 const physical::EdgeExpand& ee_opr2,
-                const algebra::Select& select_opr, const Context& ctx);
+                const algebra::Select& select_opr);
 
 Context eval_edge_expand_get_v(const physical::EdgeExpand& ee_opr,
                                const physical::GetV& v_opr,

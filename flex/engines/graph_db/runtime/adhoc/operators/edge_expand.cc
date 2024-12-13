@@ -229,7 +229,7 @@ Context eval_edge_expand(const physical::EdgeExpand& opr,
 }
 
 bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
-                               const physical::GetV& v_opr, const Context& ctx,
+                               const physical::GetV& v_opr,
                                const physical::PhysicalOpr_MetaData& meta) {
   if (ee_opr.expand_opt() !=
           physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE &&
@@ -288,7 +288,7 @@ bool tc_fusable(const physical::EdgeExpand& ee_opr0,
                 const physical::EdgeExpand& ee_opr1,
                 const physical::GetV& v_opr1,
                 const physical::EdgeExpand& ee_opr2,
-                const algebra::Select& select_opr, const Context& ctx) {
+                const algebra::Select& select_opr) {
   return true;
 }
 
