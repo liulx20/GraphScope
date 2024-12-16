@@ -641,22 +641,30 @@ public abstract class FieldTrimRule {
         }
 
         public TrimResult trimFields(
-                GraphTableModify.Insert insert, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+                GraphTableModify.Insert insert,
+                ImmutableBitSet fieldsUsed,
+                Set<RelDataTypeField> extraFields) {
             return result(insert);
         }
 
         public TrimResult trimFields(
-                GraphTableModify.Update update, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+                GraphTableModify.Update update,
+                ImmutableBitSet fieldsUsed,
+                Set<RelDataTypeField> extraFields) {
             return result(update);
         }
 
         public TrimResult trimFields(
-                GraphTableModify.Delete delete, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+                GraphTableModify.Delete delete,
+                ImmutableBitSet fieldsUsed,
+                Set<RelDataTypeField> extraFields) {
             return result(delete);
         }
 
         public TrimResult trimFields(
-                DataSourceTableScan scan, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
+                DataSourceTableScan scan,
+                ImmutableBitSet fieldsUsed,
+                Set<RelDataTypeField> extraFields) {
             return result(scan);
         }
 

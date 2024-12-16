@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import java.util.Iterator;
@@ -41,7 +42,8 @@ public abstract class Utils {
      * @param schemaYaml
      * @return
      */
-    public static final GraphSchema buildSchemaFromYaml(String schemaYaml) {
+    public static final GraphSchema buildSchemaFromYaml(
+            String schemaYaml, RelDataTypeFactory typeFactory) {
         Yaml yaml = new Yaml();
         Map<String, Object> yamlAsMap = yaml.load(schemaYaml);
         Map<String, Object> schemaMap =
@@ -51,9 +53,9 @@ public abstract class Utils {
         Map<String, GraphVertex> vertexMap = Maps.newHashMap();
         Map<String, GraphEdge> edgeMap = Maps.newHashMap();
         Map<String, Integer> propNameToIdMap = Maps.newHashMap();
-        GSDataTypeConvertor<DataType> typeConvertor =
-                GSDataTypeConvertor.Factory.create(DataType.class, null);
-        builderGraphElementFromYaml(
+        IrDataTypeConvertor<GSDataTypeDesc> typeConvertor =
+                new IrDataTypeConvertor.Flex(typeFactory);
+        buildGraphElementFromYaml(
                 (List)
                         Objects.requireNonNull(
                                 schemaMap.get("vertex_types"),
@@ -64,7 +66,7 @@ public abstract class Utils {
                 propNameToIdMap,
                 typeConvertor);
         if (schemaMap.get("edge_types") != null) {
-            builderGraphElementFromYaml(
+            buildGraphElementFromYaml(
                     (List)
                             Objects.requireNonNull(
                                     schemaMap.get("edge_types"),
@@ -78,13 +80,13 @@ public abstract class Utils {
         return new DefaultGraphSchema(vertexMap, edgeMap, propNameToIdMap);
     }
 
-    public static final void builderGraphElementFromYaml(
+    public static final void buildGraphElementFromYaml(
             List elementList,
             String type,
             Map<String, GraphVertex> vertexMap,
             Map<String, GraphEdge> edgeMap,
             Map<String, Integer> propNameToIdMap,
-            GSDataTypeConvertor<DataType> typeConvertor) {
+            IrDataTypeConvertor<GSDataTypeDesc> typeConvertor) {
         for (Object element : elementList) {
             if (element instanceof Map) {
                 Map<String, Object> elementMap = (Map<String, Object>) element;
@@ -112,12 +114,14 @@ public abstract class Utils {
                                                     "property_id not exist in yaml config");
                             propNameToIdMap.put(propertyName, propertyId);
                             propertyList.add(
-                                    new DefaultGraphProperty(
+                                    new IrGraphProperty(
                                             propertyId,
                                             propertyName,
-                                            toDataType(
-                                                    propertyMap.get("property_type"),
-                                                    typeConvertor)));
+                                            typeConvertor.convert(
+                                                    new GSDataTypeDesc(
+                                                            (Map<String, Object>)
+                                                                    propertyMap.get(
+                                                                            "property_type")))));
                         }
                     }
                 }

@@ -58,6 +58,7 @@ public class LocalIrMetaReader implements IrMetaReader {
         FileFormatType formatType = FileUtils.getFormatType(schemaUri);
         IrGraphSchema graphSchema =
                 new IrGraphSchema(
+                        configs,
                         new SchemaInputStream(
                                 new FileInputStream(schemaPath.toFile()), formatType));
         IrMeta irMeta =

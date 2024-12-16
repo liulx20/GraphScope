@@ -64,7 +64,7 @@ public class GraphNameOrId {
         NAME,
         ID
     }
-    
+
     @Override
     public String toString() {
         switch (opt) {

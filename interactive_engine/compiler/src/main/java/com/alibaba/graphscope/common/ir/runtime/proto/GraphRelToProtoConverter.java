@@ -109,7 +109,7 @@ public class GraphRelToProtoConverter extends GraphShuttle {
         this.depth = depth;
     }
 
-   @Override
+    @Override
     public RelNode visit(GraphTableModify.Insert insert) {
         List<DataSourceOperation> inserts = batchDataSource(insert);
         visitChildren((GraphTableModify.Insert) inserts.get(inserts.size() - 1));
@@ -1378,7 +1378,6 @@ public class GraphRelToProtoConverter extends GraphShuttle {
         throw new UnsupportedOperationException(
                 "converting logical match to physical plan is unsupported yet");
     }
-
 
     private GraphAlgebraCypherWrite.Load.ColumnMappings protoColumnMappings(
             List<DataSourceOperation> operations) {

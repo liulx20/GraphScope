@@ -18,19 +18,19 @@ package com.alibaba.graphscope.cypher.antlr4.visitor;
 
 import com.alibaba.graphscope.common.antlr4.ExprUniqueAliasInfer;
 import com.alibaba.graphscope.common.antlr4.ExprVisitorResult;
+import com.alibaba.graphscope.common.ir.meta.IrMeta;
 import com.alibaba.graphscope.common.ir.meta.schema.LoadCSVTable;
 import com.alibaba.graphscope.common.ir.rel.DataSourceTableScan;
 import com.alibaba.graphscope.common.ir.rel.DummyTableScan;
-import com.alibaba.graphscope.common.ir.meta.IrMeta;
 import com.alibaba.graphscope.common.ir.rel.GraphLogicalAggregate;
 import com.alibaba.graphscope.common.ir.rel.LoadCSVTableScan;
 import com.alibaba.graphscope.common.ir.rel.ddl.GraphTableModify;
+import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalGetV;
+import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalPathExpand;
 import com.alibaba.graphscope.common.ir.rel.type.DataFormat;
 import com.alibaba.graphscope.common.ir.rel.type.DataSource;
 import com.alibaba.graphscope.common.ir.rel.type.FieldMappings;
 import com.alibaba.graphscope.common.ir.rel.type.TargetGraph;
-import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalGetV;
-import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalPathExpand;
 import com.alibaba.graphscope.common.ir.rel.type.group.GraphAggCall;
 import com.alibaba.graphscope.common.ir.rex.RexGraphDynamicParam;
 import com.alibaba.graphscope.common.ir.rex.RexTmpVariableConverter;
@@ -41,7 +41,6 @@ import com.alibaba.graphscope.common.ir.tools.config.GraphOpt;
 import com.alibaba.graphscope.grammar.CypherGSBaseVisitor;
 import com.alibaba.graphscope.grammar.CypherGSParser;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -126,7 +125,7 @@ public class GraphBuilderVisitor extends CypherGSBaseVisitor<GraphBuilder> {
         return builder.unfold(expr, alias);
     }
 
-       @Override
+    @Override
     public GraphBuilder visitOC_Set(CypherGSParser.OC_SetContext ctx) {
         FieldMappings updateMappings = createFieldMappings(ctx);
         TableModify update =

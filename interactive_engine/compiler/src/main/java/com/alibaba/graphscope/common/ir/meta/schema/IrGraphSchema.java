@@ -16,6 +16,8 @@
 
 package com.alibaba.graphscope.common.ir.meta.schema;
 
+import com.alibaba.graphscope.common.config.Configs;
+import com.alibaba.graphscope.common.ir.type.GraphTypeFactoryImpl;
 import com.alibaba.graphscope.groot.common.exception.PropertyNotFoundException;
 import com.alibaba.graphscope.groot.common.exception.TypeNotFoundException;
 import com.alibaba.graphscope.groot.common.schema.api.*;
@@ -34,7 +36,7 @@ public class IrGraphSchema implements GraphSchema {
     private final String schemeJson;
     private final boolean isColumnId;
 
-    public IrGraphSchema(SchemaInputStream schemaInputStream) throws IOException {
+    public IrGraphSchema(Configs configs, SchemaInputStream schemaInputStream) throws IOException {
         this.isColumnId = false;
         String content =
                 new String(
@@ -42,7 +44,8 @@ public class IrGraphSchema implements GraphSchema {
         schemaInputStream.getInputStream().close();
         switch (schemaInputStream.getFormatType()) {
             case YAML:
-                this.graphSchema = Utils.buildSchemaFromYaml(content);
+                this.graphSchema =
+                        Utils.buildSchemaFromYaml(content, new GraphTypeFactoryImpl(configs));
                 this.schemeJson =
                         IrSchemaParser.getInstance().parse(this.graphSchema, this.isColumnId);
                 break;

@@ -117,7 +117,6 @@ public class GraphRexBuilder extends RexBuilder {
         }
     }
 
-
     @Override
     public RexNode makeCast(RelDataType type, RexNode exp) {
         if (!exp.getType().equals(type)) {

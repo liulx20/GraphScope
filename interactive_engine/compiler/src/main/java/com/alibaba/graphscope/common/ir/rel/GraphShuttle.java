@@ -16,6 +16,7 @@
 
 package com.alibaba.graphscope.common.ir.rel;
 
+import com.alibaba.graphscope.common.ir.rel.ddl.GraphTableModify;
 import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalExpand;
 import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalGetV;
 import com.alibaba.graphscope.common.ir.rel.graph.GraphLogicalPathExpand;
@@ -24,7 +25,6 @@ import com.alibaba.graphscope.common.ir.rel.graph.GraphPhysicalExpand;
 import com.alibaba.graphscope.common.ir.rel.graph.GraphPhysicalGetV;
 import com.alibaba.graphscope.common.ir.rel.graph.match.GraphLogicalMultiMatch;
 import com.alibaba.graphscope.common.ir.rel.graph.match.GraphLogicalSingleMatch;
-import com.alibaba.graphscope.common.ir.rel.ddl.GraphTableModify;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;

@@ -16,21 +16,21 @@
  *
  */
 
-package com.alibaba.graphscope.common.ir.rel;
+package com.alibaba.graphscope.common.ir.meta.schema;
 
-import com.alibaba.graphscope.common.ir.rel.type.TargetGraph;
+import com.alibaba.graphscope.groot.common.schema.impl.DefaultGraphProperty;
 
-import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 
-/**
- * Do operations on graph DB by the input data loading from an external source
- */
-public interface DataSourceOperation {
+public class IrGraphProperty extends DefaultGraphProperty {
+    private final RelDataType relDataType;
 
-    /**
-     * @return external source
-     */
-    RelNode getExternalSource();
+    public IrGraphProperty(int id, String name, RelDataType relDataType) {
+        super(id, name, new IrDataTypeConvertor.Groot(null).convert(relDataType));
+        this.relDataType = relDataType;
+    }
 
-    TargetGraph getTargetGraph();
+    public RelDataType getRelDataType() {
+        return this.relDataType;
+    }
 }

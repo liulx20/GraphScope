@@ -478,7 +478,7 @@ public class GraphBuilder extends RelBuilder {
         }
     }
 
-     /**
+    /**
      * Get Field from the given alias (denoted by `row[0]` in cypher syntax), the type of {@code RelNode} attached with the alias should be a struct type which consists of multiple fields
      * @param alias
      * @param fieldIdx
@@ -554,7 +554,6 @@ public class GraphBuilder extends RelBuilder {
         } else if (property.equals(GraphProperty.ID_KEY)) {
             if (!(aliasField.getType() instanceof GraphSchemaType)) {
                 throw new ClassCastException(
-                        
                         "cannot get property=['id'] from type class ["
                                 + aliasField.getType().getClass()
                                 + "], should be ["
@@ -673,7 +672,7 @@ public class GraphBuilder extends RelBuilder {
                     }
                     properties.add(pField.getName());
             }
-        } 
+        }
         throw new IllegalArgumentException(
                 "{property="
                         + property

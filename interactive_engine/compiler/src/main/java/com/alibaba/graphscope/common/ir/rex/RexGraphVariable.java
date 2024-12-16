@@ -124,7 +124,7 @@ public class RexGraphVariable extends RexInputRef {
         String splits[] = this.digest.split("\\.");
         return splits[0];
     }
-    
+
     public @Nullable GraphProperty getProperty() {
         return property;
     }
