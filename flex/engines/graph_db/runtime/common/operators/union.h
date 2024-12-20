@@ -24,7 +24,7 @@ namespace runtime {
 
 class Union {
  public:
-  static Context union_op(Context&& ctx1, Context&& ctx2);
+  static Context union_op(std::vector<Context>&& ctxs);
 };
 
 }  // namespace runtime

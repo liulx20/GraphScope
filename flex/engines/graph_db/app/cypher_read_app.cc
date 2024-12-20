@@ -47,7 +47,7 @@ bool CypherReadApp::Query(const GraphDBSession& graph, Decoder& input,
     const auto& plan = plan_cache_[query];
     pipeline_cache_.emplace(
         query, runtime::PlanParser::get().parse_read_pipeline(
-                   db_.schema(), gs::runtime::ContextMeta(), plan, 0));
+                   db_.schema(), gs::runtime::ContextMeta(), plan));
   }
 
   // LOG(INFO) << "plan: " << plan.DebugString();
@@ -56,6 +56,7 @@ bool CypherReadApp::Query(const GraphDBSession& graph, Decoder& input,
   auto ctx = pipeline_cache_.at(query).Execute(gri, runtime::Context(), params,
                                                timer_);
 
+  // runtime::eval_sink_encoder(ctx, gri, output);
   runtime::eval_sink_encoder(ctx, gri, output);
   return true;
 }

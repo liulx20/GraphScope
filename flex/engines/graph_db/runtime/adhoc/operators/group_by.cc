@@ -132,7 +132,6 @@ std::pair<std::vector<std::vector<size_t>>, Context> generate_aggregate_indices(
       if (ret.first != nullptr) {
         Context ret_ctx;
         ret_ctx.set(keys[0].alias, ret.first);
-        ret_ctx.append_tag_id(keys[0].alias);
 
         // LOG(INFO) << "hit generate...";
         return std::make_pair(std::move(ret.second), std::move(ret_ctx));
@@ -213,7 +212,6 @@ std::pair<std::vector<std::vector<size_t>>, Context> generate_aggregate_indices(
   for (size_t k_i = 0; k_i < keys_num; ++k_i) {
     auto col = keys_columns[k_i]->finish();
     ret_ctx.set(keys[k_i].alias, col);
-    ret_ctx.append_tag_id(keys[k_i].alias);
   }
 
   return std::make_pair(std::move(ret), std::move(ret_ctx));
@@ -743,7 +741,6 @@ Context eval_group_by(const physical::GroupBy& opr,
       }
       auto new_col = apply_reduce(ctx, functions[i], {tmp});
       ret.set(functions[i].alias, new_col);
-      ret.append_tag_id(functions[i].alias);
     }
 
     return ret;
@@ -779,7 +776,6 @@ Context eval_group_by(const physical::GroupBy& opr,
     for (int i = 0; i < func_num; ++i) {
       auto new_col = apply_reduce(ctx, functions[i], to_aggregate);
       ret.set(functions[i].alias, new_col);
-      ret.append_tag_id(functions[i].alias);
     }
     return ret;
   }

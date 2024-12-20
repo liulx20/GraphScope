@@ -15,6 +15,7 @@
 
 #ifndef RUNTIME_COMMON_COLUMNS_PATH_COLUMNS_H_
 #define RUNTIME_COMMON_COLUMNS_PATH_COLUMNS_H_
+#include "flex/engines/graph_db/runtime/common/columns/columns_utils.h"
 #include "flex/engines/graph_db/runtime/common/columns/i_context_column.h"
 
 namespace gs {
@@ -68,24 +69,7 @@ class GeneralPathColumn : public IPathColumn {
   std::shared_ptr<IContextColumnBuilder> builder() const override;
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    offsets.clear();
-    offsets.push_back(origin_offsets[0]);
-    for (size_t i = 1; i < origin_offsets.size(); ++i) {
-      if (!(data_[origin_offsets[i]] == data_[origin_offsets[i - 1]])) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
   template <typename FUNC>
@@ -163,25 +147,7 @@ class OptionalGeneralPathColumn : public IPathColumn {
   std::shared_ptr<IContextColumnBuilder> builder() const override;
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
-    std::vector<size_t> origin_offsets(data_.size());
-    for (size_t i = 0; i < data_.size(); ++i) {
-      origin_offsets[i] = i;
-    }
-    std::sort(origin_offsets.begin(), origin_offsets.end(),
-              [this](size_t a, size_t b) {
-                // data_[a] == data_[b]
-                if (data_[a] == data_[b]) {
-                  return a < b;
-                }
-                return data_[a] < data_[b];
-              });
-    offsets.clear();
-    offsets.push_back(origin_offsets[0]);
-    for (size_t i = 1; i < origin_offsets.size(); ++i) {
-      if (!(data_[origin_offsets[i]] == data_[origin_offsets[i - 1]])) {
-        offsets.push_back(origin_offsets[i]);
-      }
-    }
+    ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
 
   template <typename FUNC>

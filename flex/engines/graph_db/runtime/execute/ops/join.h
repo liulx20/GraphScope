@@ -97,108 +97,6 @@ class JoinOpr : public IReadOperator {
   physical::Join opr_;
 };
 
-static bool try_reuse_left_plan_column(const physical::Join& op, int& Tag,
-                                       int& Alias) {
-  int left_key0 = op.left_keys(0).tag().id();
-  int left_key1 = op.left_keys(1).tag().id();
-  int right_key0 = op.right_keys(0).tag().id();
-  int right_key1 = op.right_keys(1).tag().id();
-  if (!op.right_keys(0).has_node_type() || !op.right_keys(1).has_node_type()) {
-    return false;
-  }
-  if (op.right_keys(0).node_type().type_case() !=
-          common::IrDataType::kGraphType ||
-      op.right_keys(1).node_type().type_case() !=
-          common::IrDataType::kGraphType) {
-    return false;
-  }
-
-  if ((op.right_keys(0).node_type().graph_type().element_opt() !=
-       common::GraphDataType::GraphElementOpt::
-           GraphDataType_GraphElementOpt_VERTEX) ||
-      (op.right_keys(1).node_type().graph_type().element_opt() !=
-       common::GraphDataType::GraphElementOpt::
-           GraphDataType_GraphElementOpt_VERTEX)) {
-    return false;
-  }
-  if (op.right_keys(1).node_type().graph_type().graph_data_type_size() != 1 ||
-      op.right_keys(0).node_type().graph_type().graph_data_type_size() != 1) {
-    return false;
-  }
-  if (op.right_keys(0)
-          .node_type()
-          .graph_type()
-          .graph_data_type(0)
-          .label()
-          .label() != op.right_keys(1)
-                          .node_type()
-                          .graph_type()
-                          .graph_data_type(0)
-                          .label()
-                          .label()) {
-    return false;
-  }
-  auto right_plan = op.right_plan();
-
-  if (right_plan.plan(0).opr().has_scan()) {
-    auto scan = right_plan.plan(0).opr().scan();
-    int alias = -1;
-    if (scan.has_alias()) {
-      alias = scan.alias().value();
-    }
-    if (!(alias == right_key0 || alias == right_key1)) {
-      return false;
-    }
-    if (alias == right_key0) {
-      Tag = left_key0;
-      Alias = alias;
-    } else {
-      Tag = left_key1;
-      Alias = alias;
-    }
-
-    if (scan.has_idx_predicate()) {
-      return false;
-    }
-    auto params = scan.params();
-    if (params.has_predicate()) {
-      return false;
-    }
-    if (params.tables_size() != 1) {
-      return false;
-    }
-    int num = right_plan.plan().size();
-    auto last_op = right_plan.plan(num - 1);
-
-    if (last_op.opr().has_edge()) {
-      auto edge = last_op.opr().edge();
-      int alias = -1;
-      if (edge.has_alias()) {
-        alias = edge.alias().value();
-      }
-      if (alias != right_key0 && alias != right_key1) {
-        return false;
-      }
-      if (edge.expand_opt() !=
-          physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX) {
-        return false;
-      }
-      if (!edge.has_params()) {
-        return false;
-      }
-      if (edge.params().tables_size() != 1) {
-        return false;
-      }
-
-      if (edge.params().has_predicate()) {
-        return false;
-      }
-      return true;
-    }
-  }
-  return false;
-}
-
 class JoinOprBuilder : public IReadOperatorBuilder {
  public:
   JoinOprBuilder() = default;
@@ -207,62 +105,18 @@ class JoinOprBuilder : public IReadOperatorBuilder {
   std::pair<std::unique_ptr<IReadOperator>, ContextMeta> Build(
       const Schema& schema, const ContextMeta& ctx_meta,
       const physical::PhysicalPlan& plan, int op_idx) override {
-    int tag = -1;
-    int alias = -1;
-
     ContextMeta ret_meta;
-    auto& right_keys = plan.plan(op_idx).opr().join().right_keys();
-    int left_keys_size = plan.plan(op_idx).opr().join().left_keys_size();
-    int right_keys_size = plan.plan(op_idx).opr().join().right_keys_size();
     std::vector<int> right_columns;
+    auto& right_keys = plan.plan(op_idx).opr().join().right_keys();
     for (int i = 0; i < right_keys.size(); ++i) {
       right_columns.push_back(right_keys.Get(i).tag().id());
     }
     auto join_kind = plan.plan(op_idx).opr().join().join_kind();
 
-    if (left_keys_size == 2 && right_keys_size == 2) {
-      if (try_reuse_left_plan_column(plan.plan(op_idx).opr().join(), tag,
-                                     alias)) {
-        auto pair1 = PlanParser::get().parse_read_pipeline_with_meta(
-            schema, ctx_meta, plan.plan(op_idx).opr().join().left_plan(), 0);
-        ContextMeta right_meta;
-        right_meta.set(alias);
-        auto pair2 = PlanParser::get().parse_read_pipeline_with_meta(
-            schema, right_meta, plan.plan(op_idx).opr().join().right_plan(), 1);
-
-        auto& ctx_meta1 = pair1.second;
-        auto& ctx_meta2 = pair2.second;
-
-        if (join_kind == physical::Join_JoinKind::Join_JoinKind_SEMI ||
-            join_kind == physical::Join_JoinKind::Join_JoinKind_ANTI) {
-          ret_meta = ctx_meta1;
-        } else if (join_kind == physical::Join_JoinKind::Join_JoinKind_INNER) {
-          ret_meta = ctx_meta1;
-          for (auto k : ctx_meta2.columns()) {
-            ret_meta.set(k);
-          }
-        } else {
-          CHECK(join_kind == physical::Join_JoinKind::Join_JoinKind_LEFT_OUTER);
-          ret_meta = ctx_meta1;
-          for (auto k : ctx_meta2.columns()) {
-            if (std::find(right_columns.begin(), right_columns.end(), k) ==
-                right_columns.end()) {
-              ret_meta.set(k);
-            }
-          }
-        }
-
-        return std::make_pair(
-            std::make_unique<RLJoinOpr>(std::move(pair1.first),
-                                        std::move(pair2.first), tag, alias,
-                                        plan.plan(op_idx).opr().join()),
-            ret_meta);
-      }
-    }
     auto pair1 = PlanParser::get().parse_read_pipeline_with_meta(
-        schema, ctx_meta, plan.plan(op_idx).opr().join().left_plan(), 0);
+        schema, ctx_meta, plan.plan(op_idx).opr().join().left_plan());
     auto pair2 = PlanParser::get().parse_read_pipeline_with_meta(
-        schema, ctx_meta, plan.plan(op_idx).opr().join().right_plan(), 0);
+        schema, ctx_meta, plan.plan(op_idx).opr().join().right_plan());
     auto& ctx_meta1 = pair1.second;
     auto& ctx_meta2 = pair2.second;
     if (join_kind == physical::Join_JoinKind::Join_JoinKind_SEMI ||

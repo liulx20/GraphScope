@@ -38,13 +38,13 @@ std::vector<label_t> extract_labels(const std::vector<LabelTriplet>& labels,
     if (opt == VOpt::kStart) {
       if (std::find(tables.begin(), tables.end(), label.src_label) !=
               tables.end() ||
-          tables.size() == 0) {
+          tables.empty()) {
         output_labels.push_back(label.src_label);
       }
     } else if (opt == VOpt::kEnd) {
       if (std::find(tables.begin(), tables.end(), label.dst_label) !=
               tables.end() ||
-          tables.size() == 0) {
+          tables.empty()) {
         output_labels.push_back(label.dst_label);
       }
     } else {

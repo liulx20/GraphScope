@@ -26,6 +26,44 @@ namespace runtime {
 
 namespace ops {
 
+class SinkOpr : public IReadOperator {
+ public:
+  SinkOpr(const std::vector<int>& tag_ids) : tag_ids_(tag_ids) {}
+
+  Context Eval(const GraphReadInterface& graph,
+               const std::map<std::string, std::string>& params, Context&& ctx,
+               OprTimer& timer) override {
+    ctx.tag_ids = tag_ids_;
+    // gs::runtime::eval_sink_encoder(ctx, graph, tag_ids_);
+    return ctx;
+  }
+
+ private:
+  std::vector<int> tag_ids_;
+};
+
+class SinkOprBuilder : public IReadOperatorBuilder {
+ public:
+  SinkOprBuilder() = default;
+  ~SinkOprBuilder() = default;
+
+  std::pair<std::unique_ptr<IReadOperator>, ContextMeta> Build(
+      const gs::Schema& schema, const ContextMeta& ctx_meta,
+      const physical::PhysicalPlan& plan, int op_idx) override {
+    auto& opr = plan.plan(op_idx).opr().sink();
+    std::vector<int> tag_ids;
+    for (auto& tag : opr.tags()) {
+      tag_ids.push_back(tag.tag().value());
+    }
+    return std::make_pair(std::make_unique<SinkOpr>(tag_ids), ctx_meta);
+  }
+
+  std::vector<physical::PhysicalOpr_Operator::OpKindCase> GetOpKinds()
+      const override {
+    return {physical::PhysicalOpr_Operator::OpKindCase::kSink};
+  }
+};
+
 class SinkInsertOpr : public IInsertOperator {
  public:
   SinkInsertOpr() {}

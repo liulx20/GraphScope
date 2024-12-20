@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef RUNTIME_COMMON_OPERATORS_SELECT_H_
-#define RUNTIME_COMMON_OPERATORS_SELECT_H_
+#ifndef RUNTIME_COMMON_OPERATORS_LIMIT_H_
+#define RUNTIME_COMMON_OPERATORS_LIMIT_H_
 
 #include "flex/engines/graph_db/runtime/common/context.h"
 
@@ -22,25 +22,13 @@ namespace gs {
 
 namespace runtime {
 
-class Select {
+class Limit {
  public:
-  template <typename PRED_T>
-  static Context select(Context&& ctx, const PRED_T& pred) {
-    size_t row_num = ctx.row_num();
-    std::vector<size_t> offsets;
-    for (size_t k = 0; k < row_num; ++k) {
-      if (pred(k)) {
-        offsets.push_back(k);
-      }
-    }
-
-    ctx.reshuffle(offsets);
-    return ctx;
-  }
+  static Context limit(Context&& ctxs, size_t lower, size_t upper);
 };
 
 }  // namespace runtime
 
 }  // namespace gs
 
-#endif  // RUNTIME_COMMON_OPERATORS_SELECT_H_
+#endif  // RUNTIME_COMMON_OPERATORS_LIMIT_H_

@@ -239,14 +239,12 @@ Context eval_project(const physical::Project& opr,
   }
   int mappings_size = opr.mappings_size();
   size_t row_num = ctx.row_num();
-  std::vector<size_t> alias_ids;
   if (static_cast<size_t>(mappings_size) == data_types.size()) {
     for (int i = 0; i < mappings_size; ++i) {
       const physical::Project_ExprAlias& m = opr.mappings(i);
       {
         int tag, alias;
         if (exchange_tag_alias(m, tag, alias)) {
-          alias_ids.push_back(alias);
           ret.set(alias, ctx.get(tag));
           continue;
         }
@@ -289,7 +287,6 @@ Context eval_project(const physical::Project& opr,
                   }
 
                   ret.set(m.alias().value(), builder.finish());
-                  alias_ids.push_back(m.alias().value());
                   continue;
                 }
               }
@@ -333,7 +330,6 @@ Context eval_project(const physical::Project& opr,
                   }
 
                   ret.set(m.alias().value(), builder.finish());
-                  alias_ids.push_back(m.alias().value());
                   continue;
                 }
               }
@@ -347,7 +343,6 @@ Context eval_project(const physical::Project& opr,
       if (m.has_alias()) {
         alias = m.alias().value();
       }
-      alias_ids.push_back(alias);
       // compiler bug here, data_types[i] is none
       if (data_types[i].type_case() == common::IrDataType::kDataType &&
           data_types[i].data_type() == common::DataType::NONE) {
@@ -358,8 +353,7 @@ Context eval_project(const physical::Project& opr,
           auto col = build_column(data_type, expr, row_num);
           ret.set(alias, col);
         } else {
-          LOG(FATAL) << "not support for "
-                     << static_cast<int>(expr.type().type_enum_);
+          LOG(FATAL) << "not support for " << static_cast<int>(expr.type());
         }
       }
 
@@ -375,7 +369,6 @@ Context eval_project(const physical::Project& opr,
         int tag, alias;
         if (exchange_tag_alias(m, tag, alias)) {
           ret.set(alias, ctx.get(tag));
-          alias_ids.push_back(alias);
           continue;
         }
       }
@@ -385,12 +378,10 @@ Context eval_project(const physical::Project& opr,
       if (m.has_alias()) {
         alias = m.alias().value();
       }
-      alias_ids.push_back(alias);
       auto col = build_column_beta(expr, row_num);
       ret.set(alias, col);
     }
   }
-  ret.update_tag_ids(alias_ids);
 
   return ret;
 }
@@ -664,7 +655,6 @@ Context eval_project_order_by(
   row_num = ctx.row_num();
   Context ret;
 
-  std::vector<size_t> tags;
   for (int i = 0; i < mappings_size; ++i) {
     const physical::Project_ExprAlias& m = project_opr.mappings(i);
     if (!(m.has_alias() &&
@@ -673,16 +663,13 @@ Context eval_project_order_by(
       Expr expr(graph, ctx, params, m.expr(), VarType::kPathVar);
       auto col = build_column(data_types[i], expr, row_num);
       ret.set(alias, col);
-      tags.push_back(alias);
     } else if (m.has_alias()) {
-      int alias = m.alias().value();
-      tags.push_back(alias);
+      // int alias = m.alias().value();
     }
   }
   for (auto alias : added_alias_in_preproject) {
     ret.set(alias, ctx.get(alias));
   }
-  ret.update_tag_ids(tags);
 
   return ret;
 }

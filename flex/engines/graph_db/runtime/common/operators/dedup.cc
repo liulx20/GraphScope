@@ -19,12 +19,12 @@ namespace gs {
 
 namespace runtime {
 
-void Dedup::dedup(const GraphReadInterface& graph, Context& ctx,
-                  const std::vector<size_t>& cols) {
+Context Dedup::dedup(const GraphReadInterface& graph, Context&& ctx,
+                     const std::vector<size_t>& cols) {
   size_t row_num = ctx.row_num();
   std::vector<size_t> offsets;
   if (cols.size() == 0) {
-    return;
+    return ctx;
   } else if (cols.size() == 1) {
     ctx.get(cols[0])->generate_dedup_offset(offsets);
   } else if (cols.size() == 2) {
@@ -82,10 +82,11 @@ void Dedup::dedup(const GraphReadInterface& graph, Context& ctx,
     }
   }
   ctx.reshuffle(offsets);
+  return ctx;
 }
 
-void Dedup::dedup(const GraphReadInterface& graph, Context& ctx,
-                  const std::vector<std::function<RTAny(size_t)>>& vars) {
+Context Dedup::dedup(const GraphReadInterface& graph, Context&& ctx,
+                     const std::vector<std::function<RTAny(size_t)>>& vars) {
   std::set<std::string> set;
   size_t row_num = ctx.row_num();
   std::vector<size_t> offsets;
@@ -104,6 +105,7 @@ void Dedup::dedup(const GraphReadInterface& graph, Context& ctx,
     }
   }
   ctx.reshuffle(offsets);
+  return ctx;
 }
 
 }  // namespace runtime

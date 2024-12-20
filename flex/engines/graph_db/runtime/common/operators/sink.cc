@@ -19,19 +19,65 @@ namespace gs {
 
 namespace runtime {
 // TODO: Implement the sink function
-void Sink::sink(const Context& ctx, Encoder& output) {
+void Sink::sink(const Context& ctx, const GraphReadInterface& graph,
+                Encoder& output) {
   size_t row_num = ctx.row_num();
-  size_t col_num = ctx.col_num();
+  results::CollectiveResults results;
   for (size_t i = 0; i < row_num; ++i) {
-    for (size_t j = 0; j < col_num; ++j) {
+    auto result = results.add_results();
+    for (size_t j : ctx.tag_ids) {
       auto col = ctx.get(j);
       if (col == nullptr) {
         continue;
       }
-      auto val = col->get_elem(row_num - i - 1);
-      // val.sink(output);
+      auto column = result->mutable_record()->add_columns();
+      auto val = col->get_elem(i);
+      val.sink(graph, j, column);
     }
   }
+  auto res = results.SerializeAsString();
+  output.put_bytes(res.data(), res.size());
+}
+
+void Sink::sink_encoder(const Context& ctx, const GraphReadInterface& graph,
+                        Encoder& encoder) {
+  size_t row_num = ctx.row_num();
+  for (size_t i = 0; i < row_num; ++i) {
+    for (size_t j : ctx.tag_ids) {
+      auto col = ctx.get(j);
+      if (col == nullptr) {
+        continue;
+      }
+
+      auto val = col->get_elem(i);
+      val.sink(graph, encoder);
+    }
+  }
+}
+
+void Sink::sink_beta(const Context& ctx, const GraphReadInterface& graph,
+                     Encoder& output) {
+  size_t row_num = ctx.row_num();
+  results::CollectiveResults results;
+  for (size_t i = 0; i < row_num; ++i) {
+    auto result = results.add_results();
+    std::stringstream ss;
+    for (size_t j : ctx.tag_ids) {
+      auto col = ctx.get(j);
+      if (col == nullptr) {
+        continue;
+      }
+      auto column = result->mutable_record()->add_columns();
+      auto val = col->get_elem(i);
+      ss << val.to_string() << "|";
+      val.sink(graph, j, column);
+    }
+    std::cout << ss.str() << std::endl;
+  }
+  std::cout << "========================================================="
+            << std::endl;
+  auto res = results.SerializeAsString();
+  output.put_bytes(res.data(), res.size());
 }
 
 }  // namespace runtime

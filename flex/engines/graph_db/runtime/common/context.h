@@ -33,17 +33,10 @@ class Context {
 
   void clear();
 
-  void update_tag_ids(const std::vector<size_t>& tag_ids);
-
-  void append_tag_id(size_t tag_id);
   void set(int alias, std::shared_ptr<IContextColumn> col);
 
   void set_with_reshuffle(int alias, std::shared_ptr<IContextColumn> col,
                           const std::vector<size_t>& offsets);
-
-  void set_with_reshuffle_beta(int alias, std::shared_ptr<IContextColumn> col,
-                               const std::vector<size_t>& offsets,
-                               const std::set<int>& keep_cols);
 
   void reshuffle(const std::vector<size_t>& offsets);
   void optional_reshuffle(const std::vector<size_t>& offsets);
@@ -71,12 +64,11 @@ class Context {
   std::vector<std::shared_ptr<IContextColumn>> columns;
   std::shared_ptr<IContextColumn> head;
 
-  std::vector<size_t> tag_ids;
-
   // for intersect
   const ValueColumn<size_t>& get_offsets() const;
   Context* prev_context;
   std::shared_ptr<ValueColumn<size_t>> offset_ptr;
+  std::vector<int> tag_ids;
 };
 
 class ContextMeta {

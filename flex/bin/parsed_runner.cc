@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
   pb.ParseFromString(query);
 
   auto pipeline = gs::runtime::PlanParser::get().parse_read_pipeline(
-      db.schema(), gs::runtime::ContextMeta(), pb, 0);
+      db.schema(), gs::runtime::ContextMeta(), pb);
 
   auto txn = db.GetReadTransaction();
   gs::runtime::GraphReadInterface gri(txn);

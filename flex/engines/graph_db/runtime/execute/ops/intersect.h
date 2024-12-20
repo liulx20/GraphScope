@@ -62,10 +62,11 @@ class IntersectOprBuilder : public IReadOperatorBuilder {
       const Schema& schema, const ContextMeta& ctx_meta,
       const physical::PhysicalPlan& plan, int op_idx) override {
     std::vector<ReadPipeline> sub_plans;
-    for (int i = 0; i < plan.plan(op_idx).opr().intersect().sub_plans_size(); ++i) {
+    for (int i = 0; i < plan.plan(op_idx).opr().intersect().sub_plans_size();
+         ++i) {
       auto& sub_plan = plan.plan(op_idx).opr().intersect().sub_plans(i);
       sub_plans.push_back(
-          PlanParser::get().parse_read_pipeline(schema, ctx_meta, sub_plan, 0));
+          PlanParser::get().parse_read_pipeline(schema, ctx_meta, sub_plan));
     }
     ContextMeta meta = ctx_meta;
     meta.set(plan.plan(op_idx).opr().intersect().key());

@@ -32,16 +32,6 @@ void Context::clear() {
   prev_context = nullptr;
 }
 
-void Context::update_tag_ids(const std::vector<size_t>& tag_ids) {
-  this->tag_ids = tag_ids;
-}
-
-void Context::append_tag_id(size_t tag_id) {
-  if (std::find(tag_ids.begin(), tag_ids.end(), tag_id) == tag_ids.end()) {
-    tag_ids.push_back(tag_id);
-  }
-}
-
 void Context::set(int alias, std::shared_ptr<IContextColumn> col) {
   head = col;
   if (alias >= 0) {
@@ -67,31 +57,6 @@ void Context::set_with_reshuffle(int alias, std::shared_ptr<IContextColumn> col,
   }
 
   reshuffle(offsets);
-  set(alias, col);
-}
-
-void Context::set_with_reshuffle_beta(int alias,
-                                      std::shared_ptr<IContextColumn> col,
-                                      const std::vector<size_t>& offsets,
-                                      const std::set<int>& keep_cols) {
-  head.reset();
-  head = nullptr;
-  if (alias >= 0) {
-    if (columns.size() > static_cast<size_t>(alias) &&
-        columns[alias] != nullptr) {
-      columns[alias].reset();
-      columns[alias] = nullptr;
-    }
-  }
-  for (size_t k = 0; k < columns.size(); ++k) {
-    if (keep_cols.find(k) == keep_cols.end() && columns[k] != nullptr) {
-      columns[k].reset();
-      columns[k] = nullptr;
-    }
-  }
-
-  reshuffle(offsets);
-
   set(alias, col);
 }
 

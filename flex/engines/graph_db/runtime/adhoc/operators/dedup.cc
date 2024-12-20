@@ -45,11 +45,10 @@ Context eval_dedup(const algebra::Dedup& opr, const GraphReadInterface& graph,
     }
   }
   if (!flag) {
-    Dedup::dedup(graph, ctx, keys);
+    return Dedup::dedup(graph, std::move(ctx), keys);
   } else {
-    Dedup::dedup(graph, ctx, vars);
+    return Dedup::dedup(graph, std::move(ctx), vars);
   }
-  return ctx;
 }
 
 WriteContext eval_dedup(const algebra::Dedup& opr,

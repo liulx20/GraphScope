@@ -34,8 +34,7 @@ Context PathExpand::edge_expand_v(const GraphReadInterface& graph,
     auto pair = path_expand_vertex_without_predicate_impl(
         graph, input_vertex_list, params.labels, params.dir, params.hop_lower,
         params.hop_upper);
-    ctx.set_with_reshuffle_beta(params.alias, pair.first, pair.second,
-                                params.keep_cols);
+    ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
     return ctx;
   } else {
     if (params.dir == Direction::kOut) {
@@ -88,8 +87,7 @@ Context PathExpand::edge_expand_v(const GraphReadInterface& graph,
         }
         ++depth;
       }
-      ctx.set_with_reshuffle_beta(params.alias, builder.finish(),
-                                  shuffle_offset, params.keep_cols);
+      ctx.set_with_reshuffle(params.alias, builder.finish(), shuffle_offset);
       return ctx;
     } else if (params.dir == Direction::kBoth) {
       auto& input_vertex_list =
@@ -151,8 +149,7 @@ Context PathExpand::edge_expand_v(const GraphReadInterface& graph,
         }
         depth++;
       }
-      ctx.set_with_reshuffle_beta(params.alias, builder.finish(),
-                                  shuffle_offset, params.keep_cols);
+      ctx.set_with_reshuffle(params.alias, builder.finish(), shuffle_offset);
       return ctx;
     }
   }
@@ -216,8 +213,7 @@ Context PathExpand::edge_expand_p(const GraphReadInterface& graph,
       ++depth;
     }
     builder.set_path_impls(path_impls);
-    ctx.set_with_reshuffle_beta(params.alias, builder.finish(), shuffle_offset,
-                                params.keep_cols);
+    ctx.set_with_reshuffle(params.alias, builder.finish(), shuffle_offset);
 
     return ctx;
   } else if (dir == Direction::kBoth) {
@@ -273,8 +269,7 @@ Context PathExpand::edge_expand_p(const GraphReadInterface& graph,
       ++depth;
     }
     builder.set_path_impls(path_impls);
-    ctx.set_with_reshuffle_beta(params.alias, builder.finish(), shuffle_offset,
-                                params.keep_cols);
+    ctx.set_with_reshuffle(params.alias, builder.finish(), shuffle_offset);
     return ctx;
   }
   LOG(FATAL) << "not support...";

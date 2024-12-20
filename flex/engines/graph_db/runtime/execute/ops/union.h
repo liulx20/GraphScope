@@ -30,8 +30,8 @@ namespace ops {
 
 class UnionOpr : public IReadOperator {
  public:
-  UnionOpr(std::vector<ReadPipeline>&& sub_plans) : sub_plans_(std::move(sub_plans)) {
-  }
+  UnionOpr(std::vector<ReadPipeline>&& sub_plans)
+      : sub_plans_(std::move(sub_plans)) {}
 
   gs::runtime::Context Eval(const gs::runtime::GraphReadInterface& graph,
                             const std::map<std::string, std::string>& params,
@@ -59,16 +59,17 @@ class UnionOprBuilder : public IReadOperatorBuilder {
       const physical::PhysicalPlan& plan, int op_idx) override {
     std::vector<ReadPipeline> sub_plans;
     std::vector<ContextMeta> sub_metas;
-    for (int i = 0; i < plan.plan(op_idx).opr().union_().sub_plans_size(); ++i) {
+    for (int i = 0; i < plan.plan(op_idx).opr().union_().sub_plans_size();
+         ++i) {
       auto& sub_plan = plan.plan(op_idx).opr().union_().sub_plans(i);
-      auto pair = PlanParser::get().parse_read_pipeline_with_meta(schema, ctx_meta, sub_plan, 0);
+      auto pair = PlanParser::get().parse_read_pipeline_with_meta(
+          schema, ctx_meta, sub_plan);
       sub_plans.emplace_back(std::move(pair.first));
       sub_metas.push_back(pair.second);
     }
     // TODO: check sub metas consisitency
-    return std::make_pair(
-        std::make_unique<UnionOpr>(std::move(sub_plans)),
-        *sub_metas.rbegin());
+    return std::make_pair(std::make_unique<UnionOpr>(std::move(sub_plans)),
+                          *sub_metas.rbegin());
   }
 
   std::vector<physical::PhysicalOpr_Operator::OpKindCase> GetOpKinds()

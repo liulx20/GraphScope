@@ -75,6 +75,8 @@ void PlanParser::init() {
 
   register_read_operator_builder(std::make_unique<ops::UnionOprBuilder>());
 
+  register_read_operator_builder(std::make_unique<ops::SinkOprBuilder>());
+
   register_write_operator_builder(std::make_unique<ops::LoadOprBuilder>());
   register_write_operator_builder(
       std::make_unique<ops::DedupInsertOprBuilder>());
@@ -160,17 +162,15 @@ static std::string get_opr_name(
 
 std::pair<ReadPipeline, ContextMeta> PlanParser::parse_read_pipeline_with_meta(
     const gs::Schema& schema, const ContextMeta& ctx_meta,
-    const physical::PhysicalPlan& plan, int start_idx) {
+    const physical::PhysicalPlan& plan) {
   int opr_num = plan.plan_size();
   std::vector<std::unique_ptr<IReadOperator>> operators;
   ContextMeta cur_ctx_meta = ctx_meta;
-  for (int i = start_idx; i < opr_num;) {
+  for (int i = 0; i < opr_num;) {
     physical::PhysicalOpr_Operator::OpKindCase cur_op_kind =
         plan.plan(i).opr().op_kind_case();
-    // std::cout << "op[" << i << "]: " << get_opr_name(cur_op_kind) <<
-    // std::endl;
     if (cur_op_kind == physical::PhysicalOpr_Operator::OpKindCase::kSink) {
-      break;
+      // break;
     }
     if (cur_op_kind == physical::PhysicalOpr_Operator::OpKindCase::kRoot) {
       ++i;
@@ -208,17 +208,16 @@ std::pair<ReadPipeline, ContextMeta> PlanParser::parse_read_pipeline_with_meta(
   return std::make_pair(ReadPipeline(std::move(operators)), cur_ctx_meta);
 }
 
-ReadPipeline PlanParser::parse_read_pipeline(const gs::Schema& schema,
-                                             const ContextMeta& ctx_meta,
-                                             const physical::PhysicalPlan& plan,
-                                             int start_idx) {
-  return parse_read_pipeline_with_meta(schema, ctx_meta, plan, start_idx).first;
+ReadPipeline PlanParser::parse_read_pipeline(
+    const gs::Schema& schema, const ContextMeta& ctx_meta,
+    const physical::PhysicalPlan& plan) {
+  return parse_read_pipeline_with_meta(schema, ctx_meta, plan).first;
 }
 
 InsertPipeline PlanParser::parse_write_pipeline(
-    const physical::PhysicalPlan& plan, int start_idx) {
+    const physical::PhysicalPlan& plan) {
   std::vector<std::unique_ptr<IInsertOperator>> operators;
-  for (int i = start_idx; i < plan.plan_size(); ++i) {
+  for (int i = 0; i < plan.plan_size(); ++i) {
     auto op_kind = plan.plan(i).opr().op_kind_case();
     operators.emplace_back(write_op_builders_.at(op_kind)->Build(plan, i));
   }

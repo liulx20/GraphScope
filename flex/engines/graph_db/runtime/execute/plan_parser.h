@@ -39,15 +39,13 @@ class PlanParser {
 
   std::pair<ReadPipeline, ContextMeta> parse_read_pipeline_with_meta(
       const gs::Schema& schema, const ContextMeta& ctx_meta,
-      const physical::PhysicalPlan& plan, int start_idx);
+      const physical::PhysicalPlan& plan);
 
   ReadPipeline parse_read_pipeline(const gs::Schema& schema,
                                    const ContextMeta& ctx_meta,
-                                   const physical::PhysicalPlan& plan,
-                                   int start_idx);
+                                   const physical::PhysicalPlan& plan);
 
-  InsertPipeline parse_write_pipeline(const physical::PhysicalPlan& plan,
-                                      int start_idx);
+  InsertPipeline parse_write_pipeline(const physical::PhysicalPlan& plan);
 
  private:
   std::vector<std::vector<

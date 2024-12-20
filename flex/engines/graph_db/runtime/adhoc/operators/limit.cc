@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "flex/engines/graph_db/runtime/common/operators/limit.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/proto_generated_gie/algebra.pb.h"
 
@@ -27,18 +28,9 @@ Context eval_limit(const algebra::Limit& opr, Context&& ctx) {
     lower = std::max(lower, static_cast<int>(opr.range().lower()));
     upper = std::min(upper, static_cast<int>(opr.range().upper()));
   }
+  CHECK(lower >= 0 && upper >= 0 && lower <= upper);
 
-  if (lower == 0 && static_cast<size_t>(upper) == ctx.row_num()) {
-    return std::move(ctx);
-  }
-
-  std::vector<size_t> offsets;
-  for (int i = lower; i < upper; ++i) {
-    offsets.push_back(i);
-  }
-  ctx.reshuffle(offsets);
-
-  return ctx;
+  return Limit::limit(std::move(ctx), lower, upper);
 }
 }  // namespace runtime
 }  // namespace gs

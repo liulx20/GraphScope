@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 
+#include "flex/engines/graph_db/runtime/common/operators/select.h"
 #include "flex/engines/graph_db/runtime/adhoc/expr.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/engines/graph_db/runtime/adhoc/runtime.h"
@@ -49,29 +50,6 @@ bool is_vertex_within_set(const common::Expression& expr, const Context& ctx,
   }
   return true;
 }
-
-Context eval_select_vertex_within_set(
-    const algebra::Select& opr, const GraphReadInterface& graph, Context&& ctx,
-    const std::map<std::string, std::string>& params, int vertex_tag,
-    int set_tag) {
-  std::vector<size_t> offsets;
-  auto& vertex_col =
-      *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(vertex_tag));
-  auto& set_col = *std::dynamic_pointer_cast<SetValueColumn<VertexRecord>>(
-      ctx.get(set_tag));
-  size_t row_num = ctx.row_num();
-  for (size_t i = 0; i < row_num; ++i) {
-    auto vertex = vertex_col.get_vertex(i);
-    auto set = set_col.get_value(i);
-    auto ptr = dynamic_cast<SetImpl<VertexRecord>*>(set.impl_);
-    if (ptr->exists(vertex)) {
-      offsets.push_back(i);
-    }
-  }
-  ctx.reshuffle(offsets);
-  return ctx;
-}
-
 bool is_date_within(const algebra::Select& opr, const GraphReadInterface& graph,
                     const Context& ctx,
                     const std::map<std::string, std::string>& params,
@@ -166,24 +144,6 @@ bool is_vertex_ne_id(const GraphReadInterface& graph,
   return true;
 }
 
-Context eval_select_vertex_ne_id(
-    const algebra::Select& opr, const GraphReadInterface& graph, Context&& ctx,
-    const std::map<std::string, std::string>& params, int vertex_tag,
-    vid_t vid) {
-  std::vector<size_t> offsets;
-  auto& vertex_col =
-      *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(vertex_tag));
-  size_t row_num = ctx.row_num();
-  for (size_t i = 0; i < row_num; ++i) {
-    auto vertex = vertex_col.get_vertex(i);
-    if (vertex.vid_ != vid) {
-      offsets.push_back(i);
-    }
-  }
-  ctx.reshuffle(offsets);
-  return ctx;
-}
-
 bool date_within(Day ts, int month, int next_month) {
   // struct tm tm;
   // auto micro_second = ts / 1000;
@@ -222,14 +182,27 @@ Context eval_select(const algebra::Select& opr, const GraphReadInterface& graph,
   TimerUnit t;
   t.start();
   if (is_vertex_ne_id(graph, opr.predicate(), ctx, params, vertex_tag, vid)) {
-    auto ret = eval_select_vertex_ne_id(opr, graph, std::move(ctx), params,
-                                        vertex_tag, vid);
+    const auto& vertex_col =
+        *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(vertex_tag));
+    auto ret = Select::select(std::move(ctx), [&vertex_col, vid](size_t i) {
+      return vertex_col.get_vertex(i).vid_ != vid;
+    });
     timer.record_routine("select::vertex_ne_id", t);
     return ret;
   }
   if (is_vertex_within_set(opr.predicate(), ctx, vertex_tag, set_tag)) {
-    auto ret = eval_select_vertex_within_set(opr, graph, std::move(ctx), params,
-                                             vertex_tag, set_tag);
+    const auto& vertex_col =
+        *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(vertex_tag));
+    const auto& set_col =
+        *std::dynamic_pointer_cast<SetValueColumn<VertexRecord>>(
+            ctx.get(set_tag));
+    auto ret =
+        Select::select(std::move(ctx), [&vertex_col, &set_col](size_t i) {
+          auto vertex = vertex_col.get_vertex(i);
+          auto set = set_col.get_value(i);
+          auto ptr = dynamic_cast<SetImpl<VertexRecord>*>(set.impl_);
+          return ptr->exists(vertex);
+        });
     timer.record_routine("select::vertex_within_set", t);
     return ret;
   }
