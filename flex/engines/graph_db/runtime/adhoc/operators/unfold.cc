@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/common/operators/unfold.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/unfold.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 
 namespace gs {

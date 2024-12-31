@@ -20,6 +20,23 @@ namespace gs {
 
 namespace runtime {
 
+VOpt parse_opt(const physical::GetV_VOpt& opt) {
+  if (opt == physical::GetV_VOpt::GetV_VOpt_START) {
+    return VOpt::kStart;
+  } else if (opt == physical::GetV_VOpt::GetV_VOpt_END) {
+    return VOpt::kEnd;
+  } else if (opt == physical::GetV_VOpt::GetV_VOpt_OTHER) {
+    return VOpt::kOther;
+  } else if (opt == physical::GetV_VOpt::GetV_VOpt_BOTH) {
+    return VOpt::kBoth;
+  } else if (opt == physical::GetV_VOpt::GetV_VOpt_ITSELF) {
+    return VOpt::kItself;
+  } else {
+    LOG(FATAL) << "unexpected GetV::Opt";
+    return VOpt::kItself;
+  }
+}
+
 Direction parse_direction(const physical::EdgeExpand_Direction& dir) {
   if (dir == physical::EdgeExpand_Direction_OUT) {
     return Direction::kOut;
@@ -63,57 +80,6 @@ std::vector<LabelTriplet> parse_label_triplets(
     }
   }
   return labels;
-}
-
-std::shared_ptr<IContextColumn> create_column(
-    const common::IrDataType& data_type) {
-  switch (data_type.type_case()) {
-  case common::IrDataType::kDataType:
-    LOG(FATAL) << "not support";
-    break;
-  case common::IrDataType::kGraphType: {
-    const common::GraphDataType& graph_data_type = data_type.graph_type();
-    common::GraphDataType_GraphElementOpt elem_opt =
-        graph_data_type.element_opt();
-    int label_num = graph_data_type.graph_data_type_size();
-    if (elem_opt == common::GraphDataType_GraphElementOpt::
-                        GraphDataType_GraphElementOpt_VERTEX) {
-      if (label_num == 1) {
-        label_t v_label = static_cast<label_t>(
-            graph_data_type.graph_data_type(0).label().label());
-        return std::make_shared<SLVertexColumn>(v_label);
-      } else if (label_num > 1) {
-        return std::make_shared<MLVertexColumn>();
-      } else {
-        LOG(FATAL) << "unexpected type";
-      }
-    } else if (elem_opt == common::GraphDataType_GraphElementOpt::
-                               GraphDataType_GraphElementOpt_EDGE) {
-      LOG(FATAL) << "unexpected type";
-    } else {
-      LOG(FATAL) << "unexpected type";
-    }
-  } break;
-  default:
-    LOG(FATAL) << "unexpected type";
-    break;
-  }
-  return nullptr;
-}
-
-std::shared_ptr<IContextColumn> create_column_beta(RTAnyType type) {
-  switch (type) {
-  case RTAnyType::kI64Value:
-    return std::make_shared<ValueColumn<int64_t>>();
-  case RTAnyType::kStringValue:
-    return std::make_shared<ValueColumn<std::string_view>>();
-  case RTAnyType::kVertex:
-    return std::make_shared<MLVertexColumn>();
-  default:
-    LOG(FATAL) << "unsupport type: " << static_cast<int>(type);
-    break;
-  }
-  return nullptr;
 }
 
 std::shared_ptr<IContextColumnBuilder> create_column_builder(RTAnyType type) {
@@ -464,6 +430,14 @@ std::shared_ptr<IContextColumn> build_topN_column(
     return build_topN_value_column_impl<Date>(expr, row_num, limit, asc,
                                               offsets);
   }
+  case common::DataType::DOUBLE: {
+    return build_topN_value_column_impl<double>(expr, row_num, limit, asc,
+                                                offsets);
+  }
+  case common::DataType::STRING: {
+    return build_topN_value_column_impl<std::string_view>(expr, row_num, limit,
+                                                          asc, offsets);
+  }
   default: {
     LOG(INFO) << "type: " << common::DataType_Name(data_type.data_type())
               << " not implemented...";
@@ -613,6 +587,8 @@ bool vertex_id_topN(bool asc, size_t limit,
   } else if (type == PropertyType::StringView()) {
     return vertex_id_topN_impl<std::string_view>(asc, limit, col, graph,
                                                  offsets);
+  } else if (type == PropertyType::Int32()) {
+    return vertex_id_topN_impl<int32_t>(asc, limit, col, graph, offsets);
   } else {
     return false;
   }
@@ -651,8 +627,14 @@ bool vertex_property_topN(bool asc, size_t limit,
   } else if (prop_types[0] == PropertyType::Int64()) {
     return vertex_property_topN_impl<int64_t>(asc, limit, col, graph, prop_name,
                                               offsets);
+  } else if (prop_types[0] == PropertyType::String()) {
+    return vertex_property_topN_impl<std::string_view>(asc, limit, col, graph,
+                                                       prop_name, offsets);
+  } else if (prop_types[0] == PropertyType::Day()) {
+    return vertex_property_topN_impl<Day>(asc, limit, col, graph, prop_name,
+                                          offsets);
   } else {
-    LOG(INFO) << "prop type not support...";
+    LOG(INFO) << "prop type not support..." << prop_types[0];
     return false;
   }
 }
@@ -741,7 +723,6 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
     for (size_t i = 0; i < row_num; ++i) {
       builder.push_back_opt(expr.eval_path(i).as_int64());
     }
-
     return builder.finish();
   } break;
   case RTAnyType::kStringValue: {
@@ -750,7 +731,6 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
     for (size_t i = 0; i < row_num; ++i) {
       builder.push_back_opt(std::string(expr.eval_path(i).as_string()));
     }
-
     return builder.finish();
   } break;
   case RTAnyType::kDate32: {
@@ -759,7 +739,6 @@ std::shared_ptr<IContextColumn> build_column_beta(const Expr& expr,
     for (size_t i = 0; i < row_num; ++i) {
       builder.push_back_opt(expr.eval_path(i).as_date32());
     }
-
     return builder.finish();
   } break;
   case RTAnyType::kTimestamp: {

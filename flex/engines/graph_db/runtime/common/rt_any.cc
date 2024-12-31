@@ -64,8 +64,6 @@ RTAnyType parse_from_ir_data_type(const ::common::IrDataType& dt) {
   default:
     break;
   }
-
-  // LOG(FATAL) << "unknown";
   return RTAnyType::kUnknown;
 }
 
@@ -445,30 +443,43 @@ int RTAny::numerical_cmp(const RTAny& other) const {
   switch (type_) {
   case RTAnyType::kI64Value:
     switch (other.type_) {
-    case RTAnyType::kI32Value:
-      return value_.i64_val - other.value_.i32_val;
-    case RTAnyType::kF64Value:
-      return value_.i64_val - other.value_.f64_val;
+    case RTAnyType::kI32Value: {
+      auto ret = value_.i64_val - other.value_.i32_val;
+      return ret > 0 ? 1 : (ret < 0 ? -1 : 0);
+    }
+    case RTAnyType::kF64Value: {
+      auto ret = value_.i64_val - other.value_.f64_val;
+      return ret > 0 ? 1 : (ret < 0 ? -1 : 0);
+    }
     default:
       LOG(FATAL) << "not support for " << static_cast<int>(other.type_);
     }
     break;
   case RTAnyType::kI32Value:
     switch (other.type_) {
-    case RTAnyType::kI64Value:
-      return value_.i32_val - other.value_.i64_val;
-    case RTAnyType::kF64Value:
-      return value_.i32_val - other.value_.f64_val;
+    case RTAnyType::kI64Value: {
+      auto ret = value_.i32_val - other.value_.i64_val;
+      return ret > 0 ? 1 : (ret < 0 ? -1 : 0);
+    }
+    case RTAnyType::kF64Value: {
+      auto ret = value_.i32_val - other.value_.f64_val;
+      return ret > 0 ? 1 : (ret < 0 ? -1 : 0);
+    }
+
     default:
       LOG(FATAL) << "not support for " << static_cast<int>(other.type_);
     }
     break;
   case RTAnyType::kF64Value:
     switch (other.type_) {
-    case RTAnyType::kI64Value:
-      return value_.f64_val - other.value_.i64_val;
-    case RTAnyType::kI32Value:
-      return value_.f64_val - other.value_.i32_val;
+    case RTAnyType::kI64Value: {
+      auto ret = value_.f64_val - other.value_.i64_val;
+      return ret > 0 ? 1 : (ret < 0 ? -1 : 0);
+    }
+    case RTAnyType::kI32Value: {
+      auto ret = value_.f64_val - other.value_.i32_val;
+      return ret > 0 ? 1 : (ret < 0 ? -1 : 0);
+    }
     default:
       LOG(FATAL) << "not support for " << static_cast<int>(type_);
     }

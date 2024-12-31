@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/common/operators/scan.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/scan.h"
 #include "flex/engines/graph_db/runtime/adhoc/expr_impl.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
@@ -282,7 +282,7 @@ Context eval_scan(const physical::Scan& scan_opr,
     if (!has_other_type_oid && scan_opr.has_idx_predicate()) {
       if (scan_opr.has_idx_predicate() && scan_opr_params.has_predicate()) {
         Context ctx;
-        std::vector<int64_t> oids{};
+        std::vector<Any> oids{};
         CHECK(parse_idx_predicate(scan_opr.idx_predicate(), params, oids,
                                   scan_oid));
 
@@ -302,12 +302,16 @@ Context eval_scan(const physical::Scan& scan_opr,
             timer.record_routine("scan::filter_oids0", tx);
             return ret;
           } else {
+            std::vector<int64_t> gids;
+            for (size_t i = 0; i < oids.size(); i++) {
+              gids.push_back(oids[i].AsInt64());
+            }
             auto ret = Scan::filter_gids(
                 graph, scan_params,
                 [&expr, oids](label_t label, vid_t vid) {
                   return expr->eval_vertex(label, vid, 0).as_bool();
                 },
-                oids);
+                gids);
             timer.record_routine("scan::filter_gids0", tx);
             return ret;
           }
@@ -319,8 +323,12 @@ Context eval_scan(const physical::Scan& scan_opr,
                 "scan::filter_oids_with_special_vertex_predicate0", tx);
             return ret;
           } else {
+            std::vector<int64_t> gids;
+            for (size_t i = 0; i < oids.size(); i++) {
+              gids.push_back(oids[i].AsInt64());
+            }
             auto ret = Scan::filter_gids_with_special_vertex_predicate(
-                graph, scan_params, *sp_vertex_pred, oids);
+                graph, scan_params, *sp_vertex_pred, gids);
             timer.record_routine(
                 "scan::filter_gids_with_special_vertex_predicate0", tx);
             return ret;
@@ -329,7 +337,7 @@ Context eval_scan(const physical::Scan& scan_opr,
       }
 
       if (scan_opr.has_idx_predicate()) {
-        std::vector<int64_t> oids{};
+        std::vector<Any> oids{};
         CHECK(parse_idx_predicate(scan_opr.idx_predicate(), params, oids,
                                   scan_oid));
 
@@ -340,8 +348,12 @@ Context eval_scan(const physical::Scan& scan_opr,
           timer.record_routine("scan::filter_oids1", tx);
           return ret;
         } else {
+          std::vector<int64_t> gids;
+          for (size_t i = 0; i < oids.size(); i++) {
+            gids.push_back(oids[i].AsInt64());
+          }
           auto ret = Scan::filter_gids(
-              graph, scan_params, [](label_t, vid_t) { return true; }, oids);
+              graph, scan_params, [](label_t, vid_t) { return true; }, gids);
           timer.record_routine("scan::filter_gids1", tx);
           return ret;
         }

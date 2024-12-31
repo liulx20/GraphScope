@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/common/operators/path_expand.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/path_expand.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
 #include "flex/engines/graph_db/runtime/adhoc/runtime.h"
@@ -124,7 +124,7 @@ Context eval_shortest_path_with_order_by_length_limit(
     } else {
       auto pred = get_v_opr.params().predicate();
       if (sp_vertex_pred->data_type() == RTAnyType::kStringValue) {
-        if (sp_vertex_pred->type() == SPVertexPredicateType::kPropertyEQ) {
+        if (sp_vertex_pred->type() == SPPredicateType::kPropertyEQ) {
           auto casted_pred = dynamic_cast<
               const VertexPropertyEQPredicateBeta<std::string_view>&>(
               *sp_vertex_pred);

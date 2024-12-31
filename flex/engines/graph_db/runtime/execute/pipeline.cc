@@ -14,7 +14,7 @@
  */
 
 #include "flex/engines/graph_db/runtime/execute/pipeline.h"
-
+/**
 #include "flex/engines/graph_db/runtime/execute/ops/dedup.h"
 #include "flex/engines/graph_db/runtime/execute/ops/edge.h"
 #include "flex/engines/graph_db/runtime/execute/ops/group_by.h"
@@ -31,9 +31,8 @@
 #include "flex/engines/graph_db/runtime/execute/ops/unfold.h"
 #include "flex/engines/graph_db/runtime/execute/ops/union.h"
 #include "flex/engines/graph_db/runtime/execute/ops/vertex.h"
-
+*/
 namespace gs {
-
 namespace runtime {
 
 Context ReadPipeline::Execute(const GraphReadInterface& graph, Context&& ctx,

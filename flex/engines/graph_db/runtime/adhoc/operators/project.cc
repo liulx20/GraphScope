@@ -663,8 +663,6 @@ Context eval_project_order_by(
       Expr expr(graph, ctx, params, m.expr(), VarType::kPathVar);
       auto col = build_column(data_types[i], expr, row_num);
       ret.set(alias, col);
-    } else if (m.has_alias()) {
-      // int alias = m.alias().value();
     }
   }
   for (auto alias : added_alias_in_preproject) {

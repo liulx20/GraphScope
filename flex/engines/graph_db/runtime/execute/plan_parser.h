@@ -45,7 +45,8 @@ class PlanParser {
                                    const ContextMeta& ctx_meta,
                                    const physical::PhysicalPlan& plan);
 
-  InsertPipeline parse_write_pipeline(const physical::PhysicalPlan& plan);
+  InsertPipeline parse_write_pipeline(const gs::Schema& schema,
+                                      const physical::PhysicalPlan& plan);
 
  private:
   std::vector<std::vector<

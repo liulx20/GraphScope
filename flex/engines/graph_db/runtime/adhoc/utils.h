@@ -30,17 +30,14 @@ namespace gs {
 
 namespace runtime {
 
+VOpt parse_opt(const physical::GetV_VOpt& opt);
+
 Direction parse_direction(const physical::EdgeExpand_Direction& dir);
 
 std::vector<label_t> parse_tables(const algebra::QueryParams& query_params);
 
 std::vector<LabelTriplet> parse_label_triplets(
     const physical::PhysicalOpr_MetaData& meta);
-
-std::shared_ptr<IContextColumn> create_column(
-    const common::IrDataType& data_type);
-
-std::shared_ptr<IContextColumn> create_column_beta(RTAnyType type);
 
 std::shared_ptr<IContextColumn> build_column(
     const common::IrDataType& data_type, const Expr& expr, size_t row_num);

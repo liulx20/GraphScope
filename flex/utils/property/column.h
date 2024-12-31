@@ -329,6 +329,8 @@ class TypedColumn<grape::EmptyType> : public ColumnBase {
 
   Any get(size_t index) const override { return Any(); }
 
+  grape::EmptyType get_view(size_t index) const { return grape::EmptyType(); }
+
   void ingest(uint32_t index, grape::OutArchive& arc) override {}
 
   StorageStrategy storage_strategy() const override { return strategy_; }

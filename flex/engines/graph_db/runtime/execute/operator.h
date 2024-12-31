@@ -41,6 +41,7 @@ class IReadOperatorBuilder {
   virtual std::pair<std::unique_ptr<IReadOperator>, ContextMeta> Build(
       const gs::Schema& schema, const ContextMeta& ctx_meta,
       const physical::PhysicalPlan& plan, int op_idx) = 0;
+  virtual int stepping(int i) { return i + GetOpKinds().size(); }
 
   virtual std::vector<physical::PhysicalOpr_Operator::OpKindCase> GetOpKinds()
       const = 0;
@@ -58,9 +59,10 @@ class IInsertOperator {
 class IInsertOperatorBuilder {
  public:
   virtual ~IInsertOperatorBuilder() = default;
+  virtual int stepping(int i) { return i + 1; }
 
   virtual std::unique_ptr<IInsertOperator> Build(
-      const physical::PhysicalPlan& plan, int op_id) = 0;
+      const Schema& schema, const physical::PhysicalPlan& plan, int op_id) = 0;
   virtual physical::PhysicalOpr_Operator::OpKindCase GetOpKind() const = 0;
 };
 

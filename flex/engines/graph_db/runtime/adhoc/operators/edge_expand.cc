@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/common/operators/edge_expand.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/edge_expand.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
 #include "flex/engines/graph_db/runtime/adhoc/predicates.h"

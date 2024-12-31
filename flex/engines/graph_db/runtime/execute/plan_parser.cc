@@ -15,22 +15,27 @@
 
 #include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 
-#include "flex/engines/graph_db/runtime/execute/ops/dedup.h"
-#include "flex/engines/graph_db/runtime/execute/ops/edge.h"
-#include "flex/engines/graph_db/runtime/execute/ops/group_by.h"
-#include "flex/engines/graph_db/runtime/execute/ops/intersect.h"
-#include "flex/engines/graph_db/runtime/execute/ops/join.h"
-#include "flex/engines/graph_db/runtime/execute/ops/limit.h"
-#include "flex/engines/graph_db/runtime/execute/ops/load.h"
-#include "flex/engines/graph_db/runtime/execute/ops/order_by.h"
-#include "flex/engines/graph_db/runtime/execute/ops/path.h"
-#include "flex/engines/graph_db/runtime/execute/ops/project.h"
-#include "flex/engines/graph_db/runtime/execute/ops/scan.h"
-#include "flex/engines/graph_db/runtime/execute/ops/select.h"
-#include "flex/engines/graph_db/runtime/execute/ops/sink.h"
-#include "flex/engines/graph_db/runtime/execute/ops/unfold.h"
-#include "flex/engines/graph_db/runtime/execute/ops/union.h"
-#include "flex/engines/graph_db/runtime/execute/ops/vertex.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/dedup.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/edge.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/group_by.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/intersect.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/join.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/limit.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/order_by.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/path.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/project.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/scan.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/select.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/sink.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/unfold.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/union.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/vertex.h"
+
+#include "flex/engines/graph_db/runtime/execute/ops/update/dedup.h"
+#include "flex/engines/graph_db/runtime/execute/ops/update/load.h"
+#include "flex/engines/graph_db/runtime/execute/ops/update/project.h"
+#include "flex/engines/graph_db/runtime/execute/ops/update/sink.h"
+#include "flex/engines/graph_db/runtime/execute/ops/update/unfold.h"
 
 namespace gs {
 
@@ -197,7 +202,7 @@ std::pair<ReadPipeline, ContextMeta> PlanParser::parse_read_pipeline_with_meta(
           operators.emplace_back(std::move(opr));
           cur_ctx_meta = new_ctx_meta;
           // cur_ctx_meta.desc();
-          i += pattern.size();
+          i = builder->stepping(i);
           break;
         }
       }
@@ -215,11 +220,12 @@ ReadPipeline PlanParser::parse_read_pipeline(
 }
 
 InsertPipeline PlanParser::parse_write_pipeline(
-    const physical::PhysicalPlan& plan) {
+    const gs::Schema& schema, const physical::PhysicalPlan& plan) {
   std::vector<std::unique_ptr<IInsertOperator>> operators;
   for (int i = 0; i < plan.plan_size(); ++i) {
     auto op_kind = plan.plan(i).opr().op_kind_case();
-    operators.emplace_back(write_op_builders_.at(op_kind)->Build(plan, i));
+    operators.emplace_back(
+        write_op_builders_.at(op_kind)->Build(schema, plan, i));
   }
   return InsertPipeline(std::move(operators));
 }

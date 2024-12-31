@@ -207,7 +207,6 @@ size_t Context::row_num() const {
   if (prev_context != nullptr) {
     return prev_context->row_num();
   }
-
   return 0;
 }
 

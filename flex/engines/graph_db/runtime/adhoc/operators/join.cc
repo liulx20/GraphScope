@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/common/operators/join.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/join.h"
 #include "flex/engines/graph_db/runtime/adhoc/expr.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 

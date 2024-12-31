@@ -91,28 +91,6 @@ class ContextMeta {
     }
   }
 
-  void set_with_reshuffle_beta(int alias, const std::set<int>& keep_cols) {
-    head_ = -1;
-    head_exists_ = false;
-    if (alias >= 0) {
-      if (alias_set_.find(alias) != alias_set_.end()) {
-        alias_set_.erase(alias);
-      }
-    }
-    std::vector<int> to_remove;
-    for (auto col : alias_set_) {
-      if (keep_cols.find(col) == keep_cols.end()) {
-        to_remove.push_back(col);
-      }
-    }
-    for (auto col : to_remove) {
-      alias_set_.erase(col);
-    }
-    set(alias);
-  }
-
-  void erase(int alias) { alias_set_.erase(alias); }
-
   const std::set<int>& columns() const { return alias_set_; }
 
   void desc() const {

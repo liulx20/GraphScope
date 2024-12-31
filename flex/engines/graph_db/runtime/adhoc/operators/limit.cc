@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/common/operators/limit.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/limit.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
 #include "flex/proto_generated_gie/algebra.pb.h"
 

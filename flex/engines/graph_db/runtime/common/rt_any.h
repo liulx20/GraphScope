@@ -331,7 +331,7 @@ struct EdgeData {
     } else if constexpr (std::is_same_v<T, bool>) {
       return value.b_val;
     } else if constexpr (std::is_same_v<T, std::string_view>) {
-      return value.str_val;
+      return std::string_view(value.str_val.data(), value.str_val.size());
     } else if constexpr (std::is_same_v<T, grape::EmptyType>) {
       return grape::EmptyType();
     } else if constexpr (std::is_same_v<T, Date>) {
@@ -634,12 +634,12 @@ struct TypedConverter<bool> {
   static const std::string name() { return "bool"; }
 };
 template <>
-struct TypedConverter<int> {
+struct TypedConverter<int32_t> {
   static RTAnyType type() { return RTAnyType::kI32Value; }
-  static int to_typed(const RTAny& val) { return val.as_int32(); }
+  static int32_t to_typed(const RTAny& val) { return val.as_int32(); }
   static RTAny from_typed(int val) { return RTAny::from_int32(val); }
   static const std::string name() { return "int"; }
-  static int typed_from_string(const std::string& str) {
+  static int32_t typed_from_string(const std::string& str) {
     return std::stoi(str);
   }
 };
@@ -693,6 +693,9 @@ struct TypedConverter<double> {
   static RTAnyType type() { return RTAnyType::kF64Value; }
   static double to_typed(const RTAny& val) { return val.as_double(); }
   static RTAny from_typed(double val) { return RTAny::from_double(val); }
+  static double typed_from_string(const std::string& str) {
+    return std::stod(str);
+  }
   static const std::string name() { return "double"; }
 };
 template <>

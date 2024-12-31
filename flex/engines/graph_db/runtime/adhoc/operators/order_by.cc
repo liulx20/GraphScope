@@ -18,7 +18,7 @@
 #include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 #include "flex/engines/graph_db/runtime/adhoc/utils.h"
 #include "flex/engines/graph_db/runtime/adhoc/var.h"
-#include "flex/engines/graph_db/runtime/common/operators/order_by.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/order_by.h"
 
 #include "flex/proto_generated_gie/algebra.pb.h"
 
