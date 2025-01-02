@@ -54,9 +54,10 @@ bool is_date_within(const algebra::Select& opr, const GraphReadInterface& graph,
                     const Context& ctx,
                     const std::map<std::string, std::string>& params,
                     int vertex_tag, int& month) {
-  if (opr.predicate().operators_size() != 27) {
+  if (opr.predicate().operators_size() != 23) {
     return false;
   }
+
   if (!((opr.predicate().operators(0).item_case() ==
          common::ExprOpr::ItemCase::kExtract) &&
         (opr.predicate().operators(0).extract().interval() ==
@@ -75,9 +76,9 @@ bool is_date_within(const algebra::Select& opr, const GraphReadInterface& graph,
          common::Extract::MONTH))) {
     return false;
   }
-  if (!((opr.predicate().operators(23).item_case() ==
+  if (!((opr.predicate().operators(19).item_case() ==
          common::ExprOpr::ItemCase::kExtract) &&
-        (opr.predicate().operators(23).extract().interval() ==
+        (opr.predicate().operators(19).extract().interval() ==
          common::Extract::DAY))) {
     return false;
   }
@@ -85,18 +86,18 @@ bool is_date_within(const algebra::Select& opr, const GraphReadInterface& graph,
   if (!opr.predicate().operators(1).has_var() ||
       !opr.predicate().operators(6).has_var() ||
       !opr.predicate().operators(11).has_var() ||
-      !opr.predicate().operators(24).has_var()) {
+      !opr.predicate().operators(20).has_var()) {
     return false;
   }
   vertex_tag = opr.predicate().operators(1).var().tag().id();
   if (opr.predicate().operators(6).var().tag().id() != vertex_tag ||
       opr.predicate().operators(11).var().tag().id() != vertex_tag ||
-      opr.predicate().operators(24).var().tag().id() != vertex_tag) {
+      opr.predicate().operators(20).var().tag().id() != vertex_tag) {
     return false;
   }
 
   if (!opr.predicate().operators(3).has_param() ||
-      !opr.predicate().operators(14).has_param()) {
+      !opr.predicate().operators(13).has_param()) {
     return false;
   }
   month = std::stoi(params.at(opr.predicate().operators(3).param().name()));
