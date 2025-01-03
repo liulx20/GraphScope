@@ -21,35 +21,7 @@
 namespace gs {
 
 namespace runtime {
-bool is_vertex_within_set(const common::Expression& expr, const Context& ctx,
-                          int& vertex_tag, int& set_tag) {
-  if (expr.operators_size() != 3) {
-    return false;
-  }
-  if (expr.operators(1).item_case() != common::ExprOpr::kLogical) {
-    return false;
-  }
-  if (expr.operators(1).logical() != common::WITHIN) {
-    return false;
-  }
-  if ((!expr.operators(0).has_var()) || (!expr.operators(2).has_var())) {
-    return false;
-  }
-  if (!expr.operators(0).var().has_tag() ||
-      !expr.operators(2).var().has_tag()) {
-    return false;
-  }
-  vertex_tag = expr.operators(0).var().tag().id();
-  set_tag = expr.operators(2).var().tag().id();
-  if (ctx.get(vertex_tag)->column_type() != ContextColumnType::kVertex ||
-      ctx.get(set_tag)->column_type() != ContextColumnType::kValue) {
-    return false;
-  }
-  if (!(ctx.get(set_tag)->elem_type() == RTAnyType::kSet)) {
-    return false;
-  }
-  return true;
-}
+
 bool is_date_within(const algebra::Select& opr, const GraphReadInterface& graph,
                     const Context& ctx,
                     const std::map<std::string, std::string>& params,
@@ -178,7 +150,6 @@ Context eval_select(const algebra::Select& opr, const GraphReadInterface& graph,
                     const std::map<std::string, std::string>& params,
                     OprTimer& timer) {
   int vertex_tag = -1;
-  int set_tag = -1;
   vid_t vid{};
   TimerUnit t;
   t.start();
@@ -191,22 +162,7 @@ Context eval_select(const algebra::Select& opr, const GraphReadInterface& graph,
     timer.record_routine("select::vertex_ne_id", t);
     return ret;
   }
-  if (is_vertex_within_set(opr.predicate(), ctx, vertex_tag, set_tag)) {
-    const auto& vertex_col =
-        *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(vertex_tag));
-    const auto& set_col =
-        *std::dynamic_pointer_cast<SetValueColumn<VertexRecord>>(
-            ctx.get(set_tag));
-    auto ret =
-        Select::select(std::move(ctx), [&vertex_col, &set_col](size_t i) {
-          auto vertex = vertex_col.get_vertex(i);
-          auto set = set_col.get_value(i);
-          auto ptr = dynamic_cast<SetImpl<VertexRecord>*>(set.impl_);
-          return ptr->exists(vertex);
-        });
-    timer.record_routine("select::vertex_within_set", t);
-    return ret;
-  }
+
   int date_tag = -1;
   int month = -1;
   if (is_date_within(opr, graph, ctx, params, date_tag, month)) {

@@ -784,34 +784,26 @@ static Context _single_shortest_path(const GraphReadInterface& graph,
 Context PathExpand::single_source_shortest_path_with_special_vertex_predicate(
     const GraphReadInterface& graph, Context&& ctx,
     const ShortestPathParams& params, const SPVertexPredicate& pred) {
-  if (pred.type() == SPPredicateType::kIdEQ) {
-    return single_source_shortest_path<VertexIdEQPredicateBeta>(
-        graph, std::move(ctx), params,
-        dynamic_cast<const VertexIdEQPredicateBeta&>(pred));
+  if (pred.data_type() == RTAnyType::kI64Value) {
+    return _single_shortest_path<int64_t>(graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kStringValue) {
+    return _single_shortest_path<std::string_view>(graph, std::move(ctx),
+                                                   params, pred);
+  } else if (pred.data_type() == RTAnyType::kTimestamp) {
+    return _single_shortest_path<Date>(graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kF64Value) {
+    return _single_shortest_path<double>(graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kI32Value) {
+    return _single_shortest_path<int>(graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kDate32) {
+    return _single_shortest_path<Day>(graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kEmpty) {
+    return _single_shortest_path<grape::EmptyType>(graph, std::move(ctx),
+                                                   params, pred);
   } else {
-    if (pred.data_type() == RTAnyType::kI64Value) {
-      return _single_shortest_path<int64_t>(graph, std::move(ctx), params,
-                                            pred);
-    } else if (pred.data_type() == RTAnyType::kStringValue) {
-      return _single_shortest_path<std::string_view>(graph, std::move(ctx),
-                                                     params, pred);
-    } else if (pred.data_type() == RTAnyType::kTimestamp) {
-      return _single_shortest_path<Date>(graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kF64Value) {
-      return _single_shortest_path<double>(graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kI32Value) {
-      return _single_shortest_path<int>(graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kDate32) {
-      return _single_shortest_path<Day>(graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kEmpty) {
-      return _single_shortest_path<grape::EmptyType>(graph, std::move(ctx),
-                                                     params, pred);
-    } else {
-      LOG(FATAL) << "not support edge property type "
-                 << static_cast<int>(pred.type());
-    }
+    LOG(FATAL) << "not support edge property type "
+               << static_cast<int>(pred.type());
   }
-  LOG(FATAL) << "not impl";
   return ctx;
 }
 

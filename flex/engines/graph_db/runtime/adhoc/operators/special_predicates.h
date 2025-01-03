@@ -315,7 +315,6 @@ enum class SPPredicateType {
   kPropertyNE,
   kPropertyBetween,
   kWithIn,
-  kIdEQ,
   kUnknown
 };
 
@@ -604,38 +603,6 @@ class VertexPropertyBetweenPredicateBeta : public SPVertexPredicate {
   T to_;
   std::string from_str_;
   std::string to_str_;
-};
-
-class VertexIdEQPredicateBeta : public SPVertexPredicate {
- public:
-  VertexIdEQPredicateBeta(const GraphReadInterface& graph,
-                          const std::string& val,
-                          const common::DataType& data_type)
-      : graph_(graph) {
-    if (data_type == common::DataType::INT64) {
-      data_type_ = RTAnyType::kI64Value;
-      target_.set_i64(TypedConverter<int64_t>::typed_from_string(val));
-    } else if (data_type == common::DataType::STRING) {
-      data_type_ = RTAnyType::kStringValue;
-      target_.set_string(val);
-    }
-  }
-  ~VertexIdEQPredicateBeta() = default;
-
-  inline SPPredicateType type() const override {
-    return SPPredicateType::kIdEQ;
-  }
-
-  inline RTAnyType data_type() const override { return data_type_; }
-  inline bool operator()(label_t label, vid_t v) const {
-    auto id = graph_.GetVertexId(label, v);
-    return id == target_;
-  }
-
- private:
-  const GraphReadInterface& graph_;
-  RTAnyType data_type_;
-  Any target_;
 };
 
 template <typename T>
@@ -958,38 +925,28 @@ inline std::unique_ptr<SPVertexPredicate> parse_special_vertex_predicate(
       return nullptr;
     }
     std::string value_str = params.at(op2.param().name());
-    if (property_name == "id") {
-      if (ptype == SPPredicateType::kPropertyEQ) {
-        return std::unique_ptr<SPVertexPredicate>(new VertexIdEQPredicateBeta(
-            graph, value_str, op2.param().data_type().data_type()));
-      } else {
-        LOG(INFO) << "AAAA";
-        return nullptr;
-      }
-    } else {
-      if (op2.param().data_type().data_type() == common::DataType::INT64) {
-        return _make_vertex_predicate<int64_t>(ptype, graph, property_name,
-                                               value_str);
-      } else if (op2.param().data_type().data_type() ==
-                 common::DataType::STRING) {
-        return _make_vertex_predicate<std::string_view>(
-            ptype, graph, property_name, value_str);
-      } else if (op2.param().data_type().data_type() ==
-                 common::DataType::TIMESTAMP) {
-        return _make_vertex_predicate<Date>(ptype, graph, property_name,
+
+    if (op2.param().data_type().data_type() == common::DataType::INT64) {
+      return _make_vertex_predicate<int64_t>(ptype, graph, property_name,
+                                             value_str);
+    } else if (op2.param().data_type().data_type() ==
+               common::DataType::STRING) {
+      return _make_vertex_predicate<std::string_view>(ptype, graph,
+                                                      property_name, value_str);
+    } else if (op2.param().data_type().data_type() ==
+               common::DataType::TIMESTAMP) {
+      return _make_vertex_predicate<Date>(ptype, graph, property_name,
+                                          value_str);
+    } else if (op2.param().data_type().data_type() == common::DataType::INT32) {
+      return _make_vertex_predicate<int32_t>(ptype, graph, property_name,
+                                             value_str);
+    } else if (op2.param().data_type().data_type() ==
+               common::DataType::DOUBLE) {
+      return _make_vertex_predicate<double>(ptype, graph, property_name,
                                             value_str);
-      } else if (op2.param().data_type().data_type() ==
-                 common::DataType::INT32) {
-        return _make_vertex_predicate<int32_t>(ptype, graph, property_name,
-                                               value_str);
-      } else if (op2.param().data_type().data_type() ==
-                 common::DataType::DOUBLE) {
-        return _make_vertex_predicate<double>(ptype, graph, property_name,
-                                              value_str);
-      } else {
-        LOG(INFO) << "AAAA";
-        return nullptr;
-      }
+    } else {
+      LOG(INFO) << "AAAA";
+      return nullptr;
     }
   } else if (expr.operators_size() == 7) {
     // between

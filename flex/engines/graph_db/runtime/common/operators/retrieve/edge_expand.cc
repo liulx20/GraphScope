@@ -913,30 +913,25 @@ Context EdgeExpand::expand_vertex_with_special_vertex_predicate(
   if (params.is_optional) {
     LOG(FATAL) << "not support optional edge expand";
   }
-  if (pred.type() == SPPredicateType::kIdEQ) {
-    return expand_vertex<SPVPWrapper<VertexIdEQPredicateBeta>>(
-        graph, std::move(ctx), params,
-        SPVPWrapper(dynamic_cast<const VertexIdEQPredicateBeta&>(pred)));
-  } else {
-    if (pred.data_type() == RTAnyType::kI64Value) {
-      return _expand_vertex_with_special_vertex_predicate<int64_t>(
-          graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kTimestamp) {
-      return _expand_vertex_with_special_vertex_predicate<Date>(
-          graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kF64Value) {
-      return _expand_vertex_with_special_vertex_predicate<double>(
-          graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kStringValue) {
-      return _expand_vertex_with_special_vertex_predicate<std::string_view>(
-          graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kI32Value) {
-      return _expand_vertex_with_special_vertex_predicate<int32_t>(
-          graph, std::move(ctx), params, pred);
-    } else if (pred.data_type() == RTAnyType::kDate32) {
-      return _expand_vertex_with_special_vertex_predicate<Day>(
-          graph, std::move(ctx), params, pred);
-    }
+
+  if (pred.data_type() == RTAnyType::kI64Value) {
+    return _expand_vertex_with_special_vertex_predicate<int64_t>(
+        graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kTimestamp) {
+    return _expand_vertex_with_special_vertex_predicate<Date>(
+        graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kF64Value) {
+    return _expand_vertex_with_special_vertex_predicate<double>(
+        graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kStringValue) {
+    return _expand_vertex_with_special_vertex_predicate<std::string_view>(
+        graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kI32Value) {
+    return _expand_vertex_with_special_vertex_predicate<int32_t>(
+        graph, std::move(ctx), params, pred);
+  } else if (pred.data_type() == RTAnyType::kDate32) {
+    return _expand_vertex_with_special_vertex_predicate<Day>(
+        graph, std::move(ctx), params, pred);
   }
   LOG(FATAL) << static_cast<int>(pred.type()) << "not impl";
   return ctx;
