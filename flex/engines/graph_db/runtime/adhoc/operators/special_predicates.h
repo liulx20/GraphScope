@@ -771,7 +771,129 @@ parse_special_vertex_predicate(const common::Expression& expr) {
                                               params.at(name));
       };
     }
+  } else if (expr.operators_size() == 7) {
+    // between
+    const common::ExprOpr& op0 = expr.operators(0);
+    if (!op0.has_var()) {
+      return std::nullopt;
+    }
+    if (!op0.var().has_property()) {
+      return std::nullopt;
+    }
+    if (!op0.var().property().has_key()) {
+      return std::nullopt;
+    }
+    if (!(op0.var().property().key().item_case() ==
+          common::NameOrId::ItemCase::kName)) {
+      return std::nullopt;
+    }
+    std::string property_name = op0.var().property().key().name();
+
+    const common::ExprOpr& op1 = expr.operators(1);
+    if (!(op1.item_case() == common::ExprOpr::kLogical)) {
+      return std::nullopt;
+    }
+    if (op1.logical() != common::Logical::GE) {
+      return std::nullopt;
+    }
+
+    const common::ExprOpr& op2 = expr.operators(2);
+    if (!op2.has_param()) {
+      return std::nullopt;
+    }
+    if (!op2.param().has_data_type()) {
+      return std::nullopt;
+    }
+    if (!(op2.param().data_type().type_case() ==
+          common::IrDataType::TypeCase::kDataType)) {
+      return std::nullopt;
+    }
+    std::string from_str = op2.param().name();
+
+    const common::ExprOpr& op3 = expr.operators(3);
+    if (!(op3.item_case() == common::ExprOpr::kLogical)) {
+      return std::nullopt;
+    }
+    if (op3.logical() != common::Logical::AND) {
+      return std::nullopt;
+    }
+
+    const common::ExprOpr& op4 = expr.operators(4);
+    if (!op4.has_var()) {
+      return std::nullopt;
+    }
+    if (!op4.var().has_property()) {
+      return std::nullopt;
+    }
+    if (!op4.var().property().has_key()) {
+      return std::nullopt;
+    }
+    if (!(op4.var().property().key().item_case() ==
+          common::NameOrId::ItemCase::kName)) {
+      return std::nullopt;
+    }
+    if (property_name != op4.var().property().key().name()) {
+      return std::nullopt;
+    }
+
+    const common::ExprOpr& op5 = expr.operators(5);
+    if (!(op5.item_case() == common::ExprOpr::kLogical)) {
+      return std::nullopt;
+    }
+    if (op5.logical() != common::Logical::LT) {
+      return std::nullopt;
+    }
+
+    const common::ExprOpr& op6 = expr.operators(6);
+    if (!op6.has_param()) {
+      return std::nullopt;
+    }
+    if (!op6.param().has_data_type()) {
+      return std::nullopt;
+    }
+    if (!(op6.param().data_type().type_case() ==
+          common::IrDataType::TypeCase::kDataType)) {
+      return std::nullopt;
+    }
+    std::string to_str = op6.param().name();
+
+    if (op2.param().data_type().data_type() !=
+        op6.param().data_type().data_type()) {
+      return std::nullopt;
+    }
+
+    if (op2.param().data_type().data_type() == common::DataType::INT64) {
+      return [property_name, from_str, to_str](
+                 const GraphReadInterface& graph,
+                 const std::map<std::string, std::string>& params)
+                 -> std::unique_ptr<SPVertexPredicate> {
+        return std::make_unique<VertexPropertyBetweenPredicateBeta<int64_t>>(
+            graph, property_name, params.at(from_str), params.at(to_str));
+      };
+
+    } else if (op2.param().data_type().data_type() ==
+               common::DataType::TIMESTAMP) {
+      return [property_name, from_str, to_str](
+                 const GraphReadInterface& graph,
+                 const std::map<std::string, std::string>& params)
+                 -> std::unique_ptr<SPVertexPredicate> {
+        return std::make_unique<VertexPropertyBetweenPredicateBeta<Date>>(
+            graph, property_name, params.at(from_str), params.at(to_str));
+      };
+
+    } else if (op2.param().data_type().data_type() == common::DataType::INT32) {
+      return [property_name, from_str, to_str](
+                 const GraphReadInterface& graph,
+                 const std::map<std::string, std::string>& params)
+                 -> std::unique_ptr<SPVertexPredicate> {
+        return std::make_unique<VertexPropertyBetweenPredicateBeta<int32_t>>(
+            graph, property_name, params.at(from_str), params.at(to_str));
+      };
+    } else {
+      return std::nullopt;
+    }
   }
+
   return std::nullopt;
 }
 inline std::unique_ptr<SPVertexPredicate> parse_special_vertex_predicate(
