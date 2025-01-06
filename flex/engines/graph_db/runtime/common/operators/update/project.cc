@@ -12,30 +12,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include "flex/engines/graph_db/runtime/execute/pipeline.h"
+#include "flex/engines/graph_db/runtime/common/operators/update/project.h"
 
 namespace gs {
 namespace runtime {
-
-Context ReadPipeline::Execute(const GraphReadInterface& graph, Context&& ctx,
-                              const std::map<std::string, std::string>& params,
-                              OprTimer& timer) {
-  for (auto& opr : operators_) {
-    ctx = opr->Eval(graph, params, std::move(ctx), timer);
+WriteContext Project::project(
+    WriteContext&& ctx,
+    const std::vector<std::unique_ptr<WriteProjectExprBase>>& exprs) {
+  WriteContext ret;
+  for (auto& expr : exprs) {
+    ret = expr->evaluate(ctx, std::move(ret));
   }
-  return ctx;
+  return ret;
 }
-
-WriteContext InsertPipeline::Execute(
-    GraphInsertInterface& graph, WriteContext&& ctx,
-    const std::map<std::string, std::string>& params, OprTimer& timer) {
-  for (auto& opr : operators_) {
-    ctx = opr->Eval(graph, params, std::move(ctx), timer);
-  }
-  return ctx;
-}
-
 }  // namespace runtime
-
 }  // namespace gs

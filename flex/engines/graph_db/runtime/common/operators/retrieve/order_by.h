@@ -83,76 +83,6 @@ class DescWrapper {
   VAR_T var_;
 };
 
-bool apply_compare(const std::tuple<>&, size_t lhs, size_t rhs) {
-  return lhs < rhs;
-}
-
-template <typename T, typename... Rest>
-bool apply_compare(const std::tuple<T, Rest...>& keys, size_t lhs, size_t rhs) {
-  const T& key = std::get<0>(keys);
-
-  auto lhs_value = key.get(lhs);
-  auto rhs_value = key.get(rhs);
-
-  if (lhs_value < rhs_value) {
-    return true;
-  } else if (rhs_value < lhs_value) {
-    return false;
-  } else {
-    return apply_compare(tail(keys), lhs, rhs);
-  }
-}
-
-template <typename... Types>
-struct GeneralTemplatedComparer {
- public:
-  GeneralTemplatedComparer(std::tuple<Types...>&& keys)
-      : keys_(std::move(keys)) {}
-
-  bool operator()(size_t lhs, size_t rhs) const {
-    return apply_compare(keys_, lhs, rhs);
-  }
-
- private:
-  std::tuple<Types...> keys_;
-};
-
-template <typename T>
-struct ValueTypeExtractor;
-
-template <typename... Types>
-struct ValueTypeExtractor<std::tuple<Types...>> {
-  using type = std::tuple<typename Types::elem_t...>;
-};
-
-template <std::size_t I, std::size_t N>
-struct TupleInvokeHelper {
-  template <typename... Ts, typename... Us>
-  static void apply(const std::tuple<Ts...>& input_tuple,
-                    std::tuple<Us...>& output_tuple, size_t idx) {
-    std::get<I>(output_tuple) = std::get<I>(input_tuple).typed_eval_path(idx);
-    TupleInvokeHelper<I + 1, N>::apply(input_tuple, output_tuple, idx);
-  }
-};
-
-// Specialization to end recursion
-template <std::size_t N>
-struct TupleInvokeHelper<N, N> {
-  template <typename... Ts, typename... Us>
-  static void apply(const std::tuple<Ts...>&, std::tuple<Us...>&, size_t) {
-    // Do nothing, end of recursion
-  }
-};
-
-// Function to start the tuple invocation process
-template <typename... Ts>
-typename ValueTypeExtractor<std::tuple<Ts...>>::type invokeTuple(
-    const std::tuple<Ts...>& input_tuple, size_t idx) {
-  typename ValueTypeExtractor<std::tuple<Ts...>>::type output_tuple;
-  TupleInvokeHelper<0, sizeof...(Ts)>::apply(input_tuple, output_tuple, idx);
-  return output_tuple;
-}
-
 class OrderBy {
  public:
   template <typename Comparer>
@@ -217,41 +147,7 @@ class OrderBy {
     ctx.reshuffle(offsets);
     return ctx;
   }
-
-  template <typename... Args>
-  static Context order_by_with_limit_beta(const GraphReadInterface& graph,
-                                          Context&& ctx,
-                                          const std::tuple<Args...>& keys,
-                                          size_t low, size_t high) {
-    size_t row_num = ctx.row_num();
-    using value_t = typename ValueTypeExtractor<std::tuple<Args...>>::type;
-    std::priority_queue<std::pair<value_t, size_t>,
-                        std::vector<std::pair<value_t, size_t>>>
-        queue;
-
-    for (size_t i = 0; i < row_num; ++i) {
-      auto cur = invokeTuple(keys, i);
-      queue.emplace(std::move(cur), i);
-      if (queue.size() > high) {
-        queue.pop();
-      }
-    }
-
-    for (size_t k = 0; k < low; ++k) {
-      queue.pop();
-    }
-    std::vector<size_t> offsets(queue.size());
-    size_t idx = queue.size();
-    while (!queue.empty()) {
-      offsets[--idx] = queue.top().second;
-      queue.pop();
-    }
-
-    ctx.reshuffle(offsets);
-    return ctx;
-  }
 };
-
 }  // namespace runtime
 
 }  // namespace gs

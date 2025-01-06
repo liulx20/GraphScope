@@ -716,6 +716,11 @@ class OptionalValueColumnBuilder<std::string_view>
     valid_.push_back(valid);
   }
 
+  inline void push_back_opt(const std::string_view& val, bool valid) {
+    data_.emplace_back(std::string(val.begin(), val.size()));
+    valid_.push_back(valid);
+  }
+
   inline void push_back_null() override {
     data_.emplace_back();
     valid_.push_back(false);
@@ -807,7 +812,6 @@ bool ValueColumn<T>::order_by_limit(bool asc, size_t limit,
   if (size == 0) {
     return false;
   }
-#if 1
   if (asc) {
     TopNGenerator<T, TopNAscCmp<T>> generator(limit);
     for (size_t i = 0; i < size; ++i) {
@@ -821,15 +825,6 @@ bool ValueColumn<T>::order_by_limit(bool asc, size_t limit,
     }
     generator.generate_indices(offsets);
   }
-#else
-  if (asc) {
-    InplaceTopNGenerator<T, TopNAscCmp<T>> generator(limit);
-    generator.generate_indices(data_, offsets);
-  } else {
-    InplaceTopNGenerator<T, TopNDescCmp<T>> generator(limit);
-    generator.generate_indices(data_, offsets);
-  }
-#endif
   return true;
 }
 

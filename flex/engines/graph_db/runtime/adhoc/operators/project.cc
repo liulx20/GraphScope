@@ -43,23 +43,6 @@ bool exchange_tag_alias(const physical::Project_ExprAlias& m, int& tag,
   return false;
 }
 
-bool is_extract_property(const common::Expression& expr, int& tag,
-                         std::string& name) {
-  if (expr.operators_size() == 1 &&
-      expr.operators(0).item_case() == common::ExprOpr::kVar) {
-    auto var = expr.operators(0).var();
-    if (var.has_tag() && var.has_property()) {
-      tag = var.tag().id();
-      name = var.property().key().name();
-      if (name == "id" || name == "label") {
-        return false;
-      }
-      return true;
-    }
-  }
-  return false;
-}
-
 bool is_check_property_in_range(const common::Expression& expr,
                                 const std::map<std::string, std::string>& param,
                                 int& tag, std::string& name, std::string& lower,
