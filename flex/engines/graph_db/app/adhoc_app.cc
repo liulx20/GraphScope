@@ -1,7 +1,9 @@
 #include "flex/engines/graph_db/app/adhoc_app.h"
 
-#include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/sink.h"
 
+#include "flex/engines/graph_db/runtime/execute/pipeline.h"
+#include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 #include "flex/proto_generated_gie/physical.pb.h"
 
 namespace gs {
@@ -18,10 +20,15 @@ bool AdhocReadApp::Query(const GraphDBSession& graph, Decoder& input,
   }
 
   LOG(INFO) << "plan: " << plan.DebugString();
+  gs::runtime::GraphReadInterface gri(txn);
+  auto ctx =
+      runtime::PlanParser::get()
+          .parse_read_pipeline(graph.schema(), gs::runtime::ContextMeta(), plan)
+          .Execute(gri, runtime::Context(), {}, timer_);
 
-  auto ctx = runtime::runtime_eval(plan, txn, {}, timer_);
+  // auto ctx = runtime::runtime_eval(plan, txn, {}, timer_);
 
-  runtime::eval_sink(ctx, txn, output);
+  runtime::Sink::sink(ctx, txn, output);
 
   return true;
 }

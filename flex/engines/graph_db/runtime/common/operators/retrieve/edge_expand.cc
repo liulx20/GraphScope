@@ -14,7 +14,7 @@
  */
 
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/edge_expand.h"
-#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
+#include "flex/engines/graph_db/runtime/adhoc/opr_timer.h"
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/edge_expand_impl.h"
 
 namespace gs {

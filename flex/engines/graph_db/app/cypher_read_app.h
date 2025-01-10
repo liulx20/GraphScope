@@ -17,8 +17,6 @@
 #define ENGINES_GRAPH_DB_CYPHER_READ_APP_H_
 #include "flex/engines/graph_db/app/app_base.h"
 #include "flex/engines/graph_db/database/graph_db_session.h"
-
-#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 #include "flex/engines/graph_db/runtime/execute/pipeline.h"
 #include "flex/proto_generated_gie/physical.pb.h"
 

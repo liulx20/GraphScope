@@ -435,29 +435,31 @@ static RTAny parse_param(const common::DynamicParam& param,
                          const std::map<std::string, std::string>& input) {
   if (param.data_type().type_case() ==
       common::IrDataType::TypeCase::kDataType) {
-    common::DataType dt = param.data_type().data_type();
+    auto type = parse_from_ir_data_type(param.data_type());
+
     const std::string& name = param.name();
-    if (dt == common::DataType::DATE32) {
+    if (type == RTAnyType::kDate32) {
       Day val = Day(std::stoll(input.at(name)));
       return RTAny::from_date32(val);
-    } else if (dt == common::DataType::STRING) {
+    } else if (type == RTAnyType::kStringValue) {
       const std::string& val = input.at(name);
       return RTAny::from_string(val);
-    } else if (dt == common::DataType::INT32) {
+    } else if (type == RTAnyType::kI32Value) {
       int val = std::stoi(input.at(name));
       return RTAny::from_int32(val);
-    } else if (dt == common::DataType::INT64) {
+    } else if (type == RTAnyType::kI64Value) {
       int64_t val = std::stoll(input.at(name));
       return RTAny::from_int64(val);
-    } else if (dt == common::DataType::TIMESTAMP) {
+    } else if (type == RTAnyType::kTimestamp) {
       Date val = Date(std::stoll(input.at(name)));
       return RTAny::from_timestamp(val);
-    } else if (dt == common::DataType::DOUBLE) {
+    } else if (type == RTAnyType::kF64Value) {
       double val = std::stod(input.at(name));
       return RTAny::from_double(val);
     }
 
-    LOG(FATAL) << "not support type: " << common::DataType_Name(dt);
+    LOG(FATAL) << "not support type: "
+               << common::DataType_Name(param.data_type().data_type());
   }
   LOG(FATAL) << "graph data type not expected....";
   return RTAny();

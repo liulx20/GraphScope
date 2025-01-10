@@ -511,8 +511,53 @@ class EdgeRecord {
   EdgeData prop_;
   Direction dir_;
 };
-
-RTAnyType parse_from_ir_data_type(const ::common::IrDataType& dt);
+inline RTAnyType parse_from_ir_data_type(const ::common::IrDataType& dt) {
+  switch (dt.type_case()) {
+  case ::common::IrDataType::TypeCase::kDataType: {
+    const ::common::DataType ddt = dt.data_type();
+    switch (ddt) {
+    case ::common::DataType::BOOLEAN:
+      return RTAnyType::kBoolValue;
+    case ::common::DataType::INT64:
+      return RTAnyType::kI64Value;
+    case ::common::DataType::STRING:
+      return RTAnyType::kStringValue;
+    case ::common::DataType::INT32:
+      return RTAnyType::kI32Value;
+    case ::common::DataType::DATE32:
+      return RTAnyType::kDate32;
+    case ::common::DataType::STRING_ARRAY:
+      return RTAnyType::kList;
+    case ::common::DataType::TIMESTAMP:
+      return RTAnyType::kTimestamp;
+    case ::common::DataType::DOUBLE:
+      return RTAnyType::kF64Value;
+    case ::common::DataType::NONE:
+      return RTAnyType::kUnknown;
+    default:
+      LOG(FATAL) << "unrecoginized data type - " << ddt;
+      break;
+    }
+  } break;
+  case ::common::IrDataType::TypeCase::kGraphType: {
+    const ::common::GraphDataType gdt = dt.graph_type();
+    switch (gdt.element_opt()) {
+    case ::common::GraphDataType_GraphElementOpt::
+        GraphDataType_GraphElementOpt_VERTEX:
+      return RTAnyType::kVertex;
+    case ::common::GraphDataType_GraphElementOpt::
+        GraphDataType_GraphElementOpt_EDGE:
+      return RTAnyType::kEdge;
+    default:
+      LOG(FATAL) << "unrecoginized graph data type";
+      break;
+    }
+  } break;
+  default:
+    break;
+  }
+  return RTAnyType::kUnknown;
+}
 
 union RTAnyValue {
   // TODO delete it later

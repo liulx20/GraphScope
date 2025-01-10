@@ -21,7 +21,6 @@
 #include "flex/engines/graph_db/app/server_app.h"
 #include "flex/engines/graph_db/database/graph_db_session.h"
 #include "flex/engines/graph_db/database/wal.h"
-#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 #include "flex/utils/yaml_utils.h"
 
 #include "flex/third_party/httplib.h"

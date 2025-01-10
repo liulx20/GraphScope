@@ -982,10 +982,10 @@ parse_special_expr(const common::Expression& expr, int alias) {
                         .when_expression()
                         .operators(2)
                         .param()
-                        .data_type()
                         .data_type();
+        auto type_ = parse_from_ir_data_type(type);
 
-        if (type == common::DataType::INT32) {
+        if (type_ == RTAnyType::kI32Value) {
           SPOpr sp(vertex_col,
                    VertexPropertyBetweenPredicateBeta<int32_t>(
                        graph, name, params.at(lower), params.at(upper)),
@@ -995,7 +995,7 @@ parse_special_expr(const common::Expression& expr, int alias) {
               ProjectExpr<decltype(sp), decltype(collector)>>(std::move(sp),
                                                               collector, alias);
 
-        } else if (type == common::DataType::INT64) {
+        } else if (type_ == RTAnyType::kI64Value) {
           SPOpr sp(vertex_col,
                    VertexPropertyBetweenPredicateBeta<int64_t>(
                        graph, name, params.at(lower), params.at(upper)),
@@ -1004,7 +1004,7 @@ parse_special_expr(const common::Expression& expr, int alias) {
           return std::make_unique<
               ProjectExpr<decltype(sp), decltype(collector)>>(std::move(sp),
                                                               collector, alias);
-        } else if (type == common::DataType::DOUBLE) {
+        } else if (type_ == RTAnyType::kF64Value) {
           SPOpr sp(vertex_col,
                    VertexPropertyBetweenPredicateBeta<double>(
                        graph, name, params.at(lower), params.at(upper)),
@@ -1033,23 +1033,24 @@ parse_special_expr(const common::Expression& expr, int alias) {
                         .when_expression()
                         .operators(2)
                         .param()
-                        .data_type()
                         .data_type();
-        if (type == common::DataType::INT32) {
+        auto type_ = parse_from_ir_data_type(type);
+
+        if (type_ == RTAnyType::kI32Value) {
           auto ptr = create_sp_pred_case_when<int32_t>(
               graph, params, vertex_col, ptype, name, target, then_value,
               else_value, alias);
           if (ptr) {
             return ptr;
           }
-        } else if (type == common::DataType::INT64) {
+        } else if (type_ == RTAnyType::kI64Value) {
           auto ptr = create_sp_pred_case_when<int64_t>(
               graph, params, vertex_col, ptype, name, target, then_value,
               else_value, alias);
           if (ptr) {
             return ptr;
           }
-        } else if (type == common::DataType::TIMESTAMP) {
+        } else if (type_ == RTAnyType::kF64Value) {
           auto ptr = create_sp_pred_case_when<Date>(
               graph, params, vertex_col, ptype, name, target, then_value,
               else_value, alias);
@@ -1071,29 +1072,31 @@ make_project_expr(const common::Expression& expr,
                   const common::IrDataType& data_type, int alias) {
   switch (data_type.type_case()) {
   case common::IrDataType::kDataType: {
-    switch (data_type.data_type()) {
-    case common::DataType::INT64: {
+    auto type = parse_from_ir_data_type(data_type);
+    switch (type) {
+    case RTAnyType::kI64Value: {
       return _make_project_expr<int64_t>(expr, alias);
     } break;
-    case common::DataType::INT32: {
+    case RTAnyType::kI32Value: {
       return _make_project_expr<int32_t>(expr, alias);
     } break;
-    case common::DataType::DOUBLE: {
+    case RTAnyType::kF64Value: {
       return _make_project_expr<double>(expr, alias);
     } break;
-    case common::DataType::BOOLEAN: {
+    case RTAnyType::kBoolValue: {
       return _make_project_expr<bool>(expr, alias);
     } break;
-    case common::DataType::STRING: {
+    case RTAnyType::kStringValue: {
       return _make_project_expr<std::string_view>(expr, alias);
     } break;
-    case common::DataType::TIMESTAMP: {
+    case RTAnyType::kTimestamp: {
       return _make_project_expr<Date>(expr, alias);
     } break;
-    case common::DataType::DATE32: {
+    case RTAnyType::kDate32: {
       return _make_project_expr<Day>(expr, alias);
     } break;
-    case common::DataType::STRING_ARRAY: {
+    // todo: fix this
+    case RTAnyType::kList: {
       return [=](const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params,
                  const Context& ctx) -> std::unique_ptr<ProjectExprBase> {
@@ -1107,7 +1110,7 @@ make_project_expr(const common::Expression& expr,
       };
     } break;
     // compiler bug here
-    case common::DataType::NONE: {
+    case RTAnyType::kUnknown: {
       return make_project_expr(expr, alias);
     } break;
     default: {
@@ -1265,30 +1268,6 @@ std::pair<std::unique_ptr<IReadOperator>, ContextMeta> ProjectOprBuilder::Build(
   //                         plan.plan(op_idx).opr().project(), data_types),
   //                   ret_meta);
 }
-
-class ProjectOrderByOpr : public IReadOperator {
- public:
-  ProjectOrderByOpr(const physical::Project& project_opr,
-                    const algebra::OrderBy& order_by_opr,
-                    const std::vector<common::IrDataType>& data_types)
-      : project_opr_(project_opr),
-        order_by_opr_(order_by_opr),
-        data_types_(data_types) {}
-
-  gs::runtime::Context Eval(const gs::runtime::GraphReadInterface& graph,
-                            const std::map<std::string, std::string>& params,
-                            gs::runtime::Context&& ctx,
-                            gs::runtime::OprTimer& timer) override {
-    return gs::runtime::eval_project_order_by(project_opr_, order_by_opr_,
-                                              graph, std::move(ctx), timer,
-                                              params, data_types_);
-  }
-
- private:
-  physical::Project project_opr_;
-  algebra::OrderBy order_by_opr_;
-  std::vector<common::IrDataType> data_types_;
-};
 
 class ProjectOrderByOprBeta : public IReadOperator {
  public:

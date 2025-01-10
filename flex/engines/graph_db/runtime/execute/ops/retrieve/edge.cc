@@ -19,6 +19,54 @@ namespace gs {
 namespace runtime {
 namespace ops {
 
+bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
+                               const physical::GetV& v_opr,
+                               const physical::PhysicalOpr_MetaData& meta) {
+  if (ee_opr.expand_opt() !=
+          physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE &&
+      ee_opr.expand_opt() !=
+          physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX) {
+    return false;
+  }
+  if (ee_opr.params().has_predicate()) {
+    return false;
+  }
+  int alias = -1;
+  if (ee_opr.has_alias()) {
+    alias = ee_opr.alias().value();
+  }
+  if (alias != -1) {
+    return false;
+  }
+
+  int tag = -1;
+  if (v_opr.has_tag()) {
+    tag = v_opr.tag().value();
+  }
+  if (tag != -1) {
+    return false;
+  }
+
+  Direction dir = parse_direction(ee_opr.direction());
+  if (ee_opr.expand_opt() ==
+      physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_VERTEX) {
+    if (v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_ITSELF) {
+      return true;
+    }
+  } else if (ee_opr.expand_opt() ==
+             physical::EdgeExpand_ExpandOpt::EdgeExpand_ExpandOpt_EDGE) {
+    if (dir == Direction::kOut &&
+        v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_END) {
+      return true;
+    }
+    if (dir == Direction::kIn &&
+        v_opr.opt() == physical::GetV_VOpt::GetV_VOpt_START) {
+      return true;
+    }
+  }
+  return false;
+}
+
 struct VertexPredicateWrapper {
   VertexPredicateWrapper(const GeneralVertexPredicate& pred) : pred_(pred) {}
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,

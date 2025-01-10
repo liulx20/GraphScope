@@ -2,8 +2,7 @@
 #include "flex/engines/graph_db/app/cypher_app_utils.h"
 
 #include "flex/engines/graph_db/database/graph_db.h"
-#include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
-#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/sink.h"
 #include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 
 namespace gs {
@@ -57,7 +56,7 @@ bool CypherReadApp::Query(const GraphDBSession& graph, Decoder& input,
                                                timer_);
 
   // runtime::eval_sink_encoder(ctx, gri, output);
-  runtime::eval_sink_encoder(ctx, gri, output);
+  runtime::Sink::sink_encoder(ctx, gri, output);
   return true;
 }
 AppWrapper CypherReadAppFactory::CreateApp(const GraphDB& db) {

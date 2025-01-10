@@ -22,21 +22,6 @@ namespace gs {
 namespace runtime {
 namespace ops {
 
-class OrderByOpr : public IReadOperator {
- public:
-  OrderByOpr(const algebra::OrderBy& opr) : opr_(opr) {}
-
-  gs::runtime::Context Eval(const gs::runtime::GraphReadInterface& graph,
-                            const std::map<std::string, std::string>& params,
-                            gs::runtime::Context&& ctx,
-                            gs::runtime::OprTimer& timer) override {
-    return gs::runtime::eval_order_by(opr_, graph, std::move(ctx), timer);
-  }
-
- private:
-  algebra::OrderBy opr_;
-};
-
 class OrderByOprBeta : public IReadOperator {
  public:
   OrderByOprBeta(

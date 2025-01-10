@@ -104,48 +104,6 @@ inline bool is_pk_oid_exact_check(
   return false;
 }
 
-// TODO(lexiao): merge with is_pk_exact_check
-inline bool is_pk_oid_exact_check(
-    const common::Expression& expr,
-    const std::map<std::string, std::string>& params, Any& pk) {
-  if (expr.operators_size() != 3) {
-    return false;
-  }
-  if (!(expr.operators(0).has_var() && expr.operators(0).var().has_property() &&
-        expr.operators(0).var().property().has_key())) {
-    auto& key = expr.operators(7).var().property().key();
-    if (!(key.item_case() == common::NameOrId::ItemCase::kName &&
-          key.name() == "id")) {
-      return false;
-    }
-    return false;
-  }
-  if (!(expr.operators(1).item_case() == common::ExprOpr::kLogical &&
-        expr.operators(1).logical() == common::Logical::EQ)) {
-    return false;
-  }
-
-  if (expr.operators(2).has_param()) {
-    auto& p = expr.operators(2).param();
-    const std::string& p_name = p.name();
-    auto p_iter = params.find(p_name);
-    if (p_iter == params.end()) {
-      return false;
-    }
-    if (!(p.has_data_type() &&
-          p.data_type().type_case() ==
-              common::IrDataType::TypeCase::kDataType &&
-          p.data_type().data_type() == common::DataType::INT64)) {
-      return false;
-    }
-    pk.set_i64(std::stoll(p_iter->second));
-    return true;
-  } else {
-    return false;
-  }
-  return false;
-}
-
 inline bool is_pk_exact_check(const common::Expression& expr, label_t& label,
                               std::string& pk) {
   if (expr.operators_size() != 11) {
@@ -204,10 +162,8 @@ inline bool is_pk_exact_check(const common::Expression& expr, label_t& label,
   if (expr.operators(9).has_param()) {
     auto& p = expr.operators(9).param();
     pk = p.name();
-    if (!(p.has_data_type() &&
-          p.data_type().type_case() ==
-              common::IrDataType::TypeCase::kDataType &&
-          p.data_type().data_type() == common::DataType::INT64)) {
+    if (!(p.has_data_type() && p.data_type().type_case() ==
+                                   common::IrDataType::TypeCase::kDataType)) {
       return false;
     }
   } else {
@@ -218,91 +174,6 @@ inline bool is_pk_exact_check(const common::Expression& expr, label_t& label,
             common::ExprOpr_Brace::ExprOpr_Brace_RIGHT_BRACE)) {
     return false;
   }
-  return true;
-}
-
-inline bool is_pk_exact_check(const common::Expression& expr,
-                              const std::map<std::string, std::string>& params,
-                              label_t& label, Any& pk) {
-  label_t local_label;
-  int64_t local_pk;
-  if (expr.operators_size() != 11) {
-    return false;
-  }
-  if (!(expr.operators(0).item_case() == common::ExprOpr::kBrace &&
-        expr.operators(0).brace() ==
-            common::ExprOpr_Brace::ExprOpr_Brace_LEFT_BRACE)) {
-    return false;
-  }
-  if (!(expr.operators(1).has_var() && expr.operators(1).var().has_property() &&
-        expr.operators(1).var().property().has_label())) {
-    return false;
-  }
-  if (!(expr.operators(2).item_case() == common::ExprOpr::kLogical &&
-        expr.operators(2).logical() == common::Logical::WITHIN)) {
-    return false;
-  }
-  if (expr.operators(3).has_const_() &&
-      expr.operators(3).const_().has_i64_array()) {
-    auto& array = expr.operators(3).const_().i64_array();
-    if (array.item_size() != 1) {
-      return false;
-    }
-    local_label = static_cast<label_t>(array.item(0));
-  } else {
-    return false;
-  }
-  if (!(expr.operators(4).item_case() == common::ExprOpr::kBrace &&
-        expr.operators(4).brace() ==
-            common::ExprOpr_Brace::ExprOpr_Brace_RIGHT_BRACE)) {
-    return false;
-  }
-  if (!(expr.operators(5).item_case() == common::ExprOpr::kLogical &&
-        expr.operators(5).logical() == common::Logical::AND)) {
-    return false;
-  }
-  if (!(expr.operators(6).item_case() == common::ExprOpr::kBrace &&
-        expr.operators(6).brace() ==
-            common::ExprOpr_Brace::ExprOpr_Brace_LEFT_BRACE)) {
-    return false;
-  }
-  if (!(expr.operators(7).has_var() && expr.operators(7).var().has_property() &&
-        expr.operators(7).var().property().has_key())) {
-    auto& key = expr.operators(7).var().property().key();
-    if (!(key.item_case() == common::NameOrId::ItemCase::kName &&
-          key.name() == "id")) {
-      return false;
-    }
-  }
-  if (!(expr.operators(8).item_case() == common::ExprOpr::kLogical &&
-        expr.operators(8).logical() == common::Logical::EQ)) {
-    return false;
-  }
-  if (expr.operators(9).has_param()) {
-    auto& p = expr.operators(9).param();
-    const std::string& p_name = p.name();
-    auto p_iter = params.find(p_name);
-    if (p_iter == params.end()) {
-      return false;
-    }
-    if (!(p.has_data_type() &&
-          p.data_type().type_case() ==
-              common::IrDataType::TypeCase::kDataType &&
-          p.data_type().data_type() == common::DataType::INT64)) {
-      return false;
-    }
-    local_pk = std::stoll(p_iter->second);
-  } else {
-    return false;
-  }
-  if (!(expr.operators(10).item_case() == common::ExprOpr::kBrace &&
-        expr.operators(10).brace() ==
-            common::ExprOpr_Brace::ExprOpr_Brace_RIGHT_BRACE)) {
-    return false;
-  }
-
-  label = local_label;
-  pk.set_i64(local_pk);
   return true;
 }
 
@@ -692,8 +563,8 @@ parse_special_vertex_predicate(const common::Expression& expr) {
       return std::nullopt;
     }
     auto name = op2.param().name();
-    auto type = op2.param().data_type().data_type();
-    if (type == common::DataType::INT64) {
+    auto type = parse_from_ir_data_type(op2.param().data_type());
+    if (type == RTAnyType::kI64Value) {
       return [ptype, property_name, name](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -702,7 +573,7 @@ parse_special_vertex_predicate(const common::Expression& expr) {
                                                params.at(name));
       };
 
-    } else if (type == common::DataType::STRING) {
+    } else if (type == RTAnyType::kStringValue) {
       return [ptype, property_name, name](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -711,7 +582,7 @@ parse_special_vertex_predicate(const common::Expression& expr) {
             ptype, graph, property_name, params.at(name));
       };
 
-    } else if (type == common::DataType::TIMESTAMP) {
+    } else if (type == RTAnyType::kTimestamp) {
       return [ptype, property_name, name](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -720,7 +591,7 @@ parse_special_vertex_predicate(const common::Expression& expr) {
                                             params.at(name));
       };
 
-    } else if (type == common::DataType::INT32) {
+    } else if (type == RTAnyType::kI32Value) {
       return [ptype, property_name, name](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -729,7 +600,7 @@ parse_special_vertex_predicate(const common::Expression& expr) {
                                                params.at(name));
       };
 
-    } else if (type == common::DataType::DOUBLE) {
+    } else if (type == RTAnyType::kF64Value) {
       return [ptype, property_name, name](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -829,7 +700,8 @@ parse_special_vertex_predicate(const common::Expression& expr) {
       return std::nullopt;
     }
 
-    if (op2.param().data_type().data_type() == common::DataType::INT64) {
+    auto type = parse_from_ir_data_type(op2.param().data_type());
+    if (type == RTAnyType::kI64Value) {
       return [property_name, from_str, to_str](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -838,8 +710,7 @@ parse_special_vertex_predicate(const common::Expression& expr) {
             graph, property_name, params.at(from_str), params.at(to_str));
       };
 
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::TIMESTAMP) {
+    } else if (type == RTAnyType::kTimestamp) {
       return [property_name, from_str, to_str](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
@@ -848,12 +719,29 @@ parse_special_vertex_predicate(const common::Expression& expr) {
             graph, property_name, params.at(from_str), params.at(to_str));
       };
 
-    } else if (op2.param().data_type().data_type() == common::DataType::INT32) {
+    } else if (type == RTAnyType::kI32Value) {
       return [property_name, from_str, to_str](
                  const GraphReadInterface& graph,
                  const std::map<std::string, std::string>& params)
                  -> std::unique_ptr<SPVertexPredicate> {
         return std::make_unique<VertexPropertyBetweenPredicateBeta<int32_t>>(
+            graph, property_name, params.at(from_str), params.at(to_str));
+      };
+    } else if (type == RTAnyType::kF64Value) {
+      return [property_name, from_str, to_str](
+                 const GraphReadInterface& graph,
+                 const std::map<std::string, std::string>& params)
+                 -> std::unique_ptr<SPVertexPredicate> {
+        return std::make_unique<VertexPropertyBetweenPredicateBeta<double>>(
+            graph, property_name, params.at(from_str), params.at(to_str));
+      };
+    } else if (type == RTAnyType::kStringValue) {
+      return [property_name, from_str, to_str](
+                 const GraphReadInterface& graph,
+                 const std::map<std::string, std::string>& params)
+                 -> std::unique_ptr<SPVertexPredicate> {
+        return std::make_unique<
+            VertexPropertyBetweenPredicateBeta<std::string_view>>(
             graph, property_name, params.at(from_str), params.at(to_str));
       };
     } else {
@@ -862,223 +750,6 @@ parse_special_vertex_predicate(const common::Expression& expr) {
   }
 
   return std::nullopt;
-}
-inline std::unique_ptr<SPVertexPredicate> parse_special_vertex_predicate(
-    const common::Expression& expr, const GraphReadInterface& graph,
-    const std::map<std::string, std::string>& params) {
-  // LOG(INFO) << "enter...";
-  if (expr.operators_size() == 3) {
-    // LT, EQ, GT, LE
-    const common::ExprOpr& op0 = expr.operators(0);
-    if (!op0.has_var()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op0.var().has_property()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op0.var().property().has_key()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op0.var().property().key().item_case() ==
-          common::NameOrId::ItemCase::kName)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string property_name = op0.var().property().key().name();
-    const common::ExprOpr& op1 = expr.operators(1);
-    if (!(op1.item_case() == common::ExprOpr::kLogical)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    SPPredicateType ptype;
-    if (op1.logical() == common::Logical::LT) {
-      ptype = SPPredicateType::kPropertyLT;
-    } else if (op1.logical() == common::Logical::GT) {
-      ptype = SPPredicateType::kPropertyGT;
-    } else if (op1.logical() == common::Logical::EQ) {
-      ptype = SPPredicateType::kPropertyEQ;
-    } else if (op1.logical() == common::Logical::LE) {
-      ptype = SPPredicateType::kPropertyLE;
-    } else if (op1.logical() == common::Logical::GE) {
-      ptype = SPPredicateType::kPropertyGE;
-    } else if (op1.logical() == common::Logical::NE) {
-      ptype = SPPredicateType::kPropertyNE;
-    } else {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    const common::ExprOpr& op2 = expr.operators(2);
-    if (!op2.has_param()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op2.param().has_data_type()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op2.param().data_type().type_case() ==
-          common::IrDataType::TypeCase::kDataType)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string value_str = params.at(op2.param().name());
-
-    if (op2.param().data_type().data_type() == common::DataType::INT64) {
-      return _make_vertex_predicate<int64_t>(ptype, graph, property_name,
-                                             value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::STRING) {
-      return _make_vertex_predicate<std::string_view>(ptype, graph,
-                                                      property_name, value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::TIMESTAMP) {
-      return _make_vertex_predicate<Date>(ptype, graph, property_name,
-                                          value_str);
-    } else if (op2.param().data_type().data_type() == common::DataType::INT32) {
-      return _make_vertex_predicate<int32_t>(ptype, graph, property_name,
-                                             value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::DOUBLE) {
-      return _make_vertex_predicate<double>(ptype, graph, property_name,
-                                            value_str);
-    } else {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-  } else if (expr.operators_size() == 7) {
-    // between
-    const common::ExprOpr& op0 = expr.operators(0);
-    if (!op0.has_var()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op0.var().has_property()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op0.var().property().has_key()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op0.var().property().key().item_case() ==
-          common::NameOrId::ItemCase::kName)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string property_name = op0.var().property().key().name();
-
-    const common::ExprOpr& op1 = expr.operators(1);
-    if (!(op1.item_case() == common::ExprOpr::kLogical)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (op1.logical() != common::Logical::GE) {
-      // LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-
-    const common::ExprOpr& op2 = expr.operators(2);
-    if (!op2.has_param()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op2.param().has_data_type()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op2.param().data_type().type_case() ==
-          common::IrDataType::TypeCase::kDataType)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string from_str = params.at(op2.param().name());
-
-    const common::ExprOpr& op3 = expr.operators(3);
-    if (!(op3.item_case() == common::ExprOpr::kLogical)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (op3.logical() != common::Logical::AND) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-
-    const common::ExprOpr& op4 = expr.operators(4);
-    if (!op4.has_var()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op4.var().has_property()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op4.var().property().has_key()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op4.var().property().key().item_case() ==
-          common::NameOrId::ItemCase::kName)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (property_name != op4.var().property().key().name()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-
-    const common::ExprOpr& op5 = expr.operators(5);
-    if (!(op5.item_case() == common::ExprOpr::kLogical)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (op5.logical() != common::Logical::LT) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-
-    const common::ExprOpr& op6 = expr.operators(6);
-    if (!op6.has_param()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op6.param().has_data_type()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op6.param().data_type().type_case() ==
-          common::IrDataType::TypeCase::kDataType)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string to_str = params.at(op6.param().name());
-
-    if (op2.param().data_type().data_type() !=
-        op6.param().data_type().data_type()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-
-    if (op2.param().data_type().data_type() == common::DataType::INT64) {
-      return std::unique_ptr<SPVertexPredicate>(
-          new VertexPropertyBetweenPredicateBeta<int64_t>(graph, property_name,
-                                                          from_str, to_str));
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::TIMESTAMP) {
-      return std::unique_ptr<SPVertexPredicate>(
-          new VertexPropertyBetweenPredicateBeta<Date>(graph, property_name,
-                                                       from_str, to_str));
-
-    } else {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-  }
-
-  LOG(INFO) << "AAAA - " << expr.operators_size();
-  return nullptr;
 }
 
 class SPEdgePredicate {
@@ -1364,37 +1035,33 @@ parse_special_edge_predicate(const common::Expression& expr) {
       return std::nullopt;
     }
     const std::string& name = op2.param().name();
-
-    if (op2.param().data_type().data_type() == common::DataType::INT64) {
+    auto type = parse_from_ir_data_type(op2.param().data_type());
+    if (type == RTAnyType::kI64Value) {
       return [ptype, name](const GraphReadInterface& graph,
                            const std::map<std::string, std::string>& params) {
         return _make_edge_predicate<int64_t>(ptype, params.at(name));
       };
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::DOUBLE) {
+    } else if (type == RTAnyType::kF64Value) {
       return [ptype, name](const GraphReadInterface& graph,
                            const std::map<std::string, std::string>& params) {
         return _make_edge_predicate<double>(ptype, params.at(name));
       };
-    } else if (op2.param().data_type().data_type() == common::DataType::INT32) {
+    } else if (type == RTAnyType::kI32Value) {
       return [ptype, name](const GraphReadInterface& graph,
                            const std::map<std::string, std::string>& params) {
         return _make_edge_predicate<int32_t>(ptype, params.at(name));
       };
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::TIMESTAMP) {
+    } else if (type == RTAnyType::kTimestamp) {
       return [ptype, name](const GraphReadInterface& graph,
                            const std::map<std::string, std::string>& params) {
         return _make_edge_predicate<Date>(ptype, params.at(name));
       };
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::STRING) {
+    } else if (type == RTAnyType::kStringValue) {
       return [ptype, name](const GraphReadInterface& graph,
                            const std::map<std::string, std::string>& params) {
         return _make_edge_predicate<std::string_view>(ptype, params.at(name));
       };
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::DATE32) {
+    } else if (type == RTAnyType::kDate32) {
       return [ptype, name](const GraphReadInterface& graph,
                            const std::map<std::string, std::string>& params) {
         return _make_edge_predicate<Day>(ptype, params.at(name));
@@ -1404,94 +1071,6 @@ parse_special_edge_predicate(const common::Expression& expr) {
     }
   }
   return std::nullopt;
-}
-
-inline std::unique_ptr<SPEdgePredicate> parse_special_edge_predicate(
-    const common::Expression& expr, const GraphReadInterface& graph,
-    const std::map<std::string, std::string>& params) {
-  if (expr.operators_size() == 3) {
-    // LT, GT
-    const common::ExprOpr& op0 = expr.operators(0);
-    if (!op0.has_var()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op0.var().has_property()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op0.var().property().has_key()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op0.var().property().key().item_case() ==
-          common::NameOrId::ItemCase::kName)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string property_name = op0.var().property().key().name();
-
-    const common::ExprOpr& op1 = expr.operators(1);
-    if (!(op1.item_case() == common::ExprOpr::kLogical)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    SPPredicateType ptype;
-    if (op1.logical() == common::Logical::LT) {
-      ptype = SPPredicateType::kPropertyLT;
-    } else if (op1.logical() == common::Logical::GT) {
-      ptype = SPPredicateType::kPropertyGT;
-    } else if (op1.logical() == common::Logical::GE) {
-      ptype = SPPredicateType::kPropertyGE;
-    } else if (op1.logical() == common::Logical::LE) {
-      ptype = SPPredicateType::kPropertyLE;
-    } else if (op1.logical() == common::Logical::EQ) {
-      ptype = SPPredicateType::kPropertyEQ;
-    } else if (op1.logical() == common::Logical::NE) {
-      ptype = SPPredicateType::kPropertyNE;
-    } else {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    const common::ExprOpr& op2 = expr.operators(2);
-    if (!op2.has_param()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!op2.param().has_data_type()) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    if (!(op2.param().data_type().type_case() ==
-          common::IrDataType::TypeCase::kDataType)) {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-    std::string value_str = params.at(op2.param().name());
-
-    if (op2.param().data_type().data_type() == common::DataType::INT64) {
-      return _make_edge_predicate<int64_t>(ptype, value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::DOUBLE) {
-      return _make_edge_predicate<double>(ptype, value_str);
-    } else if (op2.param().data_type().data_type() == common::DataType::INT32) {
-      return _make_edge_predicate<int32_t>(ptype, value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::TIMESTAMP) {
-      return _make_edge_predicate<Date>(ptype, value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::STRING) {
-      return _make_edge_predicate<std::string_view>(ptype, value_str);
-    } else if (op2.param().data_type().data_type() ==
-               common::DataType::DATE32) {
-      return _make_edge_predicate<Day>(ptype, value_str);
-    } else {
-      LOG(INFO) << "AAAA";
-      return nullptr;
-    }
-  }
-  LOG(INFO) << "AAAA - " << expr.operators_size();
-  return nullptr;
 }
 
 }  // namespace runtime

@@ -16,7 +16,7 @@
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/select.h"
 #include "flex/engines/graph_db/runtime/adhoc/expr.h"
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
-#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
+#include "flex/engines/graph_db/runtime/adhoc/opr_timer.h"
 
 namespace gs {
 

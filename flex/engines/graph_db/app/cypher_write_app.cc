@@ -3,7 +3,6 @@
 #include "flex/engines/graph_db/database/graph_db.h"
 
 #include "flex/engines/graph_db/runtime/adhoc/operators/operators.h"
-#include "flex/engines/graph_db/runtime/adhoc/runtime.h"
 #include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 
 namespace gs {

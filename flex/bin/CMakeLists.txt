@@ -16,18 +16,6 @@ target_link_libraries(rt_admin flex_utils flex_rt_mutable_graph flex_graph_db)
 install_without_export_flex_target(rt_admin)
 
 
-add_executable(adhoc_runner adhoc_runner.cc)
-target_link_libraries(adhoc_runner flex_utils flex_graph_db)
-install_without_export_flex_target(adhoc_runner)
-
-add_executable(adhoc_parser adhoc_parser.cc)
-target_link_libraries(adhoc_parser flex_utils flex_graph_db)
-install_without_export_flex_target(adhoc_parser)
-
-add_executable(parsed_runner parsed_runner.cc)
-target_link_libraries(parsed_runner flex_utils flex_graph_db)
-install_without_export_flex_target(parsed_runner)
-
 add_executable(flex_analytical_engine flex_analytical_engine.cc)
 target_link_libraries(flex_analytical_engine flex_immutable_graph flex_bsp ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES})
 install_without_export_flex_target(flex_analytical_engine)
@@ -49,11 +37,3 @@ include_directories(${Boost_INCLUDE_DIRS})
 add_executable(bulk_loader bulk_loader.cc)
 target_link_libraries(bulk_loader flex_rt_mutable_graph flex_utils ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${Boost_LIBRARIES})
 install_without_export_flex_target(bulk_loader)
-
-add_executable(stored_procedure_runner stored_procedure_runner.cc)
-target_link_libraries(stored_procedure_runner flex_rt_mutable_graph flex_utils flex_graph_db ${GLOG_LIBRARIES} ${GFLAGS_LIBRARIES} ${Boost_LIBRARIES})
-install_without_export_flex_target(stored_procedure_runner)
-
-add_executable(physical_plan_preprocess physical_plan_preprocess.cc)
-target_link_libraries(physical_plan_preprocess flex_utils flex_graph_db)
-install_without_export_flex_target(physical_plan_preprocess)
