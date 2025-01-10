@@ -434,72 +434,6 @@ bool project_order_by_fusable(
   return true;
 }
 
-bool project_order_by_fusable_beta(
-    const physical::Project& project_opr, const algebra::OrderBy& order_by_opr,
-    const ContextMeta& ctx_meta,
-    const std::vector<common::IrDataType>& data_types) {
-  if (project_opr.is_append()) {
-    // LOG(INFO) << "is append, fallback";
-    return false;
-  }
-
-  int mappings_size = project_opr.mappings_size();
-  if (static_cast<size_t>(mappings_size) != data_types.size()) {
-    // LOG(INFO) << "mappings size not consistent with data types, fallback";
-    return false;
-  }
-
-  std::set<int> new_generate_columns;
-  for (int i = 0; i < mappings_size; ++i) {
-    const physical::Project_ExprAlias& m = project_opr.mappings(i);
-    if (m.has_alias()) {
-      int alias = m.alias().value();
-      if (ctx_meta.exist(alias)) {
-        // LOG(INFO) << "overwrite column, fallback";
-        return false;
-      }
-      if (new_generate_columns.find(alias) != new_generate_columns.end()) {
-        // LOG(INFO) << "multiple mappings with same alias, fallback";
-        return false;
-      }
-      new_generate_columns.insert(alias);
-    }
-  }
-
-  int order_by_keys_num = order_by_opr.pairs_size();
-  std::set<int> order_by_keys;
-  for (int k_i = 0; k_i < order_by_keys_num; ++k_i) {
-    if (!order_by_opr.pairs(k_i).has_key()) {
-      // LOG(INFO) << "order by - " << k_i << " -th pair has no key, fallback";
-      return false;
-    }
-    if (!order_by_opr.pairs(k_i).key().has_tag()) {
-      // LOG(INFO) << "order by - " << k_i << " -th pair has no tag, fallback";
-      return false;
-    }
-    if (!(order_by_opr.pairs(k_i).key().tag().item_case() ==
-          common::NameOrId::ItemCase::kId)) {
-      // LOG(INFO) << "order by - " << k_i << " -th pair has no id, fallback";
-      return false;
-    }
-    order_by_keys.insert(order_by_opr.pairs(k_i).key().tag().id());
-  }
-  if (data_types.size() == order_by_keys.size()) {
-    // LOG(INFO)
-    //     << "all column is required, partial project is not needed, fallback";
-    return false;
-  }
-  for (auto key : order_by_keys) {
-    if (new_generate_columns.find(key) == new_generate_columns.end() &&
-        !ctx_meta.exist(key)) {
-      // LOG(INFO) << "missing key column for order by, fallback";
-      return false;
-    }
-  }
-
-  return true;
-}
-
 bool is_property_expr(const common::Expression& expr, int& tag_id,
                       std::string& property_name) {
   if (expr.operators_size() != 1) {
@@ -579,20 +513,6 @@ Context eval_project_order_by(
                 }
               }
             }
-            tx.start();
-            Expr expr(graph, ctx, params, m.expr(), VarType::kPathVar);
-            auto col = build_topN_column(data_types[i], expr, row_num, limit,
-                                         asc, offsets);
-            if (col != nullptr) {
-              success = true;
-              ctx.reshuffle(offsets);
-              ctx.set(first_key_tag, col);
-              timer.record_routine("project_order_by:topN_by_expr", tx);
-              added_alias_in_preproject.push_back(first_key_tag);
-              row_num = ctx.row_num();
-            } else {
-              LOG(INFO) << "build topN column returns nullptr";
-            }
             break;
           }
         }
@@ -632,6 +552,7 @@ Context eval_project_order_by(
   }
 
   tx.start();
+
   ctx = eval_order_by(order_by_opr, graph, std::move(ctx), timer, !success);
   timer.record_routine("project_order_by:order_by", tx);
 

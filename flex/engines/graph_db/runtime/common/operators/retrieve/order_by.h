@@ -17,71 +17,12 @@
 
 #include "flex/engines/graph_db/runtime/common/context.h"
 #include "flex/engines/graph_db/runtime/common/graph_interface.h"
-#include "flex/engines/graph_db/runtime/common/operators/retrieve/project.h"
 
 #include <queue>
 
 namespace gs {
 
 namespace runtime {
-
-template <typename T>
-class AscValue {
- public:
-  AscValue() : val_() {}
-  AscValue(const T& val) : val_(val) {}
-
-  bool operator<(const AscValue& rhs) const { return val_ < rhs.val_; }
-
-  const T& value() const { return val_; }
-
- private:
-  T val_;
-};
-
-template <typename VAR_T>
-class AscWrapper {
- public:
-  using elem_t = typename VAR_T::elem_t;
-  using value_t = AscValue<elem_t>;
-
-  AscWrapper(VAR_T&& var) : var_(std::move(var)) {}
-  AscValue<elem_t> get(size_t idx) const {
-    return AscValue<elem_t>(var_.typed_eval_path(idx));
-  }
-
- private:
-  VAR_T var_;
-};
-
-template <typename T>
-class DescValue {
- public:
-  DescValue() : val_() {}
-  DescValue(const T& val) : val_(val) {}
-
-  bool operator<(const DescValue& rhs) const { return rhs.val_ < val_; }
-
-  const T& value() const { return val_; }
-
- private:
-  T val_;
-};
-
-template <typename VAR_T>
-class DescWrapper {
- public:
-  using elem_t = typename VAR_T::elem_t;
-  using value_t = DescValue<elem_t>;
-
-  DescWrapper(VAR_T&& var) : var_(std::move(var)) {}
-  DescValue<elem_t> get(size_t idx) const {
-    return DescValue<elem_t>(var_.typed_eval_path(idx));
-  }
-
- private:
-  VAR_T var_;
-};
 
 class OrderBy {
  public:
@@ -146,6 +87,26 @@ class OrderBy {
 
     ctx.reshuffle(offsets);
     return ctx;
+  }
+
+  template <typename Comparer>
+  static Context order_by_with_limit_with_indices(
+      const GraphReadInterface& graph, Context&& ctx,
+      std::function<std::optional<std::vector<size_t>>(
+          const GraphReadInterface&, const Context& ctx)>
+          indices,
+      const Comparer& cmp, size_t low, size_t high) {
+    size_t row_num = ctx.row_num();
+    if (row_num <= high) {
+      return order_by_with_limit(graph, std::move(ctx), cmp, low, high);
+    }
+    auto _indices = indices(graph, ctx);
+    if (!_indices.has_value()) {
+      return order_by_with_limit(graph, std::move(ctx), cmp, low, high);
+    } else {
+      return staged_order_by_with_limit(graph, std::move(ctx), cmp, low, high,
+                                        _indices.value());
+    }
   }
 };
 }  // namespace runtime

@@ -22,152 +22,182 @@
 
 #include "flex/engines/graph_db/runtime/common/columns/value_columns.h"
 #include "flex/engines/graph_db/runtime/common/context.h"
-#include "flex/engines/graph_db/runtime/common/operators/project.h"
+#include "parallel_hashmap/phmap.h"
+namespace std {
+template <>
+struct hash<gs::runtime::VertexRecord> {
+  size_t operator()(const gs::runtime::VertexRecord& record) const {
+    return std::hash<int64_t>()(1ll * record.vid_ << 4 | record.label_);
+  }
+};
 
+template <>
+struct hash<gs::Date> {
+  size_t operator()(const gs::Date& date) const {
+    return std::hash<int64_t>()(date.milli_second);
+  }
+};
+
+};  // namespace std
 namespace gs {
 
 namespace runtime {
 
-void aggregate_value_impl(
-    const std::tuple<>&, const std::vector<std::vector<size_t>>& to_aggregate,
-    std::vector<std::shared_ptr<IContextColumn>>& output) {}
+enum class AggrKind {
+  kSum,
+  kMin,
+  kMax,
+  kCount,
+  kCountDistinct,
+  kToSet,
+  kFirst,
+  kToList,
+  kAvg,
+};
 
-template <typename T, typename... Rest>
-void aggregate_value_impl(
-    const std::tuple<ProjectExpr<T>, Rest...>& t,
-    const std::vector<std::vector<size_t>>& to_aggregate,
-    std::vector<std::shared_ptr<IContextColumn>>& output) {
-  const ProjectExpr<T>& cur = std::get<0>(t);
-  using ELEM_T = typename T::elem_t;
+struct KeyBase {
+  virtual ~KeyBase() = default;
+  virtual std::pair<std::vector<size_t>, std::vector<std::vector<size_t>>>
+  group(const Context& ctx) = 0;
+  virtual const std::vector<std::pair<int, int>>& tag_alias() const = 0;
+};
+template <typename EXPR>
+struct Key : public KeyBase {
+  Key(EXPR&& expr, const std::vector<std::pair<int, int>>& tag_alias)
+      : expr(std::move(expr)), tag_alias_(tag_alias) {}
+  std::pair<std::vector<size_t>, std::vector<std::vector<size_t>>> group(
+      const Context& ctx) {
+    size_t row_num = ctx.row_num();
+    std::vector<std::vector<size_t>> groups;
+    std::vector<size_t> offsets;
+    phmap::flat_hash_map<typename EXPR::V, size_t> group_map;
+    for (size_t i = 0; i < row_num; ++i) {
+      auto val = expr(i);
+      auto iter = group_map.find(val);
+      if (iter == group_map.end()) {
+        size_t idx = groups.size();
+        group_map[val] = idx;
+        groups.emplace_back();
+        groups.back().push_back(i);
+        offsets.push_back(i);
+      } else {
+        groups[iter->second].push_back(i);
+      }
+    }
+    return std::make_pair(std::move(offsets), std::move(groups));
+  }
+  const std::vector<std::pair<int, int>>& tag_alias() const override {
+    return tag_alias_;
+  }
+  EXPR expr;
+  std::vector<std::pair<int, int>> tag_alias_;
+};
 
-  ValueColumnBuilder<ELEM_T> builder;
-  builder.reserve(to_aggregate.size());
-  for (size_t k = 0; k < to_aggregate.size(); ++k) {
-    builder.push_back_opt(cur.expr.reduce(to_aggregate[k]));
+template <typename EXPR>
+struct GKey : public KeyBase {
+  GKey(std::vector<EXPR>&& exprs,
+       const std::vector<std::pair<int, int>>& tag_alias)
+      : exprs(std::move(exprs)), tag_alias_(tag_alias) {}
+  std::pair<std::vector<size_t>, std::vector<std::vector<size_t>>> group(
+      const Context& ctx) {
+    size_t row_num = ctx.row_num();
+    std::vector<std::vector<size_t>> groups;
+    std::vector<size_t> offsets;
+    std::unordered_map<std::string_view, size_t> sig_to_root;
+    std::vector<std::vector<char>> root_list;
+    for (size_t i = 0; i < row_num; ++i) {
+      std::vector<char> buf;
+      ::gs::Encoder encoder(buf);
+      for (size_t k_i = 0; k_i < exprs.size(); ++k_i) {
+        auto val = exprs[k_i](i);
+        val.encode_sig(val.type(), encoder);
+      }
+      std::string_view sv(buf.data(), buf.size());
+      auto iter = sig_to_root.find(sv);
+      if (iter != sig_to_root.end()) {
+        groups[iter->second].push_back(i);
+      } else {
+        sig_to_root.emplace(sv, groups.size());
+        root_list.emplace_back(std::move(buf));
+        offsets.push_back(i);
+        std::vector<size_t> ret_elem;
+        ret_elem.push_back(i);
+        groups.emplace_back(std::move(ret_elem));
+      }
+    }
+    return std::make_pair(std::move(offsets), std::move(groups));
+  }
+  const std::vector<std::pair<int, int>>& tag_alias() const override {
+    return tag_alias_;
+  }
+  std::vector<EXPR> exprs;
+  std::vector<std::pair<int, int>> tag_alias_;
+};
+
+struct ReducerBase {
+  virtual ~ReducerBase() = default;
+  virtual Context reduce(const Context& ctx, Context&& ret,
+                         const std::vector<std::vector<size_t>>& groups,
+                         std::set<size_t>& filter) = 0;
+};
+
+template <typename REDUCER_T, typename COLLECTOR_T>
+struct Reducer : public ReducerBase {
+  Reducer(REDUCER_T&& reducer, COLLECTOR_T&& collector, int alias)
+      : reducer_(std::move(reducer)),
+        collector_(std::move(collector)),
+        alias_(alias) {}
+
+  Context reduce(const Context& ctx, Context&& ret,
+                 const std::vector<std::vector<size_t>>& groups,
+                 std::set<size_t>& filter) {
+    using T = typename REDUCER_T::V;
+    collector_.init(groups.size());
+    for (size_t i = 0; i < groups.size(); ++i) {
+      const auto& group = groups[i];
+      T val{};
+      if (!reducer_(group, val)) {
+        filter.insert(i);
+      }
+      collector_.collect(std::move(val));
+    }
+    ret.set(alias_, collector_.get());
+    return ret;
   }
 
-  if (output.size() <= cur.alias) {
-    output.resize(cur.alias + 1, nullptr);
-  }
-  output[cur.alias] = builder.finish();
-
-  aggregate_value_impl(tail(t), to_aggregate, output);
-}
+  REDUCER_T reducer_;
+  COLLECTOR_T collector_;
+  int alias_;
+};
 
 class GroupBy {
  public:
-  template <typename... Args>
-  static Context group_by(Context&& ctx, const std::vector<size_t>& keys,
-                          const std::tuple<Args...>& funcs) {
-    size_t row_num = ctx.row_num();
-    std::vector<size_t> offsets;
-    std::vector<std::vector<size_t>> to_aggregate;
-
-    if (keys.size() == 0) {
-      return ctx;
-    } else if (keys.size() == 1) {
-      ISigColumn* sig = ctx.get(keys[0])->generate_signature();
-#if 1
-      std::unordered_map<size_t, size_t> sig_to_root;
-      for (size_t r_i = 0; r_i < row_num; ++r_i) {
-        size_t cur = sig->get_sig(r_i);
-        auto iter = sig_to_root.find(cur);
-        if (iter == sig_to_root.end()) {
-          sig_to_root.emplace(cur, offsets.size());
-          offsets.push_back(r_i);
-          std::vector<size_t> list;
-          list.push_back(r_i);
-          to_aggregate.emplace_back(std::move(list));
-        } else {
-          to_aggregate[iter->second].push_back(r_i);
-        }
-      }
-#else
-      std::vector<std::pair<size_t, size_t>> vec;
-      vec.reserve(row_num);
-      for (size_t r_i = 0; r_i < row_num; ++r_i) {
-        size_t cur = sig->get_sig(r_i);
-        vec.emplace_back(cur, r_i);
-      }
-      std::sort(vec.begin(), vec.end());
-      if (row_num > 0) {
-        std::vector<size_t> ta;
-        size_t cur = vec[0].first;
-        ta.push_back(vec[0].second);
-        offsets.push_back(vec[0].second);
-        for (size_t k = 1; k < row_num; ++k) {
-          if (vec[k].first != cur) {
-            to_aggregate.emplace_back(std::move(ta));
-            ta.clear();
-            cur = vec[k].first;
-            ta.push_back(vec[k].second);
-            offsets.push_back(vec[k].second);
-          } else {
-            ta.push_back(vec[k].second);
-          }
-        }
-        if (!ta.empty()) {
-          to_aggregate.emplace_back(std::move(ta));
-        }
-      }
-#endif
-      delete sig;
-    } else if (keys.size() == 2) {
-      std::map<std::pair<size_t, size_t>, size_t> sig_to_root;
-      ISigColumn* sig0 = ctx.get(keys[0])->generate_signature();
-      ISigColumn* sig1 = ctx.get(keys[1])->generate_signature();
-      for (size_t r_i = 0; r_i < row_num; ++r_i) {
-        auto cur = std::make_pair(sig0->get_sig(r_i), sig1->get_sig(r_i));
-        auto iter = sig_to_root.find(cur);
-        if (iter == sig_to_root.end()) {
-          sig_to_root.emplace(cur, offsets.size());
-          offsets.push_back(r_i);
-          std::vector<size_t> list;
-          list.push_back(r_i);
-          to_aggregate.emplace_back(std::move(list));
-        } else {
-          to_aggregate[iter->second].push_back(r_i);
-        }
-      }
-      delete sig0;
-      delete sig1;
+  static Context group_by(const GraphReadInterface& graph, Context&& ctx,
+                          std::unique_ptr<KeyBase>&& key,
+                          std::vector<std::unique_ptr<ReducerBase>>&& aggrs) {
+    auto [offsets, groups] = key->group(ctx);
+    Context ret;
+    const auto& tag_alias = key->tag_alias();
+    for (size_t i = 0; i < tag_alias.size(); ++i) {
+      ret.set(tag_alias[i].second, ctx.get(tag_alias[i].first));
+    }
+    ret.reshuffle(offsets);
+    std::set<size_t> filter;
+    for (auto& aggr : aggrs) {
+      ret = aggr->reduce(ctx, std::move(ret), groups, filter);
+    }
+    if (filter.empty()) {
+      return ret;
     } else {
-      std::set<std::string> set;
-      for (size_t r_i = 0; r_i < row_num; ++r_i) {
-        std::vector<char> bytes;
-        Encoder encoder(bytes);
-        for (size_t k = 0; k < keys.size(); ++k) {
-          auto val = ctx.get(keys[k])->get_elem(k);
-          val.encode_sig(val.type(), encoder);
-          encoder.put_byte('#');
-        }
-        std::string sv(bytes.data(), bytes.size());
-        if (set.find(sv) == set.end()) {
-          offsets.push_back(r_i);
-          set.insert(sv);
+      std::vector<size_t> new_offsets;
+      for (size_t i = 0; i < ret.row_num(); ++i) {
+        if (filter.find(i) == filter.end()) {
+          new_offsets.push_back(i);
         }
       }
+      ret.reshuffle(new_offsets);
+      return ret;
     }
-
-    std::vector<std::shared_ptr<IContextColumn>> new_columns;
-    aggregate_value_impl(funcs, to_aggregate, new_columns);
-
-    Context new_ctx;
-    for (auto col : keys) {
-      new_ctx.set(col, ctx.get(col));
-    }
-    new_ctx.head = nullptr;
-
-    new_ctx.reshuffle(offsets);
-    for (size_t k = 0; k < new_columns.size(); ++k) {
-      auto col = new_columns[k];
-      if (col != nullptr) {
-        new_ctx.set(k, col);
-      }
-    }
-
-    new_ctx.head = nullptr;
-    return new_ctx;
   }
 };
 
