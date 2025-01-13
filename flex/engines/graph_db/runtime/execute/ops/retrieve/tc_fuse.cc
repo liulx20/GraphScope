@@ -1,5 +1,6 @@
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/edge_expand.h"
 #include "flex/engines/graph_db/runtime/execute/ops/retrieve/edge.h"
+#include "flex/engines/graph_db/runtime/utils/utils.h"
 
 namespace gs {
 namespace runtime {

@@ -14,7 +14,8 @@
  */
 
 #include "flex/engines/graph_db/runtime/execute/ops/retrieve/path.h"
-#include "flex/engines/graph_db/runtime/adhoc/predicates.h"
+#include "flex/engines/graph_db/runtime/utils/predicates.h"
+#include "flex/engines/graph_db/runtime/utils/utils.h"
 
 namespace gs {
 namespace runtime {

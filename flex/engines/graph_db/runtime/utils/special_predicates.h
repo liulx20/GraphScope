@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef RUNTIME_ADHOC_OPERATORS_SPECIAL_PREDICATES_H_
-#define RUNTIME_ADHOC_OPERATORS_SPECIAL_PREDICATES_H_
+#ifndef RUNTIME_UTILS_SPECIAL_PREDICATES_H_
+#define RUNTIME_UTILS_SPECIAL_PREDICATES_H_
 
 #include "flex/engines/graph_db/runtime/common/graph_interface.h"
 #include "flex/engines/graph_db/runtime/common/rt_any.h"
@@ -1077,4 +1077,4 @@ parse_special_edge_predicate(const common::Expression& expr) {
 
 }  // namespace gs
 
-#endif  // RUNTIME_ADHOC_OPERATORS_SPECIAL_PREDICATES_H_
+#endif  // RUNTIME_UTILS_OPERATORS_SPECIAL_PREDICATES_H_

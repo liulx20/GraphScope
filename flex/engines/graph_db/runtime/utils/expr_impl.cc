@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/adhoc/expr_impl.h"
+#include "flex/engines/graph_db/runtime/utils/expr_impl.h"
 #include <regex>
 #include <stack>
 

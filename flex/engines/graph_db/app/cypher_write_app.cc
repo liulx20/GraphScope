@@ -19,7 +19,6 @@ bool CypherWriteApp::Query(GraphDBSession& graph, Decoder& input,
   auto query = std::string(query_str.data(), query_str.size());
   if (!pipeline_cache_.count(query)) {
     if (plan_cache_.count(query)) {
-      // LOG(INFO) << "Hit cache for query ";
     } else {
       const std::string statistics = db_.work_dir() + "/statistics.json";
       const std::string& compiler_yaml = db_.work_dir() + "/.graph.yaml";

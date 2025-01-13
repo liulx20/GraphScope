@@ -18,12 +18,12 @@
 
 #include <set>
 
-#include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
 #include "flex/engines/graph_db/runtime/common/columns/edge_columns.h"
 #include "flex/engines/graph_db/runtime/common/columns/vertex_columns.h"
 #include "flex/engines/graph_db/runtime/common/context.h"
 #include "flex/engines/graph_db/runtime/common/graph_interface.h"
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/edge_expand_impl.h"
+#include "flex/engines/graph_db/runtime/utils/special_predicates.h"
 
 #include "glog/logging.h"
 

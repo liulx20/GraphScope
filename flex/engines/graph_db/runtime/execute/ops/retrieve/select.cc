@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 #include "flex/engines/graph_db/runtime/execute/ops/retrieve/select.h"
-#include "flex/engines/graph_db/runtime/adhoc/expr.h"
-#include "flex/engines/graph_db/runtime/adhoc/operators/special_predicates.h"
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/select.h"
+#include "flex/engines/graph_db/runtime/utils/expr.h"
+#include "flex/engines/graph_db/runtime/utils/special_predicates.h"
 
 namespace gs {
 namespace runtime {
