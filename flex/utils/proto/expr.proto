@@ -249,8 +249,8 @@ message PathConcat {
 }
 
 message UserDefinedFunction {
-  string name = 1;
-  repeated Expression parameters = 2;
+    string name = 1;
+    repeated Expression parameters = 2;
 }
 
 // An operator of expression is one of Logical, Arithmetic, Const and Variable.
@@ -287,4 +287,3 @@ message ExprOpr {
 message Expression {
   repeated ExprOpr operators = 1;
 }
-

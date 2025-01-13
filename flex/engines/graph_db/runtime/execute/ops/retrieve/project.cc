@@ -1050,7 +1050,7 @@ parse_special_expr(const common::Expression& expr, int alias) {
           if (ptr) {
             return ptr;
           }
-        } else if (type_ == RTAnyType::kF64Value) {
+        } else if (type_ == RTAnyType::kTimestamp) {
           auto ptr = create_sp_pred_case_when<Date>(
               graph, params, vertex_col, ptype, name, target, then_value,
               else_value, alias);
@@ -1114,7 +1114,7 @@ make_project_expr(const common::Expression& expr,
       return make_project_expr(expr, alias);
     } break;
     default: {
-      LOG(INFO) << "not support" << data_type.data_type().DebugString();
+      LOG(INFO) << "not support" << data_type.DebugString();
       return std::nullopt;
     }
     }
@@ -1173,7 +1173,7 @@ make_project_expr(const common::Expression& expr,
   } break;
 
   default:
-    LOG(INFO) << "unexpected type" << data_type.data_type().DebugString();
+    LOG(INFO) << "unexpected type" << data_type.DebugString();
     break;
   }
   return std::nullopt;

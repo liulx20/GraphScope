@@ -24,15 +24,14 @@ set(GIE_COMPILER_PROTO_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/proto/)
 set(GIE_COMPILER_PROTO_JOB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../interactive_engine/executor/engine/pegasus/server/proto/)
 # proto files of gie compiler
 set(CODE_GEN_PROTOBUF_FILES
-        ${GIE_COMPILER_PROTO_DIR}/physical.proto
         ${GIE_COMPILER_PROTO_DIR}/algebra.proto
         ${GIE_COMPILER_PROTO_DIR}/common.proto
         ${GIE_COMPILER_PROTO_DIR}/expr.proto
         ${GIE_COMPILER_PROTO_DIR}/results.proto
         ${GIE_COMPILER_PROTO_DIR}/schema.proto
         ${GIE_COMPILER_PROTO_DIR}/type.proto
+        ${GIE_COMPILER_PROTO_DIR}/physical.proto
         ${GIE_COMPILER_PROTO_DIR}/stored_procedure.proto
-        ${GIE_COMPILER_PROTO_DIR}/basic_type.proto
         ${GIE_COMPILER_PROTO_DIR}/cypher_write.proto  
         ${GIE_COMPILER_PROTO_JOB_DIR}/job_service.proto
 ) 

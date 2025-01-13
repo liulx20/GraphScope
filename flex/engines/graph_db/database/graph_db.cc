@@ -15,10 +15,6 @@
 
 #include "flex/engines/graph_db/database/graph_db.h"
 #include "flex/engines/graph_db/app/adhoc_app.h"
-#include "flex/engines/graph_db/app/builtin/count_vertices.h"
-#include "flex/engines/graph_db/app/builtin/k_hop_neighbors.h"
-#include "flex/engines/graph_db/app/builtin/pagerank.h"
-#include "flex/engines/graph_db/app/builtin/shortest_path_among_three.h"
 #include "flex/engines/graph_db/app/cypher_read_app.h"
 #include "flex/engines/graph_db/app/cypher_write_app.h"
 #include "flex/engines/graph_db/app/hqps_app.h"
@@ -408,14 +404,14 @@ void GraphDB::initApps(
   }
   // Builtin apps
   app_factories_[0] = std::make_shared<ServerAppFactory>();
-  app_factories_[Schema::BUILTIN_COUNT_VERTICES_PLUGIN_ID] =
+  /*app_factories_[Schema::BUILTIN_COUNT_VERTICES_PLUGIN_ID] =
       std::make_shared<CountVerticesFactory>();
   app_factories_[Schema::BUILTIN_PAGERANK_PLUGIN_ID] =
       std::make_shared<PageRankFactory>();
   app_factories_[Schema::BUILTIN_K_DEGREE_NEIGHBORS_PLUGIN_ID] =
       std::make_shared<KNeighborsFactory>();
   app_factories_[Schema::BUILTIN_TVSP_PLUGIN_ID] =
-      std::make_shared<ShortestPathAmongThreeFactory>();
+      std::make_shared<ShortestPathAmongThreeFactory>();*/
 
   app_factories_[Schema::HQPS_ADHOC_READ_PLUGIN_ID] =
       std::make_shared<HQPSAdhocReadAppFactory>();
