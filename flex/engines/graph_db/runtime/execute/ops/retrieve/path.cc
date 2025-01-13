@@ -14,6 +14,7 @@
  */
 
 #include "flex/engines/graph_db/runtime/execute/ops/retrieve/path.h"
+#include "flex/engines/graph_db/runtime/common/operators/retrieve/path_expand.h"
 #include "flex/engines/graph_db/runtime/utils/predicates.h"
 #include "flex/engines/graph_db/runtime/utils/utils.h"
 

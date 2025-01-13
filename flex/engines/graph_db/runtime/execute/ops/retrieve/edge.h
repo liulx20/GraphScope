@@ -16,7 +16,6 @@
 #ifndef RUNTIME_EXECUTE_RETRIEVE_OPS_EDGE_H_
 #define RUNTIME_EXECUTE_RETRIEVE_OPS_EDGE_H_
 
-#include "flex/engines/graph_db/runtime/common/operators/retrieve/edge_expand.h"
 #include "flex/engines/graph_db/runtime/execute/operator.h"
 
 namespace gs {
