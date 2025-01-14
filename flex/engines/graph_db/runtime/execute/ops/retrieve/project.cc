@@ -432,16 +432,16 @@ struct CaseWhenCollector {
   ValueColumnBuilder<RESULT_T> builder;
 };
 
-template <typename SP_PRED_T, typename RESULT_T>
+template <typename VERTEX_COL_PTR, typename SP_PRED_T, typename RESULT_T>
 struct SPOpr {
   using V = RESULT_T;
-  SPOpr(std::shared_ptr<IVertexColumn> vertex_col, SP_PRED_T&& pred,
-        RESULT_T then_value, RESULT_T else_value)
+  SPOpr(const VERTEX_COL_PTR& vertex_col, SP_PRED_T&& pred, RESULT_T then_value,
+        RESULT_T else_value)
       : vertex_col(vertex_col),
         pred(std::move(pred)),
         then_value(then_value),
         else_value(else_value) {}
-  RESULT_T operator()(size_t idx) const {
+  inline RESULT_T operator()(size_t idx) const {
     auto v = vertex_col->get_vertex(idx);
     if (pred(v.label_, v.vid_)) {
       return then_value;
@@ -449,7 +449,7 @@ struct SPOpr {
       return else_value;
     }
   }
-  std::shared_ptr<IVertexColumn> vertex_col;
+  VERTEX_COL_PTR vertex_col;
   SP_PRED_T pred;
   RESULT_T then_value;
   RESULT_T else_value;
@@ -463,20 +463,25 @@ std::unique_ptr<ProjectExprBase> create_case_when_project(
   CHECK(then_value.item_case() == else_value.item_case());
   switch (then_value.item_case()) {
   case common::Value::kI32: {
-    SPOpr opr(vertex_col, std::move(pred), then_value.i32(), else_value.i32());
-    auto collector = CaseWhenCollector<decltype(opr), int32_t>();
-    return std::make_unique<ProjectExpr<decltype(opr), decltype(collector)>>(
-        std::move(opr), collector, alias);
+    if (vertex_col->vertex_column_type() == VertexColumnType::kSingle) {
+      auto typed_vertex_col =
+          std::dynamic_pointer_cast<SLVertexColumn>(vertex_col);
+      SPOpr opr(typed_vertex_col, std::move(pred), then_value.i32(),
+                else_value.i32());
+      auto collector = CaseWhenCollector<decltype(opr), int32_t>();
+      return std::make_unique<ProjectExpr<decltype(opr), decltype(collector)>>(
+          std::move(opr), collector, alias);
+    } else {
+      SPOpr opr(vertex_col, std::move(pred), then_value.i32(),
+                else_value.i32());
+      auto collector = CaseWhenCollector<decltype(opr), int32_t>();
+      return std::make_unique<ProjectExpr<decltype(opr), decltype(collector)>>(
+          std::move(opr), collector, alias);
+    }
   }
   case common::Value::kI64: {
     SPOpr opr(vertex_col, std::move(pred), then_value.i64(), else_value.i64());
     auto collector = CaseWhenCollector<decltype(opr), int64_t>();
-    return std::make_unique<ProjectExpr<decltype(opr), decltype(collector)>>(
-        std::move(opr), collector, alias);
-  }
-  case common::Value::kF64: {
-    SPOpr opr(vertex_col, std::move(pred), then_value.f64(), else_value.f64());
-    auto collector = CaseWhenCollector<decltype(opr), double>();
     return std::make_unique<ProjectExpr<decltype(opr), decltype(collector)>>(
         std::move(opr), collector, alias);
   }
@@ -976,6 +981,7 @@ parse_special_expr(const common::Expression& expr, int alias) {
       auto col = ctx.get(tag);
       if (col->column_type() == ContextColumnType::kVertex) {
         auto vertex_col = std::dynamic_pointer_cast<IVertexColumn>(col);
+
         auto type = expr.operators(0)
                         .case_()
                         .when_then_expressions(0)
@@ -984,6 +990,10 @@ parse_special_expr(const common::Expression& expr, int alias) {
                         .param()
                         .data_type();
         auto type_ = parse_from_ir_data_type(type);
+        if (then_value.item_case() != else_value.item_case() ||
+            then_value.item_case() != common::Value::kI32) {
+          return make_project_expr(expr, alias)(graph, params, ctx);
+        }
 
         if (type_ == RTAnyType::kI32Value) {
           SPOpr sp(vertex_col,
@@ -999,20 +1009,33 @@ parse_special_expr(const common::Expression& expr, int alias) {
           SPOpr sp(vertex_col,
                    VertexPropertyBetweenPredicateBeta<int64_t>(
                        graph, name, params.at(lower), params.at(upper)),
-                   then_value.i64(), else_value.i64());
-          CaseWhenCollector<decltype(sp), int64_t> collector;
+                   then_value.i32(), else_value.i32());
+          CaseWhenCollector<decltype(sp), int32_t> collector;
           return std::make_unique<
               ProjectExpr<decltype(sp), decltype(collector)>>(std::move(sp),
                                                               collector, alias);
-        } else if (type_ == RTAnyType::kF64Value) {
-          SPOpr sp(vertex_col,
-                   VertexPropertyBetweenPredicateBeta<double>(
-                       graph, name, params.at(lower), params.at(upper)),
-                   then_value.f64(), else_value.f64());
-          CaseWhenCollector<decltype(sp), double> collector;
-          return std::make_unique<
-              ProjectExpr<decltype(sp), decltype(collector)>>(std::move(sp),
-                                                              collector, alias);
+        } else if (type_ == RTAnyType::kTimestamp) {
+          if (vertex_col->vertex_column_type() == VertexColumnType::kSingle) {
+            auto typed_vertex_col =
+                std::dynamic_pointer_cast<SLVertexColumn>(vertex_col);
+            SPOpr sp(typed_vertex_col,
+                     VertexPropertyBetweenPredicateBeta<Date>(
+                         graph, name, params.at(lower), params.at(upper)),
+                     then_value.i32(), else_value.i32());
+            CaseWhenCollector<decltype(sp), int32_t> collector;
+            return std::make_unique<
+                ProjectExpr<decltype(sp), decltype(collector)>>(
+                std::move(sp), collector, alias);
+          } else {
+            SPOpr sp(vertex_col,
+                     VertexPropertyBetweenPredicateBeta<Date>(
+                         graph, name, params.at(lower), params.at(upper)),
+                     then_value.i32(), else_value.i32());
+            CaseWhenCollector<decltype(sp), int32_t> collector;
+            return std::make_unique<
+                ProjectExpr<decltype(sp), decltype(collector)>>(
+                std::move(sp), collector, alias);
+          }
         }
       }
       return make_project_expr(expr, alias)(graph, params, ctx);
@@ -1050,8 +1073,15 @@ parse_special_expr(const common::Expression& expr, int alias) {
           if (ptr) {
             return ptr;
           }
-        } else if (type_ == RTAnyType::kF64Value) {
+        } else if (type_ == RTAnyType::kTimestamp) {
           auto ptr = create_sp_pred_case_when<Date>(
+              graph, params, vertex_col, ptype, name, target, then_value,
+              else_value, alias);
+          if (ptr) {
+            return ptr;
+          }
+        } else if (type_ == RTAnyType::kStringValue) {
+          auto ptr = create_sp_pred_case_when<std::string_view>(
               graph, params, vertex_col, ptype, name, target, then_value,
               else_value, alias);
           if (ptr) {
