@@ -55,7 +55,7 @@ struct SLPropertyExpr {
     auto& label = *labels.begin();
     property = graph.GetVertexColumn<T>(label, property_name);
   }
-  T operator()(size_t idx) const {
+  inline T operator()(size_t idx) const {
     auto v = column.get_vertex(idx);
     return property.get_view(v.vid_);
   }
@@ -76,7 +76,7 @@ struct MLPropertyExpr {
       property[label] = graph.GetVertexColumn<T>(label, property_name);
     }
   }
-  T operator()(size_t idx) const {
+  inline T operator()(size_t idx) const {
     auto v = vertex.get_vertex(idx);
     return property[v.label_].get_view(v.vid_);
   }
@@ -176,22 +176,7 @@ std::unique_ptr<ProjectExprBase> create_ml_property_expr(
                                         decltype(collector)>>(std::move(expr),
                                                               collector, alias);
   }
-  case RTAnyType::kF64Value: {
-    auto expr =
-        MLPropertyExpr<VertexColumn, double>(graph, column, property_name);
-    PropertyValueCollector<decltype(expr)> collector(ctx);
-    return std::make_unique<
-        ProjectExpr<MLPropertyExpr<VertexColumn, double>, decltype(collector)>>(
-        std::move(expr), collector, alias);
-  }
-  case RTAnyType::kStringValue: {
-    auto expr = MLPropertyExpr<VertexColumn, std::string_view>(graph, column,
-                                                               property_name);
-    PropertyValueCollector<decltype(expr)> collector(ctx);
-    return std::make_unique<ProjectExpr<
-        MLPropertyExpr<VertexColumn, std::string_view>, decltype(collector)>>(
-        std::move(expr), collector, alias);
-  }
+
   case RTAnyType::kDate32: {
     auto expr = MLPropertyExpr<VertexColumn, Day>(graph, column, property_name);
     PropertyValueCollector<decltype(expr)> collector(ctx);
@@ -760,7 +745,7 @@ bool is_property_extract(const common::Expression& expr, int& tag,
       expr.operators(0).item_case() == common::ExprOpr::kVar) {
     auto var = expr.operators(0).var();
     tag = -1;
-    if (var.has_property()) {
+    if (!var.has_property()) {
       return false;
     }
 
@@ -782,8 +767,7 @@ bool is_property_extract(const common::Expression& expr, int& tag,
       }
       // only support pod type
       if (type == RTAnyType::kTimestamp || type == RTAnyType::kDate32 ||
-          type == RTAnyType::kI64Value || type == RTAnyType::kI32Value ||
-          type == RTAnyType::kF64Value || type == RTAnyType::kStringValue) {
+          type == RTAnyType::kI64Value || type == RTAnyType::kI32Value) {
         return true;
       }
     }
