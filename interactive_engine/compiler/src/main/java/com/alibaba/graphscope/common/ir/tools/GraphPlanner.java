@@ -230,8 +230,8 @@ public class GraphPlanner {
                         optimizer);
         PlannerInstance instance = planner.instance(query, metaFetcher.fetch().get());
         Summary summary = instance.plan();
-        logger.info("logical plan\n {}", summary.logicalPlan.explain());
-        logger.info("physical plan {}", summary.physicalPlan.explain());
+        //logger.info("logical plan\n {}", summary.logicalPlan.explain());
+        //logger.info("physical plan {}", summary.physicalPlan.explain());
         // write physical plan to file
         PhysicalPlan<byte[]> physicalPlan = summary.physicalPlan;
         FileUtils.writeByteArrayToFile(new File(args[2]), physicalPlan.getContent());

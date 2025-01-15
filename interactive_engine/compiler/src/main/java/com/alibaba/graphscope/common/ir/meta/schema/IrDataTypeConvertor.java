@@ -326,6 +326,7 @@ public interface IrDataTypeConvertor<T> {
             SqlTypeName typeName = from.getSqlTypeName();
             Map<String, Object> yamlDesc;
             switch (typeName) {
+                case UNKNOWN:
                 case ANY:
                     yamlDesc = ImmutableMap.of("primitive_type", "DT_ANY");
                     break;
