@@ -46,8 +46,8 @@ public class IrGraphSchema implements GraphSchema {
             case YAML:
                 this.graphSchema =
                         Utils.buildSchemaFromYaml(content, new GraphTypeFactoryImpl(configs));
-                this.schemeJson =
-                        IrSchemaParser.getInstance().parse(this.graphSchema, this.isColumnId);
+                this.schemeJson = null;
+//                        IrSchemaParser.getInstance().parse(this.graphSchema, this.isColumnId);
                 break;
             case JSON:
             default:
