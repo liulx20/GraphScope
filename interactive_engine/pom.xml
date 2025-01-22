@@ -50,6 +50,15 @@
       </modules>
     </profile>
     <profile>
+      <id>ic-compiler</id>
+      <modules>
+        <module>common</module>
+        <module>executor/engine/pegasus/clients/java/client</module>
+        <module>compiler</module>
+        <module>assembly</module>
+      </modules>
+    </profile>
+    <profile>
       <id>graphscope</id>
       <activation>
         <activeByDefault>true</activeByDefault>
