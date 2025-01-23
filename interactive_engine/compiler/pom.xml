@@ -169,6 +169,8 @@
         <dependency>
             <groupId>com.alibaba.graphscope</groupId>
             <artifactId>interactive</artifactId>
+            <classifier>no-gaia-ir</classifier>
+            <version>0.4.3</version>
         </dependency>
     </dependencies>
 
@@ -383,6 +385,30 @@
                                 <argument>build_ir_core.sh</argument>
                             </arguments>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+<!--                <version>3.6.0</version>-->
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <finalName>${project.artifactId}-${project.version}-jar-with-dependencies</finalName>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.alibaba.graphscope.GraphServer</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
