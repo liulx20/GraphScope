@@ -396,6 +396,11 @@ Relation RTAny::as_relation() const {
   return value_.relation;
 }
 
+RTAny TupleImpl<RTAny>::get(size_t idx) const {
+  CHECK(idx < values.size());
+  return values[idx];
+}
+
 int RTAny::numerical_cmp(const RTAny& other) const {
   switch (type_) {
   case RTAnyType::kI64Value:
