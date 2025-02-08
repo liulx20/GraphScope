@@ -684,7 +684,7 @@ struct ListCollector {
 
   auto get() { return builder.finish(); }
   ListValueColumnBuilder<T> builder;
-  Context ctx_;
+  const Context& ctx_;
 };
 
 template <>
