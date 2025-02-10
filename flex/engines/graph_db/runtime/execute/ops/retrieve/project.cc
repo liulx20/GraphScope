@@ -41,7 +41,7 @@ struct ValueCollector {
     auto val = expr.expr.eval_path(idx);
     builder.push_back_opt(TypedConverter<T>::to_typed(val));
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   ValueColumnBuilder<T> builder;
 };
 
@@ -100,7 +100,7 @@ struct PropertyValueCollector {
   void collect(const EXPR& expr, size_t idx) {
     builder.push_back_opt(expr(idx));
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
 
   ValueColumnBuilder<typename EXPR::V> builder;
 };
@@ -262,7 +262,7 @@ struct OptionalValueCollector {
       builder.push_back_opt(TypedConverter<T>::to_typed(val), true);
     }
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   OptionalValueColumnBuilder<T> builder;
 };
 
@@ -281,7 +281,7 @@ struct SLVertexCollector {
     auto v = expr.expr.eval_path(idx).as_vertex();
     builder.push_back_opt(v.vid_);
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   SLVertexColumnBuilder builder;
 };
 
@@ -291,7 +291,7 @@ struct MLVertexCollector {
     auto v = expr.expr.eval_path(idx).as_vertex();
     builder.push_back_vertex(v);
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   MLVertexColumnBuilder builder;
 };
 
@@ -310,7 +310,7 @@ struct EdgeCollector {
     auto e = expr.expr.eval_path(idx);
     builder.push_back_elem(e);
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   BDMLEdgeColumnBuilder builder;
 };
 
@@ -326,7 +326,7 @@ struct ListCollector {
   void collect(const EXPR& expr, size_t idx) {
     builder_->push_back_elem(expr.expr.eval_path(idx));
   }
-  auto get(const EXPR& expr) { return builder_->finish(); }
+  auto get() { return builder_->finish(); }
   std::shared_ptr<IContextColumnBuilder> builder_;
 };
 
@@ -344,7 +344,7 @@ struct TupleCollector {
     auto v = expr.expr.eval_path(idx);
     builder.push_back_elem(v);
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   ValueColumnBuilder<Tuple> builder;
 };
 
@@ -370,7 +370,7 @@ struct OptionalTupleCollector {
       builder.push_back_elem(v);
     }
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   OptionalValueColumnBuilder<Tuple> builder;
 };
 
@@ -388,7 +388,7 @@ struct MapCollector {
     auto v = expr.expr.eval_path(idx);
     builder->push_back_elem(v);
   }
-  auto get(const EXPR&) { return builder->finish(); }
+  auto get() { return builder->finish(); }
   std::shared_ptr<IContextColumnBuilder> builder;
 };
 
@@ -411,7 +411,7 @@ struct OptionalMapCollector {
     auto v = expr.expr.eval_path(idx, 0);
     builder->push_back_elem(v);
   }
-  auto get(const EXPR&) { return builder->finish(); }
+  auto get() { return builder->finish(); }
   std::shared_ptr<IContextColumnBuilder> builder;
 };
 
@@ -438,7 +438,7 @@ struct StringArrayCollector {
     auto v = expr.expr.eval_path(idx);
     builder->push_back_elem(v);
   }
-  auto get(const EXPR&) { return builder->finish(); }
+  auto get() { return builder->finish(); }
   std::shared_ptr<IContextColumnBuilder> builder;
 };
 
@@ -448,7 +448,7 @@ struct CaseWhenCollector {
   void collect(const EXPR& expr, size_t idx) {
     builder.push_back_opt(expr(idx));
   }
-  auto get(const EXPR&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
   ValueColumnBuilder<RESULT_T> builder;
 };
 

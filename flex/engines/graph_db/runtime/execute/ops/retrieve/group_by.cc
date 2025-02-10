@@ -149,7 +149,7 @@ struct TypedKeyCollector {
   void collect(const TypedKeyWrapper& expr, size_t idx) {
     builder.push_back_opt(expr(idx));
   }
-  auto get(const TypedKeyWrapper&) { return builder.finish(); }
+  auto get() { return builder.finish(); }
 
   ValueColumnBuilder<T> builder;
 };
