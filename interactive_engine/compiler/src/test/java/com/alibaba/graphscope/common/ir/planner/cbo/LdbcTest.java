@@ -5,7 +5,9 @@ import com.alibaba.graphscope.common.ir.Utils;
 import com.alibaba.graphscope.common.ir.meta.IrMeta;
 import com.alibaba.graphscope.common.ir.planner.GraphIOProcessor;
 import com.alibaba.graphscope.common.ir.planner.GraphRelOptimizer;
+import com.alibaba.graphscope.common.ir.runtime.proto.GraphRelProtoPhysicalBuilder;
 import com.alibaba.graphscope.common.ir.tools.GraphBuilder;
+import com.alibaba.graphscope.common.ir.tools.LogicalPlan;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.calcite.rel.RelNode;
@@ -1178,5 +1180,35 @@ public class LdbcTest {
                     + "          GraphLogicalSource(tableConfig=[{isAll=false, tables=[PERSON]}],"
                     + " alias=[person1], opt=[VERTEX], uniqueKeyFilters=[=(_.id, ?0)])",
                 com.alibaba.graphscope.common.ir.tools.Utils.toString(after).trim());
+    }
+
+    @Test
+    public void tmp_test() {
+        GraphBuilder builder = Utils.mockGraphBuilder(optimizer, irMeta);
+        RelNode before =
+                com.alibaba.graphscope.cypher.antlr4.Utils.eval(
+                                "MATCH (p :PERSON {id: $personId})<-[:HASCREATOR]-(message: POST | COMMENT)\n" +
+                                        "WITH\n" +
+                                        " message,\n" +
+                                        " message.id AS messageId,\n" +
+                                        " message.creationDate AS messageCreationDate\n" +
+                                        "ORDER BY messageCreationDate DESC, messageId ASC\n" +
+                                        "LIMIT 10\n" +
+                                        "MATCH (message: POST | COMMENT)-[:REPLYOF*0..*]->(post:POST)-[:HASCREATOR]->(person:PERSON)\n" +
+                                        "RETURN\n" +
+                                        " messageId,\n" +
+                                        " messageCreationDate,\n" +
+                                        " message.content as messageContent,\n" +
+                                        " message.imageFile as messageImageFile,\n" +
+                                        " post.id AS postId,\n" +
+                                        " person.id AS personId,\n" +
+                                        " person.firstName AS personFirstName,\n" +
+                                        " person.lastName AS personLastName\n" +
+                                        "ORDER BY messageCreationDate DESC, messageId ASC",
+                                builder)
+                        .build();
+        RelNode after = optimizer.optimize(before, new GraphIOProcessor(builder, irMeta));
+        GraphRelProtoPhysicalBuilder builder1 = new GraphRelProtoPhysicalBuilder(configs, irMeta, new LogicalPlan(after));
+        System.out.println(builder1.build().explain());
     }
 }
