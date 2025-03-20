@@ -62,12 +62,11 @@ class UGetVFromEdgeWithPredOpr : public IUpdateOperator {
       LOG(ERROR) << "GetV does not support optional expression now";
       RETURN_BAD_REQUEST_ERROR("GetV does not support optional expression now");
     }
-    LOG(INFO) << "GetVFromEdgeWithPredOpr";
     Arena arena;
     return UGetV::get_vertex_from_edge(
         graph, std::move(ctx), params_,
         [&](size_t idx, label_t label, vid_t vid) {
-          return expr->eval_vertex(label, vid, idx, arena).as_bool();
+          return expr->eval_vertex(label, vid, idx, arena).value().as_bool();
         });
   }
 
@@ -100,7 +99,7 @@ class UGetVFromVerticesWithPredOpr : public IUpdateOperator {
     return UGetV::get_vertex_from_vertices(
         graph, std::move(ctx), params_,
         [&](size_t idx, label_t label, vid_t vid) {
-          return expr->eval_vertex(label, vid, idx, arena).as_bool();
+          return expr->eval_vertex(label, vid, idx, arena).value().as_bool();
         });
   }
 

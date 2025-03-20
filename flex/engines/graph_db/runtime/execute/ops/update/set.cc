@@ -168,7 +168,7 @@ class SetOpr : public IUpdateOperator {
         Expr expr(graph, ctx, params, value, VarType::kPathVar);
 
         for (size_t j = 0; j < ctx.row_num(); j++) {
-          auto val = expr.eval_path(j, arena);
+          auto val = expr.eval_path(j, arena).value();
 
           auto vertex = vertex_col->get_vertex(j);
           if (!set_vertex_property(graph, vertex.label_, vertex.vid_,
@@ -184,7 +184,8 @@ class SetOpr : public IUpdateOperator {
           auto val = expr.eval_path(j, arena);
           auto edge = edge_col->get_edge(j);
           if (!set_edge_property(graph, edge.label_triplet(), edge.dir_,
-                                 edge.src_, edge.dst_, key.second, val)) {
+                                 edge.src_, edge.dst_, key.second,
+                                 val.value())) {
             LOG(ERROR) << "Failed to set edge property";
             RETURN_BAD_REQUEST_ERROR("Failed to set edge property");
           }

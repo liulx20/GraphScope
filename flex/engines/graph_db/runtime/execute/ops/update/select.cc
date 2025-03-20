@@ -28,11 +28,11 @@ class USelectOpr : public IUpdateOperator {
     Arena arena;
     if (expr.is_optional()) {
       return Select::select(std::move(ctx), [&](size_t idx) {
-        return expr.eval_path(idx, arena, 0).as_bool();
+        return expr.eval_path(idx, arena, 0).value().as_bool();
       });
     } else {
       return Select::select(std::move(ctx), [&](size_t idx) {
-        return expr.eval_path(idx, arena).as_bool();
+        return expr.eval_path(idx, arena).value().as_bool();
       });
     }
   }

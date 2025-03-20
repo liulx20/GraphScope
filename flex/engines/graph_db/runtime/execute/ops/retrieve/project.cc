@@ -32,7 +32,7 @@ struct ValueCollector {
     ExprWrapper(Expr&& expr)
         : arena(std::make_shared<Arena>()), expr(std::move(expr)) {}
     inline T operator()(size_t idx) const {
-      auto val = expr.eval_path(idx, *arena);
+      auto val = expr.eval_path(idx, *arena).value();
       return TypedConverter<T>::to_typed(val);
     }
 
@@ -262,7 +262,7 @@ struct OptionalValueCollector {
     OptionalExprWrapper(Expr&& expr)
         : arena(std::make_shared<Arena>()), expr(std::move(expr)) {}
     inline std::optional<T> operator()(size_t idx) const {
-      auto val = expr.eval_path(idx, *arena, 0);
+      auto val = expr.eval_path(idx, *arena, 0).value();
       if (val.is_null()) {
         return std::nullopt;
       }
@@ -296,7 +296,7 @@ struct VertexExprWrapper {
   VertexExprWrapper(Expr&& expr) : expr(std::move(expr)) {}
 
   inline VertexRecord operator()(size_t idx) const {
-    return expr.eval_path(idx, arena).as_vertex();
+    return expr.eval_path(idx, arena).value().as_vertex();
   }
 
   mutable Arena arena;
@@ -333,7 +333,7 @@ struct EdgeCollector {
 
     EdgeExprWrapper(Expr&& expr) : expr(std::move(expr)) {}
     inline EdgeRecord operator()(size_t idx) const {
-      return expr.eval_path(idx, arena).as_edge();
+      return expr.eval_path(idx, arena).value().as_edge();
     }
     mutable Arena arena;
     Expr expr;
@@ -353,7 +353,7 @@ struct ListCollector {
     ListExprWrapper(Expr&& expr)
         : arena(std::make_shared<Arena>()), expr(std::move(expr)) {}
     inline List operator()(size_t idx) const {
-      return expr.eval_path(idx, *arena).as_list();
+      return expr.eval_path(idx, *arena).value().as_list();
     }
 
     mutable std::shared_ptr<Arena> arena;

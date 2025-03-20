@@ -142,6 +142,8 @@ RTAny::RTAny(const RTAny& rhs) : type_(rhs.type_) {
     value_.date = rhs.value_.date;
   } else if (type_ == RTAnyType::kEdge) {
     value_.edge = rhs.value_.edge;
+  } else if (type_ == RTAnyType::kPath) {
+    value_.p = rhs.value_.p;
   } else {
     LOG(FATAL) << "unexpected type: " << static_cast<int>(type_);
   }
