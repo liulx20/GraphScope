@@ -1018,9 +1018,10 @@ expand_vertex_impl(const GraphReadInterface& graph, const SLVertexColumn& input,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if (triplet.dst_label == input_label &&
@@ -1031,9 +1032,10 @@ expand_vertex_impl(const GraphReadInterface& graph, const SLVertexColumn& input,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -1099,6 +1101,18 @@ expand_vertex_impl(const GraphReadInterface& graph, const SLVertexColumn& input,
         return expand_vertex_np_me_sp<Date, GPredWrapper<GPRED_T, Date>>(
             graph, input, label_dirs, GPredWrapper<GPRED_T, Date>(gpred));
       }
+    } else if (ed_type == PropertyType::RecordView()) {
+      if (se) {
+        return expand_vertex_np_se<RecordView,
+                                   GPredWrapper<GPRED_T, RecordView>>(
+            graph, input, std::get<0>(label_dirs[0]),
+            std::get<1>(label_dirs[0]), std::get<2>(label_dirs[0]),
+            GPredWrapper<GPRED_T, RecordView>(gpred));
+      } else {
+        return expand_vertex_np_me_sp<RecordView,
+                                      GPredWrapper<GPRED_T, RecordView>>(
+            graph, input, label_dirs, GPredWrapper<GPRED_T, RecordView>(gpred));
+      }
     } else {
       LOG(INFO) << "type - " << ed_type << " - not implemented, fallback";
     }
@@ -1133,9 +1147,10 @@ expand_vertex_impl(const GraphReadInterface& graph, const MLVertexColumn& input,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if ((input_labels.find(triplet.dst_label) != input_labels.end()) &&
@@ -1146,9 +1161,10 @@ expand_vertex_impl(const GraphReadInterface& graph, const MLVertexColumn& input,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -1243,9 +1259,10 @@ expand_vertex_impl(const GraphReadInterface& graph, const MSVertexColumn& input,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if ((input_labels.find(triplet.dst_label) != input_labels.end()) &&
@@ -1256,9 +1273,10 @@ expand_vertex_impl(const GraphReadInterface& graph, const MSVertexColumn& input,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -1462,7 +1480,10 @@ expand_edge_impl(const GraphReadInterface& graph, const SLVertexColumn& input,
       LOG(INFO) << "type - " << ed_type << " - not implemented, fallback";
     }
   } else {
-    LOG(INFO) << "multiple properties not supported, fallback";
+    return expand_edge_ep_se<RecordView, PRED_T>(
+        graph, input, std::get<0>(label_dir), std::get<1>(label_dir),
+        std::get<2>(label_dir), PropertyType::RecordView(), pred);
+    // LOG(INFO) << "multiple properties not supported, fallback";
   }
   std::shared_ptr<IContextColumn> col(nullptr);
   std::vector<size_t> offsets;

@@ -16,5 +16,5 @@
 SCRIPT_DIR=$(dirname $(readlink -f $0))
 CURR_DIR=${SCRIPT_DIR}/../
 CONF_DIR=$CURR_DIR/config/interactive-benchmark.properties
-java -cp $CURR_DIR:lib/* com.alibaba.graphscope.gaia.benchmark.InteractiveBenchmark $CONF_DIR
-cd $CURR_DIR
+JAR_PATH=$CURR_DIR/target/gaia-benchmark-0.0.1-SNAPSHOT.jar
+java -cp ${JAR_PATH}:$CURR_DIR/target/libs/* com.alibaba.graphscope.gaia.benchmark.InteractiveBenchmark $CONF_DIR

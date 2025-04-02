@@ -21,6 +21,8 @@ namespace runtime {
 bl::result<Context> ReadPipeline::Execute(
     const GraphReadInterface& graph, Context&& ctx,
     const std::map<std::string, std::string>& params, OprTimer& timer) {
+  auto now = std::chrono::high_resolution_clock::now();
+
   for (auto& opr : operators_) {
     gs::Status status = gs::Status::OK();
     auto ret = bl::try_handle_all(
@@ -50,6 +52,12 @@ bl::result<Context> ReadPipeline::Execute(
       return bl::new_error(err);
     }
     ctx = std::move(ret);
+    auto now2 = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(now2 - now);
+    LOG(INFO) << "[Execute] " << opr->get_operator_name()
+              << " execute time: " << duration.count() / 1000.0 << " ms";
+    now = now2;
   }
   return ctx;
 }

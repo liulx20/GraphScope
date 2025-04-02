@@ -1,5 +1,5 @@
 log_level: INFO
-default_graph: modern_graph
+default_graph: imdb
 compute_engine:
   type: hiactor
   workers:
@@ -18,14 +18,8 @@ compiler:
       - FilterIntoJoinRule
       - FilterMatchRule
       - NotMatchToAntiJoinRule
-      - ExtendIntersectRule
+      - JoinDecompositionRule
       - ExpandGetVFusionRule
-      - FlatJoinToExpandRule
-      - FlatJoinToCommonRule
-      - FieldTrimRule
-      - ScanExpandFusionRule
-      - TopKPushDownRule
-      - ScanEarlyStopRule # This rule must be placed after TopKPushDownRule and ScanExpandFusionRule
     trim_class_names: GraphLogicalExpand
     join_min_pattern_size: 15
   meta:

@@ -49,9 +49,10 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if (triplet.dst_label == input_label &&
@@ -62,9 +63,10 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -128,6 +130,16 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
         return expand_vertex_np_me_sp<Date, DummyPredicate<Date>>(
             graph, input, label_dirs, DummyPredicate<Date>());
       }
+    } else if (ed_type == PropertyType::RecordView()) {
+      if (se) {
+        return expand_vertex_np_se<RecordView, DummyPredicate<RecordView>>(
+            graph, input, std::get<0>(label_dirs[0]),
+            std::get<1>(label_dirs[0]), std::get<2>(label_dirs[0]),
+            DummyPredicate<RecordView>());
+      } else {
+        return expand_vertex_np_me_sp<RecordView, DummyPredicate<RecordView>>(
+            graph, input, label_dirs, DummyPredicate<RecordView>());
+      }
     } else {
       LOG(INFO) << "type - " << ed_type << " - not implemented, fallback";
     }
@@ -159,9 +171,10 @@ expand_vertex_without_predicate_optional_impl(
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if (triplet.dst_label == input_label &&
@@ -173,9 +186,10 @@ expand_vertex_without_predicate_optional_impl(
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -244,9 +258,10 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if ((input_labels.find(triplet.dst_label) != input_labels.end()) &&
@@ -257,9 +272,10 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -321,6 +337,14 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
         return expand_vertex_np_me_sp<Date, DummyPredicate<Date>>(
             graph, input, label_dirs, DummyPredicate<Date>());
       }
+    } else if (ed_type == PropertyType::RecordView()) {
+      if (se) {
+        return expand_vertex_np_se<RecordView, DummyPredicate<RecordView>>(
+            graph, input, label_dirs, DummyPredicate<RecordView>());
+      } else {
+        return expand_vertex_np_me_sp<RecordView, DummyPredicate<RecordView>>(
+            graph, input, label_dirs, DummyPredicate<RecordView>());
+      }
     } else {
       LOG(INFO) << "type - " << ed_type << " - not implemented, fallback";
     }
@@ -354,9 +378,10 @@ expand_vertex_without_predicate_optional_impl(
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if ((input_labels.find(triplet.dst_label) != input_labels.end()) &&
@@ -367,9 +392,10 @@ expand_vertex_without_predicate_optional_impl(
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -444,9 +470,10 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
     if ((input_labels.find(triplet.dst_label) != input_labels.end()) &&
@@ -457,9 +484,10 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
           triplet.src_label, triplet.dst_label, triplet.edge_label);
       if (properties.empty()) {
         ed_types.push_back(PropertyType::Empty());
-      } else {
-        CHECK_EQ(properties.size(), 1);
+      } else if (properties.size() == 1) {
         ed_types.push_back(properties[0]);
+      } else {
+        ed_types.push_back(PropertyType::RecordView());
       }
     }
   }
@@ -516,6 +544,14 @@ expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
       } else {
         return expand_vertex_np_me_sp<Date, DummyPredicate<Date>>(
             graph, input, label_dirs, DummyPredicate<Date>());
+      }
+    } else if (ed_type == PropertyType::RecordView()) {
+      if (se) {
+        return expand_vertex_np_se<RecordView, DummyPredicate<RecordView>>(
+            graph, input, label_dirs, DummyPredicate<RecordView>());
+      } else {
+        return expand_vertex_np_me_sp<RecordView, DummyPredicate<RecordView>>(
+            graph, input, label_dirs, DummyPredicate<RecordView>());
       }
     } else {
       LOG(INFO) << "type - " << ed_type << " - not implemented, fallback";

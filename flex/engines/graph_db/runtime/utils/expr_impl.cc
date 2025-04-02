@@ -14,7 +14,7 @@
  */
 
 #include "flex/engines/graph_db/runtime/utils/expr_impl.h"
-#include <regex>
+#include <re2/re2.h>
 #include <stack>
 
 namespace gs {
@@ -49,6 +49,13 @@ RTAny VariableExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
 
 RTAnyType VariableExpr::type() const { return var_.type(); }
 
+struct Regex {
+  Regex(const std::string& pattern) : re_(pattern) {}
+  bool match(const std::string& str) const {
+    return re2::RE2::FullMatch(str, re_);
+  }
+  RE2 re_;
+};
 LogicalExpr::LogicalExpr(std::unique_ptr<ExprBase>&& lhs,
                          std::unique_ptr<ExprBase>&& rhs, common::Logical logic)
     : lhs_(std::move(lhs)), rhs_(std::move(rhs)), logic_(logic) {
@@ -90,10 +97,15 @@ LogicalExpr::LogicalExpr(std::unique_ptr<ExprBase>&& lhs,
     break;
   }
   case common::Logical::REGEX: {
-    op_ = [](const RTAny& lhs, const RTAny& rhs) {
+    Arena arena;
+    auto re = std::make_shared<Regex>(
+        std::string(rhs_->eval_path(0, arena).as_string()));
+    op_ = [re](const RTAny& lhs, const RTAny& rhs) {
       auto lhs_str = std::string(lhs.as_string());
       auto rhs_str = std::string(rhs.as_string());
-      return std::regex_match(lhs_str, std::regex(rhs_str));
+      return re->match(lhs_str);
+
+      // return std::regex_match(lhs_str, std::regex(rhs_str));
     };
     break;
   }
