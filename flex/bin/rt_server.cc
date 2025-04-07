@@ -12,7 +12,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <brpc/server.h>
+#include "flex/bin/generated/interactives.pb.h"
 #include "flex/engines/graph_db/database/graph_db.h"
 #include "flex/engines/http_server/graph_db_service.h"
 #include "flex/engines/http_server/options.h"
@@ -27,12 +28,40 @@
 using namespace server;
 namespace bpo = boost::program_options;
 
+std::atomic<int> thread_id_key_count(0);
+pthread_key_t thread_id_key;
+void cleanup(void* ptr) { delete (int*) ptr; }
+class QueryServiceImpl : public interactives::QueryService {
+ public:
+  QueryServiceImpl() {}
+  ~QueryServiceImpl() override {}
+  void CypherQuery(::google::protobuf::RpcController* cntl_base,
+                   const interactives::QueryRequest* request,
+                   interactives::QueryResponse* response,
+                   ::google::protobuf::Closure* done) override {
+    int* id_ptr = (int*) pthread_getspecific(thread_id_key);
+    if (__glibc_unlikely(!id_ptr)) {
+      id_ptr = new int;
+      *id_ptr = thread_id_key_count.fetch_add(1);
+      pthread_setspecific(thread_id_key, id_ptr);
+    }
+    int id = *id_ptr;
+    LOG(INFO) << "thread_id_key: " << id << " " << bthread_self() << " "
+              << bthread_self_tag() << " " << std::this_thread::get_id();
+    brpc::ClosureGuard done_guard(done);
+
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
+    response->set_result("ok");
+    // response->set_message(request->get_message());
+  }
+};
+
 int main(int argc, char** argv) {
   bpo::options_description desc("Usage:");
   desc.add_options()("help", "Display help message")(
-      "version,v", "Display version")("shard-num,s",
-                                      bpo::value<uint32_t>()->default_value(1),
-                                      "shard number of actor system")(
+      "version", "Display version")("shard-num,s",
+                                    bpo::value<uint32_t>()->default_value(1),
+                                    "shard number of actor system")(
       "http-port,p", bpo::value<uint16_t>()->default_value(10000),
       "http port of query handler")("data-path,d", bpo::value<std::string>(),
                                     "data directory path")(
@@ -79,6 +108,7 @@ int main(int argc, char** argv) {
 
   gs::blockSignal(SIGINT);
   gs::blockSignal(SIGTERM);
+  pthread_key_create(&thread_id_key, cleanup);
 
   double t0 = -grape::GetCurrentTime();
   auto& db = gs::GraphDB::get();
@@ -100,18 +130,44 @@ int main(int argc, char** argv) {
   LOG(INFO) << "Finished loading graph, elapsed " << t0 << " s";
 
   // start service
-  LOG(INFO) << "GraphScope http server start to listen on port " << http_port;
+  brpc::Server server;
+  QueryServiceImpl query_service_impl;
+  if (server.AddService(&query_service_impl, brpc::SERVER_DOESNT_OWN_SERVICE) !=
+      0) {
+    LOG(ERROR) << "Fail to add service";
+    return -1;
+  }
 
-  server::ServiceConfig service_config;
-  service_config.shard_num = shard_num;
-  service_config.dpdk_mode = enable_dpdk;
-  service_config.query_port = http_port;
-  service_config.start_admin_service = false;
-  service_config.start_compiler = false;
-  service_config.set_sharding_mode(vm["sharding-mode"].as<std::string>());
-  server::GraphDBService::get().init(service_config);
+  brpc::ServerOptions options;
+  options.idle_timeout_sec = 3600;
+  options.num_threads = 192;
 
-  server::GraphDBService::get().run_and_wait_for_exit();
+  butil::EndPoint point;
+  std::string listen_addr = "127.0.0.1:8000";
+  if (butil::str2endpoint(listen_addr.c_str(), &point) < 0) {
+    LOG(ERROR) << "Invalid listen address:" << listen_addr;
+    return -1;
+  }
+
+  if (server.Start(point, &options) != 0) {
+    LOG(ERROR) << "Fail to start EchoServer";
+    return -1;
+  }
+
+  // Wait until Ctrl-C is pressed, then Stop() and Join() the server.
+  server.RunUntilAskedToQuit();
+  pthread_key_delete(thread_id_key);
+
+  // server::ServiceConfig service_config;
+  // service_config.shard_num = shard_num;
+  // service_config.dpdk_mode = enable_dpdk;
+  // service_config.query_port = http_port;
+  // service_config.start_admin_service = false;
+  // service_config.start_compiler = false;
+  // service_config.set_sharding_mode(vm["sharding-mode"].as<std::string>());
+  // server::GraphDBService::get().init(service_config);
+
+  // server::GraphDBService::get().run_and_wait_for_exit();
 
   return 0;
 }
