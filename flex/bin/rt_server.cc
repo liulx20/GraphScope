@@ -15,6 +15,7 @@
 #include <brpc/server.h>
 #include "flex/bin/generated/interactives.pb.h"
 #include "flex/engines/graph_db/database/graph_db.h"
+#include "flex/engines/graph_db/database/graph_db_session.h"
 #include "flex/engines/http_server/graph_db_service.h"
 #include "flex/engines/http_server/options.h"
 #include "flex/utils/service_utils.h"
@@ -46,12 +47,18 @@ class QueryServiceImpl : public interactives::QueryService {
       pthread_setspecific(thread_id_key, id_ptr);
     }
     int id = *id_ptr;
-    LOG(INFO) << "thread_id_key: " << id << " " << bthread_self() << " "
-              << bthread_self_tag() << " " << std::this_thread::get_id();
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl = static_cast<brpc::Controller*>(cntl_base);
-    response->set_result("ok");
+    const std::string& req = request->req();
+    auto result = gs::GraphDB::get().GetSession(id).Eval(req);
+    if (!result.ok()) {
+      LOG(ERROR) << "Eval failed: " << result.status().error_message();
+
+      return;
+    }
+    const auto& result_buffer = result.value();
+    response->set_result(result_buffer.data(), result_buffer.size());
     // response->set_message(request->get_message());
   }
 };
@@ -143,7 +150,7 @@ int main(int argc, char** argv) {
   options.num_threads = 192;
 
   butil::EndPoint point;
-  std::string listen_addr = "127.0.0.1:8000";
+  std::string listen_addr = "192.168.0.188:8000";
   if (butil::str2endpoint(listen_addr.c_str(), &point) < 0) {
     LOG(ERROR) << "Invalid listen address:" << listen_addr;
     return -1;

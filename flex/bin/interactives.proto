@@ -3,11 +3,11 @@ package interactives;
 option cc_generic_services = true;
 
 message QueryRequest {
-  string req = 1;
+  bytes req = 1;
 };
 
 message QueryResponse {
-  string result = 1;
+  bytes result = 1;
 };
 
 
