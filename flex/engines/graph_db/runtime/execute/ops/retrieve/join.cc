@@ -14,7 +14,9 @@
  */
 
 #include "flex/engines/graph_db/runtime/execute/ops/retrieve/join.h"
+#include <bthread/bthread.h>
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/join.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/lambda_wrapper.h"
 #include "flex/engines/graph_db/runtime/execute/pipeline.h"
 #include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 
@@ -39,16 +41,42 @@ class JoinOpr : public IReadOperator {
       gs::runtime::Context&& ctx, gs::runtime::OprTimer& timer) override {
     gs::runtime::Context ret_dup(ctx);
 
-    auto left_ctx =
-        left_pipeline_.Execute(graph, std::move(ctx), params, timer);
+    bthread_t bth_left, bth_right;
+    bl::result<Context> left_ctx, right_ctx;
+    auto left_lambda = [&]() {
+      left_ctx = left_pipeline_.Execute(graph, std::move(ctx), params, timer);
+    };
+    auto left_ptr = std::make_unique<LambdaWrapper<decltype(left_lambda)>>(
+        std::move(left_lambda));
+
+    auto right_lambda = [&]() {
+      right_ctx =
+          right_pipeline_.Execute(graph, std::move(ret_dup), params, timer);
+    };
+
+    auto right_ptr = std::make_unique<LambdaWrapper<decltype(right_lambda)>>(
+        std::move(right_lambda));
+    if (bthread_start_background(&bth_left, NULL, LambdaExecutor,
+                                 static_cast<void*>(left_ptr.get())) != 0) {
+      LOG(ERROR) << "bthread_start_backgroup failed";
+      return bl::new_error(gs::Status(gs::StatusCode::INTERNAL_ERROR,
+                                      "bthread_start_backgroup failed"));
+    }
+    if (bthread_start_background(&bth_right, NULL, LambdaExecutor,
+                                 static_cast<void*>(right_ptr.get())) != 0) {
+      LOG(ERROR) << "bthread_start_backgroup failed";
+      return bl::new_error(gs::Status(gs::StatusCode::INTERNAL_ERROR,
+                                      "bthread_start_backgroup failed"));
+    }
+    bthread_join(bth_left, NULL);
+    bthread_join(bth_right, NULL);
     if (!left_ctx) {
       return left_ctx;
     }
-    auto right_ctx =
-        right_pipeline_.Execute(graph, std::move(ret_dup), params, timer);
     if (!right_ctx) {
       return right_ctx;
     }
+
     return Join::join(std::move(left_ctx.value()), std::move(right_ctx.value()),
                       params_);
   }

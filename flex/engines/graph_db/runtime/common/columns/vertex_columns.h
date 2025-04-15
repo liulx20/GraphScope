@@ -166,6 +166,7 @@ class SLVertexColumnBuilder : public IVertexColumnBuilder {
     vertices_.emplace_back(std::numeric_limits<vid_t>::max());
   }
 
+  std::vector<vid_t>& vertices() { return vertices_; }
   std::shared_ptr<IContextColumn> finish(
       const std::shared_ptr<Arena>&) override;
 

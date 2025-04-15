@@ -17,6 +17,8 @@
 #include "flex/engines/graph_db/runtime/common/operators/retrieve/intersect.h"
 #include "flex/engines/graph_db/runtime/execute/pipeline.h"
 
+#include "bthread/bthread.h"
+#include "flex/engines/graph_db/runtime/execute/ops/retrieve/lambda_wrapper.h"
 #include "flex/engines/graph_db/runtime/execute/plan_parser.h"
 namespace gs {
 namespace runtime {
@@ -33,16 +35,40 @@ class IntersectOpr : public IReadOperator {
       const gs::runtime::GraphReadInterface& graph,
       const std::map<std::string, std::string>& params,
       gs::runtime::Context&& ctx, gs::runtime::OprTimer& timer) override {
-    std::vector<gs::runtime::Context> ctxs;
-    for (auto& plan : sub_plans_) {
+    std::vector<gs::runtime::Context> ctxs(sub_plans_.size());
+    std::vector<bl::result<gs::runtime::Context>> ctxs_res(sub_plans_.size());
+    std::vector<std::unique_ptr<LambdaWrapperBase>> wrappers(sub_plans_.size());
+    std::vector<bthread_t> bths(sub_plans_.size());
+    for (size_t idx = 0; idx < sub_plans_.size(); ++idx) {
+      auto& plan = sub_plans_[idx];
       Context n_ctx(ctx);
       n_ctx.gen_offset();
-      auto n_ctx_res = plan.Execute(graph, std::move(n_ctx), params, timer);
-      if (!n_ctx_res) {
-        return n_ctx_res;
+      auto lambda = [&]() {
+        ctxs_res[idx] =
+            std::move(plan.Execute(graph, std::move(n_ctx), params, timer));
+      };
+      wrappers[idx] =
+          std::make_unique<LambdaWrapper<decltype(lambda)>>(std::move(lambda));
+      if (bthread_start_background(&bths[idx], NULL, LambdaExecutor,
+                                   static_cast<void*>(wrappers[idx].get())) !=
+          0) {
+        return bl::new_error(
+            gs::Status(gs::StatusCode::INTERNAL_ERROR,
+                       "Failed to start thread for sub plan execution"));
       }
-      ctxs.push_back(std::move(n_ctx_res.value()));
     }
+    for (size_t idx = 0; idx < sub_plans_.size(); ++idx) {
+      if (bthread_join(bths[idx], NULL) != 0) {
+        return bl::new_error(
+            gs::Status(gs::StatusCode::INTERNAL_ERROR,
+                       "Failed to join thread for sub plan execution"));
+      }
+      if (!ctxs_res[idx]) {
+        return bl::new_error(ctxs_res[idx].error());
+      }
+      ctxs[idx] = std::move(ctxs_res[idx].value());
+    }
+
     return Intersect::intersect(std::move(ctx), std::move(ctxs), key_);
   }
 

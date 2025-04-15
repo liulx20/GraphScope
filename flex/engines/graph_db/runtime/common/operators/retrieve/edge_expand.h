@@ -16,6 +16,7 @@
 #ifndef RUNTIME_COMMON_OPERATORS_RETRIEVE_EDGE_EXPAND_H_
 #define RUNTIME_COMMON_OPERATORS_RETRIEVE_EDGE_EXPAND_H_
 
+#include <bthread/bthread.h>
 #include <set>
 
 #include "flex/engines/graph_db/runtime/common/columns/edge_columns.h"
@@ -421,6 +422,87 @@ class EdgeExpand {
       const GraphReadInterface& graph, Context&& ctx,
       const EdgeExpandParams& params);
 
+  struct CtxBase {
+    virtual ~CtxBase() = default;
+    virtual void cal() = 0;
+  };
+  template <typename T1, typename T2, typename T3>
+  struct Ctx : public CtxBase {
+    Ctx(int idx, const std::vector<vid_t>& vertices,
+        std::vector<size_t>& offsets, std::vector<vid_t>& vec1,
+        std::vector<vid_t>& vec2, GraphReadInterface::graph_view_t<T1>& csr0,
+        GraphReadInterface::graph_view_t<T2>& csr1,
+        GraphReadInterface::graph_view_t<T3>& csr2,
+        const GraphReadInterface& graph, const Context& ctx,
+        int num_task_per_bthread, label_t d0_nbr_label, T1 param, bool LT)
+        : idx(idx),
+          vertices(vertices),
+          offsets(offsets),
+          vec1(vec1),
+          vec2(vec2),
+          csr0(csr0),
+          csr1(csr1),
+          csr2(csr2),
+          graph(graph),
+          ctx(ctx),
+
+          num_task_per_bthread(num_task_per_bthread),
+          d0_nbr_label(d0_nbr_label),
+          param(param),
+          LT(LT) {}
+    void cal() {
+      int start = idx * num_task_per_bthread;
+      int num = vertices.size();
+      int end = std::min(num, start + num_task_per_bthread);
+      GraphReadInterface::vertex_array_t<bool> d0_set;
+      d0_set.Init(graph.GetVertexSet(d0_nbr_label), false);
+      std::vector<vid_t> d0_vec;
+      for (int j = start; j < end; ++j) {
+        auto v = vertices[j];
+        if (LT) {
+          csr0.foreach_edges_lt(v, param, [&](vid_t u, const Date& date) {
+            d0_set[u] = true;
+            d0_vec.push_back(u);
+          });
+        } else {
+          csr0.foreach_edges_gt(v, param, [&](vid_t u, const Date& date) {
+            d0_set[u] = true;
+            d0_vec.push_back(u);
+          });
+        }
+        for (auto& e1 : csr1.get_edges(v)) {
+          auto nbr1 = e1.get_neighbor();
+          for (auto& e2 : csr2.get_edges(nbr1)) {
+            auto nbr2 = e2.get_neighbor();
+            if (d0_set[nbr2]) {
+              vec1.emplace_back(nbr1);
+              vec2.emplace_back(nbr2);
+              offsets.push_back(idx);
+            }
+          }
+        }
+        for (auto u : d0_vec) {
+          d0_set[u] = false;
+        }
+        d0_vec.clear();
+      }
+    }
+    int idx;
+    const std::vector<vid_t>& vertices;
+    std::vector<size_t>& offsets;
+    std::vector<vid_t>& vec1;
+    std::vector<vid_t>& vec2;
+    GraphReadInterface::graph_view_t<T1>& csr0;
+    GraphReadInterface::graph_view_t<T2>& csr1;
+    GraphReadInterface::graph_view_t<T3>& csr2;
+    const GraphReadInterface& graph;
+    const Context& ctx;
+    int num_task_per_bthread;
+    label_t d0_nbr_label;
+    T1 param;
+    bool LT;
+  };
+
   template <typename T1, typename T2, typename T3>
   static bl::result<Context> tc(
       const GraphReadInterface& graph, Context&& ctx,
@@ -465,14 +547,72 @@ class EdgeExpand {
 
     auto builder1 = SLVertexColumnBuilder::builder(d1_nbr_label);
     auto builder2 = SLVertexColumnBuilder::builder(d2_nbr_label);
-    std::vector<size_t> offsets;
+    // std::vector<size_t> offsets;
 
-    size_t idx = 0;
-    static thread_local GraphReadInterface::vertex_array_t<bool> d0_set;
-    static thread_local std::vector<vid_t> d0_vec;
+    // size_t idx = 0;
+    //  static thread_local GraphReadInterface::vertex_array_t<bool> d0_set;
+    //  static thread_local std::vector<vid_t> d0_vec;
 
-    d0_set.Init(graph.GetVertexSet(d0_nbr_label), false);
-    for (auto v : casted_input_vertex_list->vertices()) {
+    // d0_set.Init(graph.GetVertexSet(d0_nbr_label), false);
+    const auto& vertices = casted_input_vertex_list->vertices();
+    int num = vertices.size();
+    if (num == 0) {
+      ctx.set(alias1, builder1.finish(nullptr));
+      ctx.set(alias2, builder2.finish(nullptr));
+      return ctx;
+    }
+    const int BATCH_SIZE = 4096;
+    int num_bthread = (num + BATCH_SIZE - 1) / BATCH_SIZE;
+
+    int num_task_per_bthread = (num + num_bthread - 1) / num_bthread;
+    std::vector<bthread_t> bthreads(num_bthread);
+    std::vector<std::vector<size_t>> offsets(num_bthread);
+    std::vector<std::vector<vid_t>> vec1(num_bthread), vec2(num_bthread);
+    if (num_bthread == 1) {
+      Ctx<T1, T2, T3> ct(0, vertices, offsets[0], vec1[0], vec2[0], csr0, csr1,
+                         csr2, graph, ctx, num, d0_nbr_label, param, LT);
+      ct.cal();
+      auto& vec_1 = builder1.vertices();
+      auto& vec_2 = builder2.vertices();
+      std::swap(vec_1, vec1[0]);
+      std::swap(vec_2, vec2[0]);
+      ctx.set_with_reshuffle(alias1, builder1.finish(nullptr), offsets[0]);
+      ctx.set(alias2, builder2.finish(nullptr));
+      return ctx;
+    }
+    void* (*func)(void*) = [](void* args) -> void* {
+      static_cast<CtxBase*>(args)->cal();
+      return nullptr;
+    };
+    std::vector<std::unique_ptr<CtxBase>> ctxs(num_bthread);
+    for (int i = 0; i < num_bthread; ++i) {
+      ctxs[i] = std::move(std::make_unique<Ctx<T1, T2, T3>>(
+          i, vertices, offsets[i], vec1[i], vec2[i], csr0, csr1, csr2, graph,
+          ctx, num_task_per_bthread, d0_nbr_label, param, LT));
+      if (bthread_start_background(&bthreads[i], NULL, func,
+                                   static_cast<void*>(ctxs[i].get())) != 0) {
+        LOG(ERROR) << "bthread_start_backgroup failed";
+        return ctx;
+      }
+    }
+    std::vector<size_t> offsets2;
+    size_t len = 0;
+    for (int i = 0; i < num_bthread; ++i) {
+      bthread_join(bthreads[i], NULL);
+      len += offsets[i].size();
+    }
+    auto& vec_1 = builder1.vertices();
+    auto& vec_2 = builder2.vertices();
+    vec_1.reserve(len);
+    vec_2.reserve(len);
+    offsets2.reserve(len);
+    for (int i = 0; i < num_bthread; ++i) {
+      vec_1.insert(vec_1.end(), vec1[i].begin(), vec1[i].end());
+      vec_2.insert(vec_2.end(), vec2[i].begin(), vec2[i].end());
+      offsets2.insert(offsets2.end(), offsets[i].begin(), offsets[i].end());
+    }
+
+    /**for (auto v : casted_input_vertex_list->vertices()) {
       if (LT) {
         csr0.foreach_edges_lt(v, param, [&](vid_t u, const Date& date) {
           d0_set[u] = true;
@@ -500,11 +640,11 @@ class EdgeExpand {
       }
       d0_vec.clear();
       ++idx;
-    }
+    }*/
 
     std::shared_ptr<IContextColumn> col1 = builder1.finish(nullptr);
     std::shared_ptr<IContextColumn> col2 = builder2.finish(nullptr);
-    ctx.set_with_reshuffle(alias1, col1, offsets);
+    ctx.set_with_reshuffle(alias1, col1, offsets2);
     ctx.set(alias2, col2);
     return ctx;
   }
