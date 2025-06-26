@@ -15,6 +15,8 @@
 #ifndef RUNTIME_UTILS_RUNTIME_EXPR_H_
 #define RUNTIME_UTILS_RUNTIME_EXPR_H_
 
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/scan.h"
+#include "flex/engines/graph_db/chunked_runtime/utils/exprs/expr_parser.h"
 #include "flex/engines/graph_db/runtime/common/graph_interface.h"
 #include "flex/engines/graph_db/runtime/common/rt_any.h"
 #include "flex/engines/graph_db/runtime/utils/expr_impl.h"
@@ -33,13 +35,13 @@ class Expr {
   }
 
   RTAny eval_path(size_t idx, Arena&) const;
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx, Arena&) const;
+  RTAny eval_vertex(label_t label, vid_t v, Arena&) const;
   RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& data, size_t idx, Arena&) const;
+                  const Any& data, Arena&) const;
   RTAny eval_path(size_t idx, Arena&, int) const;
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx, Arena&, int) const;
+  RTAny eval_vertex(label_t label, vid_t v, Arena&, int) const;
   RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& data, size_t idx, Arena&, int) const;
+                  const Any& data, Arena&, int) const;
 
   RTAnyType type() const;
 

@@ -213,7 +213,7 @@ struct TypedKeyCollector {
 struct SLVertexWrapper {
   using V = vid_t;
   SLVertexWrapper(const SLVertexColumn& column) : column(column) {}
-  V operator()(size_t idx) const { return column.vertices()[idx]; }
+  V operator()(size_t idx) const { return column.get_vertex(idx).vid(); }
   const SLVertexColumn& column;
 };
 
@@ -929,6 +929,7 @@ std::unique_ptr<ReducerBase> make_reducer(const GraphReadInterface& graph,
           return _make_reducer<decltype(wrapper), false>(
               ctx, std::move(wrapper), kind, alias);
         } else {
+          LOG(FATAL) << "unsupport vertex column type";
           auto typed_vertex_col =
               std::dynamic_pointer_cast<MSVertexColumn>(vertex_col);
           MLVertexWrapper<decltype(*typed_vertex_col)> wrapper(
@@ -1018,6 +1019,7 @@ bl::result<ReadOpBuildResultT> GroupByOprBuilder::Build(
     int tag = key.key().has_tag() ? key.key().tag().id() : -1;
     int alias = key.has_alias() ? key.alias().value() : -1;
     if (key.key().has_property()) {
+      LOG(FATAL) << "key should not have property";
       mappings.emplace_back(alias, alias);
       has_property = true;
     } else {

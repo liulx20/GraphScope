@@ -491,7 +491,19 @@ bl::result<Context> Join::join(Context&& ctx, Context&& ctx2,
         std::to_string(params.left_columns.size()) +
         " right size: " + std::to_string(params.right_columns.size()));
   }
-
+  {
+    size_t left_col = 0, right_col = 0;
+    for (size_t i = 0; i < ctx.col_num(); ++i) {
+      if (ctx.get(i) != nullptr) {
+        left_col++;
+      }
+    }
+    for (size_t i = 0; i < ctx2.col_num(); ++i) {
+      if (ctx2.get(i) != nullptr) {
+        right_col++;
+      }
+    }
+  }
   if (params.join_type == JoinKind::kSemiJoin ||
       params.join_type == JoinKind::kAntiJoin) {
     return default_semi_join(std::move(ctx), std::move(ctx2), params);

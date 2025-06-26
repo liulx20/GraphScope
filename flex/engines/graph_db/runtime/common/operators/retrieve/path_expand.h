@@ -161,6 +161,7 @@ class PathExpand {
   static bl::result<Context> single_source_shortest_path(
       const GraphReadInterface& graph, Context&& ctx,
       const ShortestPathParams& params, const PRED_T& pred) {
+    LOG(FATAL) << "not implemented for single_source_shortest_path";
     std::vector<size_t> shuffle_offset;
     auto input_vertex_col =
         std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.start_tag));

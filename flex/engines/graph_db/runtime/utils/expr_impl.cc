@@ -24,27 +24,25 @@ namespace runtime {
 RTAny VariableExpr::eval_path(size_t idx, Arena&) const {
   return var_.get(idx);
 }
-RTAny VariableExpr::eval_vertex(label_t label, vid_t v, size_t idx,
-                                Arena&) const {
-  return var_.get_vertex(label, v, idx);
+RTAny VariableExpr::eval_vertex(label_t label, vid_t v, Arena&) const {
+  return var_.get_vertex(label, v);
 }
 RTAny VariableExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                              const Any& data, size_t idx, Arena&) const {
-  return var_.get_edge(label, src, dst, data, idx);
+                              const Any& data, Arena&) const {
+  return var_.get_edge(label, src, dst, data);
 }
 
 RTAny VariableExpr::eval_path(size_t idx, Arena&, int) const {
   return var_.get(idx, 0);
 }
 
-RTAny VariableExpr::eval_vertex(label_t label, vid_t v, size_t idx, Arena&,
-                                int) const {
-  return var_.get_vertex(label, v, idx, 0);
+RTAny VariableExpr::eval_vertex(label_t label, vid_t v, Arena&, int) const {
+  return var_.get_vertex(label, v, 0);
 }
 
 RTAny VariableExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                              const Any& data, size_t idx, Arena&, int) const {
-  return var_.get_edge(label, src, dst, data, idx, 0);
+                              const Any& data, Arena&, int) const {
+  return var_.get_edge(label, src, dst, data, 0);
 }
 
 RTAnyType VariableExpr::type() const { return var_.type(); }
@@ -109,17 +107,15 @@ RTAny LogicalExpr::eval_path(size_t idx, Arena& arena) const {
       op_(lhs_->eval_path(idx, arena), rhs_->eval_path(idx, arena)));
 }
 
-RTAny LogicalExpr::eval_vertex(label_t label, vid_t v, size_t idx,
-                               Arena& arena) const {
-  return RTAny::from_bool(op_(lhs_->eval_vertex(label, v, idx, arena),
-                              rhs_->eval_vertex(label, v, idx, arena)));
+RTAny LogicalExpr::eval_vertex(label_t label, vid_t v, Arena& arena) const {
+  return RTAny::from_bool(op_(lhs_->eval_vertex(label, v, arena),
+                              rhs_->eval_vertex(label, v, arena)));
 }
 
 RTAny LogicalExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                             const Any& data, size_t idx, Arena& arena) const {
-  return RTAny::from_bool(
-      op_(lhs_->eval_edge(label, src, dst, data, idx, arena),
-          rhs_->eval_edge(label, src, dst, data, idx, arena)));
+                             const Any& data, Arena& arena) const {
+  return RTAny::from_bool(op_(lhs_->eval_edge(label, src, dst, data, arena),
+                              rhs_->eval_edge(label, src, dst, data, arena)));
 }
 
 RTAnyType LogicalExpr::type() const { return RTAnyType::kBoolValue; }
@@ -150,28 +146,26 @@ RTAny UnaryLogicalExpr::eval_path(size_t idx, Arena& arena, int) const {
   return RTAny::from_bool(false);
 }
 
-RTAny UnaryLogicalExpr::eval_vertex(label_t label, vid_t v, size_t idx,
+RTAny UnaryLogicalExpr::eval_vertex(label_t label, vid_t v,
                                     Arena& arena) const {
   if (logic_ == common::Logical::NOT) {
-    return RTAny::from_bool(
-        !expr_->eval_vertex(label, v, idx, arena).as_bool());
+    return RTAny::from_bool(!expr_->eval_vertex(label, v, arena).as_bool());
   } else if (logic_ == common::Logical::ISNULL) {
-    return RTAny::from_bool(
-        expr_->eval_vertex(label, v, idx, arena, 0).is_null());
+    return RTAny::from_bool(expr_->eval_vertex(label, v, arena, 0).is_null());
   }
   LOG(FATAL) << "not support" << static_cast<int>(logic_);
   return RTAny::from_bool(false);
 }
 
 RTAny UnaryLogicalExpr::eval_edge(const LabelTriplet& label, vid_t src,
-                                  vid_t dst, const Any& data, size_t idx,
+                                  vid_t dst, const Any& data,
                                   Arena& arena) const {
   if (logic_ == common::Logical::NOT) {
     return RTAny::from_bool(
-        !expr_->eval_edge(label, src, dst, data, idx, arena).as_bool());
+        !expr_->eval_edge(label, src, dst, data, arena).as_bool());
   } else if (logic_ == common::Logical::ISNULL) {
     return RTAny::from_bool(
-        expr_->eval_edge(label, src, dst, data, idx, arena, 0).is_null());
+        expr_->eval_edge(label, src, dst, data, arena, 0).is_null());
   }
   LOG(FATAL) << "not support" << static_cast<int>(logic_);
   return RTAny::from_bool(false);
@@ -211,16 +205,15 @@ RTAny ArithExpr::eval_path(size_t idx, Arena& arena) const {
   return op_(lhs_->eval_path(idx, arena), rhs_->eval_path(idx, arena));
 }
 
-RTAny ArithExpr::eval_vertex(label_t label, vid_t v, size_t idx,
-                             Arena& arena) const {
-  return op_(lhs_->eval_vertex(label, v, idx, arena),
-             rhs_->eval_vertex(label, v, idx, arena));
+RTAny ArithExpr::eval_vertex(label_t label, vid_t v, Arena& arena) const {
+  return op_(lhs_->eval_vertex(label, v, arena),
+             rhs_->eval_vertex(label, v, arena));
 }
 
 RTAny ArithExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                           const Any& data, size_t idx, Arena& arena) const {
-  return op_(lhs_->eval_edge(label, src, dst, data, idx, arena),
-             rhs_->eval_edge(label, src, dst, data, idx, arena));
+                           const Any& data, Arena& arena) const {
+  return op_(lhs_->eval_edge(label, src, dst, data, arena),
+             rhs_->eval_edge(label, src, dst, data, arena));
 }
 
 RTAnyType ArithExpr::type() const {
@@ -245,18 +238,16 @@ RTAny DateMinusExpr::eval_path(size_t idx, Arena& arena) const {
   return RTAny::from_int64(lhs.milli_second - rhs.milli_second);
 }
 
-RTAny DateMinusExpr::eval_vertex(label_t label, vid_t v, size_t idx,
-                                 Arena& arena) const {
-  auto lhs = lhs_->eval_vertex(label, v, idx, arena).as_timestamp();
-  auto rhs = rhs_->eval_vertex(label, v, idx, arena).as_timestamp();
+RTAny DateMinusExpr::eval_vertex(label_t label, vid_t v, Arena& arena) const {
+  auto lhs = lhs_->eval_vertex(label, v, arena).as_timestamp();
+  auto rhs = rhs_->eval_vertex(label, v, arena).as_timestamp();
   return RTAny::from_int64(lhs.milli_second - rhs.milli_second);
 }
 
 RTAny DateMinusExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                               const Any& data, size_t idx,
-                               Arena& arena) const {
-  auto lhs = lhs_->eval_edge(label, src, dst, data, idx, arena).as_timestamp();
-  auto rhs = rhs_->eval_edge(label, src, dst, data, idx, arena).as_timestamp();
+                               const Any& data, Arena& arena) const {
+  auto lhs = lhs_->eval_edge(label, src, dst, data, arena).as_timestamp();
+  auto rhs = rhs_->eval_edge(label, src, dst, data, arena).as_timestamp();
   return RTAny::from_int64(lhs.milli_second - rhs.milli_second);
 }
 
@@ -269,11 +260,11 @@ ConstExpr::ConstExpr(const RTAny& val) : val_(val) {
   }
 }
 RTAny ConstExpr::eval_path(size_t idx, Arena&) const { return val_; }
-RTAny ConstExpr::eval_vertex(label_t label, vid_t v, size_t idx, Arena&) const {
+RTAny ConstExpr::eval_vertex(label_t label, vid_t v, Arena&) const {
   return val_;
 }
 RTAny ConstExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                           const Any& data, size_t idx, Arena&) const {
+                           const Any& data, Arena&) const {
   return val_;
 }
 
@@ -329,24 +320,23 @@ RTAny CaseWhenExpr::eval_path(size_t idx, Arena& arena) const {
   return else_expr_->eval_path(idx, arena);
 }
 
-RTAny CaseWhenExpr::eval_vertex(label_t label, vid_t v, size_t idx,
-                                Arena& arena) const {
+RTAny CaseWhenExpr::eval_vertex(label_t label, vid_t v, Arena& arena) const {
   for (auto& pair : when_then_exprs_) {
-    if (pair.first->eval_vertex(label, v, idx, arena).as_bool()) {
-      return pair.second->eval_vertex(label, v, idx, arena);
+    if (pair.first->eval_vertex(label, v, arena).as_bool()) {
+      return pair.second->eval_vertex(label, v, arena);
     }
   }
-  return else_expr_->eval_vertex(label, v, idx, arena);
+  return else_expr_->eval_vertex(label, v, arena);
 }
 
 RTAny CaseWhenExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                              const Any& data, size_t idx, Arena& arena) const {
+                              const Any& data, Arena& arena) const {
   for (auto& pair : when_then_exprs_) {
-    if (pair.first->eval_edge(label, src, dst, data, idx, arena).as_bool()) {
-      return pair.second->eval_edge(label, src, dst, data, idx, arena);
+    if (pair.first->eval_edge(label, src, dst, data, arena).as_bool()) {
+      return pair.second->eval_edge(label, src, dst, data, arena);
     }
   }
-  return else_expr_->eval_edge(label, src, dst, data, idx, arena);
+  return else_expr_->eval_edge(label, src, dst, data, arena);
 }
 
 RTAnyType CaseWhenExpr::type() const {
@@ -376,11 +366,10 @@ RTAny TupleExpr::eval_path(size_t idx, Arena& arena) const {
   return RTAny::from_tuple(t);
 }
 
-RTAny TupleExpr::eval_vertex(label_t label, vid_t v, size_t idx,
-                             Arena& arena) const {
+RTAny TupleExpr::eval_vertex(label_t label, vid_t v, Arena& arena) const {
   std::vector<RTAny> ret;
   for (auto& expr : exprs_) {
-    ret.push_back(expr->eval_vertex(label, v, idx, arena));
+    ret.push_back(expr->eval_vertex(label, v, arena));
   }
   auto tup = Tuple::make_generic_tuple_impl(std::move(ret));
   Tuple t(tup.get());
@@ -389,10 +378,10 @@ RTAny TupleExpr::eval_vertex(label_t label, vid_t v, size_t idx,
 }
 
 RTAny TupleExpr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                           const Any& data, size_t idx, Arena& arena) const {
+                           const Any& data, Arena& arena) const {
   std::vector<RTAny> ret;
   for (auto& expr : exprs_) {
-    ret.push_back(expr->eval_edge(label, src, dst, data, idx, arena));
+    ret.push_back(expr->eval_edge(label, src, dst, data, arena));
   }
   auto tup = Tuple::make_generic_tuple_impl(std::move(ret));
   Tuple t(tup.get());

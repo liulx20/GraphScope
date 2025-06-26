@@ -26,6 +26,27 @@ namespace gs {
 
 namespace runtime {
 
+class ContextSize {
+ public:
+  static ContextSize& getInstance() {
+    static ContextSize instance;
+    return instance;
+  }
+  void clear() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    row_num_ = 0;
+  }
+  void set_row_num(size_t row_num) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    row_num_ = std::max(row_num_, row_num);
+  }
+  size_t row_num() const { return row_num_; }
+
+ private:
+  ContextSize() : row_num_(0) {}
+  size_t row_num_;
+  std::mutex mutex_;
+};
 class Context {
  public:
   Context();

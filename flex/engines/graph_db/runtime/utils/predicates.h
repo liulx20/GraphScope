@@ -25,35 +25,19 @@ namespace gs {
 
 namespace runtime {
 
-struct GeneralPathPredicate {
-  GeneralPathPredicate(const GraphReadInterface& graph, const Context& ctx,
-                       const std::map<std::string, std::string>& params,
-                       const common::Expression& expr)
-      : expr_(graph, ctx, params, expr, VarType::kPathVar) {}
-
-  inline bool operator()(size_t idx, Arena& arena) const {
-    auto val = expr_.eval_path(idx, arena);
-    return val.as_bool();
-  }
-
-  Expr expr_;
-};
-
 struct GeneralVertexPredicate {
   GeneralVertexPredicate(const GraphReadInterface& graph, const Context& ctx,
                          const std::map<std::string, std::string>& params,
                          const common::Expression& expr)
       : expr_(graph, ctx, params, expr, VarType::kVertexVar) {}
 
-  inline bool operator()(label_t label, vid_t v, size_t path_idx,
-                         Arena& arena) const {
-    auto val = expr_.eval_vertex(label, v, path_idx, arena);
+  inline bool operator()(label_t label, vid_t v, Arena& arena) const {
+    auto val = expr_.eval_vertex(label, v, arena);
     return val.as_bool();
   }
 
-  inline bool operator()(label_t label, vid_t v, size_t path_idx, Arena& arena,
-                         int) const {
-    auto val = expr_.eval_vertex(label, v, path_idx, arena, 0);
+  inline bool operator()(label_t label, vid_t v, Arena& arena, int) const {
+    auto val = expr_.eval_vertex(label, v, arena, 0);
     return val.as_bool();
   }
 
@@ -63,7 +47,7 @@ struct GeneralVertexPredicate {
 struct ExactVertexPredicate {
   ExactVertexPredicate(label_t label, vid_t vid) : label_(label), vid_(vid) {}
 
-  inline bool operator()(label_t label, vid_t vid, size_t path_idx) const {
+  inline bool operator()(label_t label, vid_t vid) const {
     return (label == label_) && (vid == vid_);
   }
 
@@ -78,9 +62,8 @@ struct GeneralEdgePredicate {
       : expr_(graph, ctx, params, expr, VarType::kEdgeVar) {}
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t path_idx,
-                         Arena& arena) const {
-    auto val = expr_.eval_edge(label, src, dst, edata, path_idx, arena);
+                         const Any& edata, Direction dir, Arena& arena) const {
+    auto val = expr_.eval_edge(label, src, dst, edata, arena);
     return val.as_bool();
   }
 
@@ -88,20 +71,15 @@ struct GeneralEdgePredicate {
 };
 
 struct DummyVertexPredicate {
-  bool operator()(label_t label, vid_t v, size_t path_idx) const {
-    return true;
-  }
+  bool operator()(label_t label, vid_t v) const { return true; }
 
   // for optional vertex
-  inline bool operator()(label_t label, vid_t v, size_t path_idx, int) const {
-    return true;
-  }
+  inline bool operator()(label_t label, vid_t v, int) const { return true; }
 };
 
 struct DummyEdgePredicate {
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir,
-                         size_t path_idx) const {
+                         const Any& edata, Direction dir) const {
     return true;
   }
 };

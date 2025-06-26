@@ -829,7 +829,7 @@ class EdgePropertyLTPredicate : public SPEdgePredicate {
   }
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t idx) const {
+                         const Any& edata, Direction dir) const {
     return AnyConverter<T>::from_any(edata) < target_;
   }
 
@@ -863,7 +863,7 @@ class EdgePropertyGTPredicate : public SPEdgePredicate {
   }
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t idx) const {
+                         const Any& edata, Direction dir) const {
     return target_ < AnyConverter<T>::from_any(edata);
   }
 
@@ -897,7 +897,7 @@ class EdgePropertyEQPredicate : public SPEdgePredicate {
   }
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t idx) const {
+                         const Any& edata, Direction dir) const {
     return target_ == AnyConverter<T>::from_any(edata);
   }
 
@@ -931,7 +931,7 @@ class EdgePropertyGEPredicate : public SPEdgePredicate {
   }
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t idx) const {
+                         const Any& edata, Direction dir) const {
     return !(AnyConverter<T>::from_any(edata) < target_);
   }
 
@@ -966,7 +966,7 @@ class EdgePropertyLEPredicate : public SPEdgePredicate {
   }
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t idx) const {
+                         const Any& edata, Direction dir) const {
     return !(target_ < AnyConverter<T>::from_any(edata));
   }
 
@@ -1000,7 +1000,7 @@ class EdgePropertyNEPredicate : public SPEdgePredicate {
   }
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir, size_t idx) const {
+                         const Any& edata, Direction dir) const {
     return !(target_ == AnyConverter<T>::from_any(edata));
   }
 

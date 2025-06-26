@@ -55,6 +55,8 @@ bl::result<ReadOpBuildResultT> IntersectOprBuilder::Build(
     const Schema& schema, const ContextMeta& ctx_meta,
     const physical::PhysicalPlan& plan, int op_idx) {
   std::vector<ReadPipeline> sub_plans;
+  std::cout << "intersect:" << plan.plan(op_idx).opr().intersect().DebugString()
+            << std::endl;
   for (int i = 0; i < plan.plan(op_idx).opr().intersect().sub_plans_size();
        ++i) {
     auto& sub_plan = plan.plan(op_idx).opr().intersect().sub_plans(i);

@@ -1105,6 +1105,7 @@ class EdgePropVecBase {
 template <typename T>
 class EdgePropVec : public EdgePropVecBase {
  public:
+  using EdgeDataType = T;
   ~EdgePropVec() {}
 
   void push_back(const T& val) { prop_data_.push_back(val); }
@@ -1139,6 +1140,7 @@ class EdgePropVec : public EdgePropVecBase {
 template <>
 class EdgePropVec<grape::EmptyType> : public EdgePropVecBase {
  public:
+  using EdgeDataType = grape::EmptyType;
   EdgePropVec() : size_(0) {}
   ~EdgePropVec() {}
   void push_back(const grape::EmptyType& val) { size_++; }

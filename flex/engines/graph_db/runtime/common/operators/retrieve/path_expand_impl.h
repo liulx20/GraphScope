@@ -44,10 +44,10 @@ iterative_expand_vertex_on_graph_view(
   if (upper == 1) {
     CHECK_EQ(lower, 0);
     size_t idx = 0;
-    for (auto v : input.vertices()) {
+    input.foreach_vertex([&](size_t, label_t, vid_t v) {
       builder.push_back_opt(v);
       offsets.push_back(idx++);
-    }
+    });
     return std::make_pair(builder.finish(nullptr), std::move(offsets));
   }
   // upper >= 2
@@ -56,9 +56,8 @@ iterative_expand_vertex_on_graph_view(
 
   {
     vid_t idx = 0;
-    for (auto v : input.vertices()) {
-      output_list.emplace_back(v, idx++);
-    }
+    input.foreach_vertex(
+        [&](size_t, label_t, vid_t v) { output_list.emplace_back(v, idx++); });
   }
   int depth = 0;
   while (!output_list.empty()) {
@@ -110,10 +109,10 @@ iterative_expand_vertex_on_dual_graph_view(
   if (upper == 1) {
     CHECK_EQ(lower, 0);
     size_t idx = 0;
-    for (auto v : input.vertices()) {
+    input.foreach_vertex([&](size_t, label_t, vid_t v) {
       builder.push_back_opt(v);
       offsets.push_back(idx++);
-    }
+    });
     return std::make_pair(builder.finish(nullptr), std::move(offsets));
   }
   // upper >= 2
@@ -122,9 +121,8 @@ iterative_expand_vertex_on_dual_graph_view(
 
   {
     vid_t idx = 0;
-    for (auto v : input.vertices()) {
-      output_list.emplace_back(v, idx++);
-    }
+    input.foreach_vertex(
+        [&](size_t, label_t, vid_t v) { output_list.emplace_back(v, idx++); });
   }
   int depth = 0;
   while (!output_list.empty()) {

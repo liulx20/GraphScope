@@ -108,6 +108,10 @@ bool CypherReadApp::Query(const GraphDBSession& graph, Decoder& input,
     } else {
       runtime::Sink::sink_beta(ctx.value(), gri, output);
     }
+    // if (gs::runtime::ContextSize::getInstance().row_num() >= 65536) {
+
+    //}
+    gs::runtime::ContextSize::getInstance().clear();
   }
   return true;
 }

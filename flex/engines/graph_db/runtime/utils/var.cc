@@ -151,29 +151,25 @@ RTAny Var::get(size_t path_idx, int) const {
   return getter_->eval_path(path_idx, 0);
 }
 
-RTAny Var::get_vertex(label_t label, vid_t v, size_t idx) const {
-  return getter_->eval_vertex(label, v, idx);
+RTAny Var::get_vertex(label_t label, vid_t v) const {
+  return getter_->eval_vertex(label, v);
 }
 
-RTAny Var::get_vertex(label_t label, vid_t v, size_t idx, int) const {
-  return getter_->eval_vertex(label, v, idx, 0);
-}
-
-RTAny Var::get_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                    const Any& data, size_t idx) const {
-  return getter_->eval_edge(label, src, dst, data, idx);
+RTAny Var::get_vertex(label_t label, vid_t v, int) const {
+  return getter_->eval_vertex(label, v, 0);
 }
 
 RTAny Var::get_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                    const Any& data, size_t idx, int) const {
-  return getter_->eval_edge(label, src, dst, data, idx, 0);
+                    const Any& data) const {
+  return getter_->eval_edge(label, src, dst, data);
+}
+
+RTAny Var::get_edge(const LabelTriplet& label, vid_t src, vid_t dst,
+                    const Any& data, int) const {
+  return getter_->eval_edge(label, src, dst, data, 0);
 }
 
 RTAnyType Var::type() const { return type_; }
-
-std::shared_ptr<IContextColumnBuilder> Var::builder() const {
-  return getter_->builder();
-}
 
 }  // namespace runtime
 

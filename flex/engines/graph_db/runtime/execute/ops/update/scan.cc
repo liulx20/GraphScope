@@ -47,7 +47,7 @@ class UScanOpr : public IUpdateOperator {
           return UScan::scan(
               graph, std::move(ctx), scan_params,
               [&](label_t label, vid_t vid) {
-                return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+                return expr->eval_vertex(label, vid, arena, 0).as_bool();
               });
         } else {
           return UScan::scan(
@@ -55,7 +55,7 @@ class UScanOpr : public IUpdateOperator {
               [&](label_t label, vid_t vid) {
                 for (auto& oid : oids_vec) {
                   if (graph.GetVertexId(label, vid) == oid) {
-                    return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+                    return expr->eval_vertex(label, vid, arena, 0).as_bool();
                   }
                 }
                 return false;
@@ -66,7 +66,7 @@ class UScanOpr : public IUpdateOperator {
           return UScan::scan(
               graph, std::move(ctx), scan_params,
               [&](label_t label, vid_t vid) {
-                return expr->eval_vertex(label, vid, 0, arena).as_bool();
+                return expr->eval_vertex(label, vid, arena).as_bool();
               });
         } else {
           return UScan::scan(
@@ -74,7 +74,7 @@ class UScanOpr : public IUpdateOperator {
               [&](label_t label, vid_t vid) {
                 for (auto& oid : oids_vec) {
                   if (graph.GetVertexId(label, vid) == oid) {
-                    return expr->eval_vertex(label, vid, 0, arena).as_bool();
+                    return expr->eval_vertex(label, vid, arena).as_bool();
                   }
                 }
                 return false;

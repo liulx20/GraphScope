@@ -13,6 +13,7 @@
  * limitations under the License.
  */
 #include "flex/engines/graph_db/runtime/execute/ops/update/set.h"
+#include "flex/engines/graph_db/runtime/common/columns/edge_columns.h"
 #include "flex/engines/graph_db/runtime/common/context.h"
 #include "flex/engines/graph_db/runtime/utils/expr.h"
 

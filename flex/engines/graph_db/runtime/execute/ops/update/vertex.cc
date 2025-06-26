@@ -67,7 +67,7 @@ class UGetVFromEdgeWithPredOpr : public IUpdateOperator {
     return UGetV::get_vertex_from_edge(
         graph, std::move(ctx), params_,
         [&](size_t idx, label_t label, vid_t vid) {
-          return expr->eval_vertex(label, vid, idx, arena).as_bool();
+          return expr->eval_vertex(label, vid, arena).as_bool();
         });
   }
 
@@ -100,7 +100,7 @@ class UGetVFromVerticesWithPredOpr : public IUpdateOperator {
     return UGetV::get_vertex_from_vertices(
         graph, std::move(ctx), params_,
         [&](size_t idx, label_t label, vid_t vid) {
-          return expr->eval_vertex(label, vid, idx, arena).as_bool();
+          return expr->eval_vertex(label, vid, arena).as_bool();
         });
   }
 

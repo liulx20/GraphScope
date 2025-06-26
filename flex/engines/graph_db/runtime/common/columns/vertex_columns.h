@@ -123,7 +123,7 @@ class SLVertexColumn : public SLVertexColumnBase {
 
   ISigColumn* generate_signature() const override;
 
-  inline const std::vector<vid_t>& vertices() const { return vertices_; }
+  // inline const std::vector<vid_t>& vertices() const { return vertices_; }
 
  private:
   friend class SLVertexColumnBuilder;

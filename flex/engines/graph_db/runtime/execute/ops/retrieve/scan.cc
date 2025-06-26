@@ -164,14 +164,14 @@ class FilterOidsGPredOpr : public IReadOperator {
       return Scan::filter_oids(
           std::move(ctx), graph, params_,
           [&expr, &arena](label_t label, vid_t vid) {
-            return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+            return expr->eval_vertex(label, vid, arena, 0).as_bool();
           },
           ids);
     } else {
       return Scan::filter_oids(
           std::move(ctx), graph, params_,
           [&expr, &arena](label_t label, vid_t vid) {
-            return expr->eval_vertex(label, vid, 0, arena).as_bool();
+            return expr->eval_vertex(label, vid, arena).as_bool();
           },
           ids);
     }
@@ -256,14 +256,14 @@ class FilterOidsMultiTypeGPredOpr : public IReadOperator {
       return Scan::filter_oids(
           std::move(ctx), graph, params_,
           [&expr, &arena](label_t label, vid_t vid) {
-            return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+            return expr->eval_vertex(label, vid, arena, 0).as_bool();
           },
           all_ids);
     } else {
       return Scan::filter_oids(
           std::move(ctx), graph, params_,
           [&expr, &arena](label_t label, vid_t vid) {
-            return expr->eval_vertex(label, vid, 0, arena).as_bool();
+            return expr->eval_vertex(label, vid, arena).as_bool();
           },
           all_ids);
     }
@@ -340,14 +340,14 @@ class FilterGidsGPredOpr : public IReadOperator {
       return Scan::filter_gids(
           std::move(ctx), graph, params_,
           [&expr, &arena](label_t label, vid_t vid) {
-            return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+            return expr->eval_vertex(label, vid, arena, 0).as_bool();
           },
           gids);
     } else {
       return Scan::filter_gids(
           std::move(ctx), graph, params_,
           [&expr, &arena](label_t label, vid_t vid) {
-            return expr->eval_vertex(label, vid, 0, arena).as_bool();
+            return expr->eval_vertex(label, vid, arena).as_bool();
           },
           gids);
     }
@@ -407,13 +407,13 @@ class ScanWithGPredOpr : public IReadOperator {
         return Scan::scan_vertex(
             std::move(ctx), graph, scan_params_,
             [&expr, &arena](label_t label, vid_t vid) {
-              return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+              return expr->eval_vertex(label, vid, arena, 0).as_bool();
             });
       } else {
         return Scan::scan_vertex_with_limit(
             std::move(ctx), graph, scan_params_,
             [&expr, &arena](label_t label, vid_t vid) {
-              return expr->eval_vertex(label, vid, 0, arena, 0).as_bool();
+              return expr->eval_vertex(label, vid, arena, 0).as_bool();
             });
       }
     } else {
@@ -421,14 +421,14 @@ class ScanWithGPredOpr : public IReadOperator {
         auto ret = Scan::scan_vertex(
             std::move(ctx), graph, scan_params_,
             [&expr, &arena](label_t label, vid_t vid) {
-              return expr->eval_vertex(label, vid, 0, arena).as_bool();
+              return expr->eval_vertex(label, vid, arena).as_bool();
             });
         return ret;
       } else {
         auto ret = Scan::scan_vertex_with_limit(
             std::move(ctx), graph, scan_params_,
             [&expr, &arena](label_t label, vid_t vid) {
-              return expr->eval_vertex(label, vid, 0, arena).as_bool();
+              return expr->eval_vertex(label, vid, arena).as_bool();
             });
         return ret;
       }

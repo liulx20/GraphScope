@@ -881,6 +881,9 @@ bl::result<Context>
 PathExpand::single_source_shortest_path_with_special_vertex_predicate(
     const GraphReadInterface& graph, Context&& ctx,
     const ShortestPathParams& params, const SPVertexPredicate& pred) {
+  LOG(FATAL) << "PathExpand::single_source_shortest_path_with_special_vertex_"
+                "predicate "
+             << "is deprecated, please use single_source_shortest_path instead";
   if (pred.data_type() == RTAnyType::kI64Value) {
     return _single_shortest_path<int64_t>(graph, std::move(ctx), params, pred);
   } else if (pred.data_type() == RTAnyType::kStringValue) {

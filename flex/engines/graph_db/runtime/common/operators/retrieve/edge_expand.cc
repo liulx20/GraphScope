@@ -695,15 +695,14 @@ Context expand_vertex_ep_lt_ml_impl(
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-    size_t idx = 0;
     builder.start_label(nbr_label);
-    for (auto v : casted_input_vertex_list->vertices()) {
-      csr.foreach_edges_lt(v, max_value, [&](vid_t nbr, const T& e) {
-        builder.push_back_opt(nbr);
-        offsets.push_back(idx);
-      });
-      ++idx;
-    }
+    casted_input_vertex_list->foreach_vertex(
+        [&](size_t idx, label_t label, vid_t v) {
+          csr.foreach_edges_lt(v, max_value, [&](vid_t nbr, const T& e) {
+            builder.push_back_opt(nbr);
+            offsets.push_back(idx);
+          });
+        });
     ++csr_idx;
   }
   std::shared_ptr<IContextColumn> col = builder.finish(nullptr);
@@ -827,13 +826,13 @@ Context expand_vertex_ep_gt_sl_impl(
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     size_t idx = 0;
-    for (auto v : casted_input_vertex_list->vertices()) {
-      csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
-        builder.push_back_opt(nbr);
-        offsets.push_back(idx);
-      });
-      ++idx;
-    }
+    casted_input_vertex_list->foreach_vertex(
+        [&](size_t index, label_t label, vid_t v) {
+          csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
+            builder.push_back_opt(nbr);
+            offsets.push_back(idx);
+          });
+        });
   }
   std::shared_ptr<IContextColumn> col = builder.finish(nullptr);
   ctx.set_with_reshuffle(alias, col, offsets);
@@ -867,16 +866,15 @@ Context expand_vertex_ep_gt_ml_impl(
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-    size_t idx = 0;
     builder.start_label(nbr_label);
     LOG(INFO) << "start label: " << static_cast<int>(nbr_label);
-    for (auto v : casted_input_vertex_list->vertices()) {
-      csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
-        builder.push_back_opt(nbr);
-        offsets.push_back(idx);
-      });
-      ++idx;
-    }
+    casted_input_vertex_list->foreach_vertex(
+        [&](size_t idx, label_t label, vid_t v) {
+          csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
+            builder.push_back_opt(nbr);
+            offsets.push_back(idx);
+          });
+        });
     ++csr_idx;
   }
   std::shared_ptr<IContextColumn> col = builder.finish(nullptr);

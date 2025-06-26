@@ -50,6 +50,7 @@ bl::result<Context> ReadPipeline::Execute(
       return bl::new_error(err);
     }
     ctx = std::move(ret);
+    ContextSize::getInstance().set_row_num(ctx.row_num());
   }
   return ctx;
 }

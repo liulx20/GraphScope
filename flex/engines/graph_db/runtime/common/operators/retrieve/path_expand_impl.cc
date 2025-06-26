@@ -31,11 +31,10 @@ iterative_expand_vertex(const GraphReadInterface& graph,
   }
   if (upper == 1) {
     CHECK_EQ(lower, 0);
-    size_t idx = 0;
-    for (auto v : input.vertices()) {
+    input.foreach_vertex([&](size_t idx, label_t, vid_t v) {
       builder.push_back_opt(v);
-      offsets.push_back(idx++);
-    }
+      offsets.push_back(idx);
+    });
     return std::make_pair(builder.finish(nullptr), std::move(offsets));
   }
 
@@ -43,10 +42,9 @@ iterative_expand_vertex(const GraphReadInterface& graph,
   std::vector<std::pair<vid_t, vid_t>> output_list;
 
   {
-    vid_t idx = 0;
-    for (auto v : input.vertices()) {
-      output_list.emplace_back(v, idx++);
-    }
+    input.foreach_vertex([&](size_t idx, label_t, vid_t v) {
+      output_list.emplace_back(v, idx);
+    });
   }
 
   int depth = 0;

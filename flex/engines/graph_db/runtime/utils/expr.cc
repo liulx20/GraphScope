@@ -24,27 +24,25 @@ RTAny Expr::eval_path(size_t idx, Arena& arena) const {
   return ret;
 }
 
-RTAny Expr::eval_vertex(label_t label, vid_t v, size_t idx,
-                        Arena& arena) const {
-  return expr_->eval_vertex(label, v, idx, arena);
+RTAny Expr::eval_vertex(label_t label, vid_t v, Arena& arena) const {
+  return expr_->eval_vertex(label, v, arena);
 }
 RTAny Expr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                      const Any& data, size_t idx, Arena& arena) const {
-  return expr_->eval_edge(label, src, dst, data, idx, arena);
+                      const Any& data, Arena& arena) const {
+  return expr_->eval_edge(label, src, dst, data, arena);
 }
 
 RTAny Expr::eval_path(size_t idx, Arena& arena, int) const {
   return expr_->eval_path(idx, arena, 0);
 }
 
-RTAny Expr::eval_vertex(label_t label, vid_t v, size_t idx, Arena& arena,
-                        int) const {
-  return expr_->eval_vertex(label, v, idx, arena, 0);
+RTAny Expr::eval_vertex(label_t label, vid_t v, Arena& arena, int) const {
+  return expr_->eval_vertex(label, v, arena, 0);
 }
 
 RTAny Expr::eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                      const Any& data, size_t idx, Arena& arena, int) const {
-  return expr_->eval_edge(label, src, dst, data, idx, arena, 0);
+                      const Any& data, Arena& arena, int) const {
+  return expr_->eval_edge(label, src, dst, data, arena, 0);
 }
 
 RTAnyType Expr::type() const { return expr_->type(); }

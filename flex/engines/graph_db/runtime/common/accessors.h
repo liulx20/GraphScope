@@ -33,32 +33,29 @@ class IAccessor {
  public:
   virtual ~IAccessor() = default;
   virtual RTAny eval_path(size_t idx) const = 0;
-  virtual RTAny eval_vertex(label_t label, vid_t v, size_t idx) const {
-    return this->eval_path(idx);
+  virtual RTAny eval_vertex(label_t label, vid_t v) const {
+    LOG(FATAL) << "not implemented";
   }
   virtual RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                          const Any& data, size_t idx) const {
-    return this->eval_path(idx);
+                          const Any& data) const {
+    LOG(FATAL) << "not implemented";
   }
 
   virtual RTAny eval_path(size_t idx, int) const {
     return this->eval_path(idx);
   }
-  virtual RTAny eval_vertex(label_t label, vid_t v, size_t idx, int) const {
-    return this->eval_vertex(label, v, idx);
+  virtual RTAny eval_vertex(label_t label, vid_t v, int) const {
+    LOG(FATAL) << "not implemented";
   }
   virtual RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                          const Any& data, size_t idx, int) const {
-    return this->eval_edge(label, src, dst, data, idx);
+                          const Any& data, int) const {
+    LOG(FATAL) << "not implemented";
+    return RTAny();
   }
 
   virtual bool is_optional() const { return false; }
 
   virtual std::string name() const { return "unknown"; }
-
-  virtual std::shared_ptr<IContextColumnBuilder> builder() const {
-    return nullptr;
-  }
 };
 
 class VertexPathAccessor : public IAccessor {
@@ -203,7 +200,7 @@ class VertexLabelVertexAccessor : public IAccessor {
     return RTAny();
   }
 
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx) const override {
+  RTAny eval_vertex(label_t label, vid_t v) const override {
     return RTAny::from_int64(label);
   }
 };
@@ -239,7 +236,7 @@ class VertexIdVertexAccessor : public IAccessor {
   using elem_t = VertexRecord;
   VertexIdVertexAccessor() {}
 
-  elem_t typed_eval_vertex(label_t label, vid_t v, size_t idx) const {
+  elem_t typed_eval_vertex(label_t label, vid_t v) const {
     return VertexRecord{label, v};
   }
 
@@ -248,15 +245,15 @@ class VertexIdVertexAccessor : public IAccessor {
     return RTAny();
   }
 
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx) const override {
-    return RTAny::from_vertex(typed_eval_vertex(label, v, idx));
+  RTAny eval_vertex(label_t label, vid_t v) const override {
+    return RTAny::from_vertex(typed_eval_vertex(label, v));
   }
 
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx, int) const override {
+  RTAny eval_vertex(label_t label, vid_t v, int) const override {
     if (v == std::numeric_limits<vid_t>::max()) {
       return RTAny(RTAnyType::kNull);
     }
-    return RTAny::from_vertex(typed_eval_vertex(label, v, idx));
+    return RTAny::from_vertex(typed_eval_vertex(label, v));
   }
 };
 
@@ -265,7 +262,7 @@ class VertexGIdVertexAccessor : public IAccessor {
   using elem_t = int64_t;
   VertexGIdVertexAccessor() {}
 
-  elem_t typed_eval_vertex(label_t label, vid_t v, size_t idx) const {
+  elem_t typed_eval_vertex(label_t label, vid_t v) const {
     return encode_unique_vertex_id(label, v);
   }
 
@@ -274,8 +271,8 @@ class VertexGIdVertexAccessor : public IAccessor {
     return RTAny();
   }
 
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx) const override {
-    return RTAny::from_int64(typed_eval_vertex(label, v, idx));
+  RTAny eval_vertex(label_t label, vid_t v) const override {
+    return RTAny::from_int64(typed_eval_vertex(label, v));
   }
 };
 
@@ -293,7 +290,7 @@ class VertexPropertyVertexAccessor : public IAccessor {
     }
   }
 
-  elem_t typed_eval_vertex(label_t label, vid_t v, size_t idx) const {
+  elem_t typed_eval_vertex(label_t label, vid_t v) const {
     if (property_columns_[label].is_null()) {
       return elem_t();
     }
@@ -305,14 +302,14 @@ class VertexPropertyVertexAccessor : public IAccessor {
     return RTAny();
   }
 
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx) const override {
+  RTAny eval_vertex(label_t label, vid_t v) const override {
     if (property_columns_[label].is_null()) {
       return RTAny();
     }
     return TypedConverter<T>::from_typed(property_columns_[label].get_view(v));
   }
 
-  RTAny eval_vertex(label_t label, vid_t v, size_t idx, int) const override {
+  RTAny eval_vertex(label_t label, vid_t v, int) const override {
     if (property_columns_[label].is_null()) {
       return RTAny(RTAnyType::kNull);
     }
@@ -505,7 +502,7 @@ class EdgePropertyEdgeAccessor : public IAccessor {
                            const std::string& name) {}
 
   elem_t typed_eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& data, size_t idx) const {
+                         const Any& data) const {
     T ret;
     ConvertAny<T>::to(data, ret);
     return ret;
@@ -517,7 +514,7 @@ class EdgePropertyEdgeAccessor : public IAccessor {
   }
 
   RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& data, size_t idx) const override {
+                  const Any& data) const override {
     return RTAny(data);
   }
 };
@@ -560,7 +557,7 @@ class MultiPropsEdgePropertyEdgeAccessor : public IAccessor {
   }
 
   elem_t typed_eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& data, size_t idx) const {
+                         const Any& data) const {
     T ret;
     if (data.type != PropertyType::RecordView()) {
       assert(get_index(label) == 0);
@@ -580,8 +577,8 @@ class MultiPropsEdgePropertyEdgeAccessor : public IAccessor {
   }
 
   RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& data, size_t idx) const override {
-    return RTAny(typed_eval_edge(label, src, dst, data, idx));
+                  const Any& data) const override {
+    return RTAny(typed_eval_edge(label, src, dst, data));
   }
 
   size_t get_index(const LabelTriplet& label) const {
@@ -606,20 +603,19 @@ class ParamAccessor : public IAccessor {
   }
 
   T typed_eval_path(size_t) const { return val_; }
-  T typed_eval_vertex(label_t, vid_t, size_t) const { return val_; }
-  T typed_eval_edge(const LabelTriplet&, vid_t, vid_t, const Any&,
-                    size_t) const {
+  T typed_eval_vertex(label_t, vid_t) const { return val_; }
+  T typed_eval_edge(const LabelTriplet&, vid_t, vid_t, const Any&) const {
     return val_;
   }
 
   RTAny eval_path(size_t) const override {
     return TypedConverter<T>::from_typed(val_);
   }
-  RTAny eval_vertex(label_t, vid_t, size_t) const override {
+  RTAny eval_vertex(label_t, vid_t) const override {
     return TypedConverter<T>::from_typed(val_);
   }
-  RTAny eval_edge(const LabelTriplet&, vid_t, vid_t, const Any&,
-                  size_t) const override {
+  RTAny eval_edge(const LabelTriplet&, vid_t, vid_t,
+                  const Any&) const override {
     return TypedConverter<T>::from_typed(val_);
   }
 
@@ -676,12 +672,12 @@ class ConstAccessor : public IAccessor {
     return TypedConverter<T>::from_typed(val_);
   }
 
-  RTAny eval_vertex(label_t, vid_t, size_t) const override {
+  RTAny eval_vertex(label_t, vid_t) const override {
     return TypedConverter<T>::from_typed(val_);
   }
 
-  RTAny eval_edge(const LabelTriplet&, vid_t, vid_t, const Any&,
-                  size_t) const override {
+  RTAny eval_edge(const LabelTriplet&, vid_t, vid_t,
+                  const Any&) const override {
     return TypedConverter<T>::from_typed(val_);
   }
 

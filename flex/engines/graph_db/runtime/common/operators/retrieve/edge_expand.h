@@ -89,7 +89,7 @@ class EdgeExpand {
                          while (ie_iter.IsValid()) {
                            auto nbr = ie_iter.GetNeighbor();
                            if (pred(params.labels[0], nbr, v, ie_iter.GetData(),
-                                    Direction::kIn, index)) {
+                                    Direction::kIn)) {
                              assert(ie_iter.GetData().type == pt);
                              builder.push_back_opt(nbr, v, ie_iter.GetData());
                              shuffle_offset.push_back(index);
@@ -132,7 +132,7 @@ class EdgeExpand {
                          while (oe_iter.IsValid()) {
                            auto nbr = oe_iter.GetNeighbor();
                            if (pred(params.labels[0], v, nbr, oe_iter.GetData(),
-                                    Direction::kOut, index)) {
+                                    Direction::kOut)) {
                              assert(oe_iter.GetData().type == pt);
                              builder.push_back_opt(v, nbr, oe_iter.GetData());
                              shuffle_offset.push_back(index);
@@ -169,7 +169,7 @@ class EdgeExpand {
                 while (oe_iter.IsValid()) {
                   auto nbr = oe_iter.GetNeighbor();
                   if (pred(params.labels[0], v, nbr, oe_iter.GetData(),
-                           Direction::kOut, index)) {
+                           Direction::kOut)) {
                     assert(oe_iter.GetData().type == pt);
                     builder.push_back_opt(v, nbr, oe_iter.GetData(),
                                           Direction::kOut);
@@ -184,7 +184,7 @@ class EdgeExpand {
                 while (ie_iter.IsValid()) {
                   auto nbr = ie_iter.GetNeighbor();
                   if (pred(params.labels[0], nbr, v, ie_iter.GetData(),
-                           Direction::kIn, index)) {
+                           Direction::kIn)) {
                     assert(ie_iter.GetData().type == pt);
                     builder.push_back_opt(nbr, v, ie_iter.GetData(),
                                           Direction::kIn);
@@ -215,42 +215,40 @@ class EdgeExpand {
         }
         auto builder = BDMLEdgeColumnBuilder::builder(label_props);
 
-        foreach_vertex(
-            input_vertex_list, [&](size_t index, label_t label, vid_t v) {
-              for (auto& label_prop : label_props) {
-                auto& triplet = label_prop.first;
-                if (label == triplet.src_label) {
-                  auto oe_iter = graph.GetOutEdgeIterator(
-                      label, v, triplet.dst_label, triplet.edge_label);
-                  while (oe_iter.IsValid()) {
-                    auto nbr = oe_iter.GetNeighbor();
-                    if (pred(triplet, v, nbr, oe_iter.GetData(),
-                             Direction::kOut, index)) {
-                      assert(oe_iter.GetData().type == label_prop.second);
-                      builder.push_back_opt(triplet, v, nbr, oe_iter.GetData(),
-                                            Direction::kOut);
-                      shuffle_offset.push_back(index);
-                    }
-                    oe_iter.Next();
-                  }
+        foreach_vertex(input_vertex_list, [&](size_t index, label_t label,
+                                              vid_t v) {
+          for (auto& label_prop : label_props) {
+            auto& triplet = label_prop.first;
+            if (label == triplet.src_label) {
+              auto oe_iter = graph.GetOutEdgeIterator(
+                  label, v, triplet.dst_label, triplet.edge_label);
+              while (oe_iter.IsValid()) {
+                auto nbr = oe_iter.GetNeighbor();
+                if (pred(triplet, v, nbr, oe_iter.GetData(), Direction::kOut)) {
+                  assert(oe_iter.GetData().type == label_prop.second);
+                  builder.push_back_opt(triplet, v, nbr, oe_iter.GetData(),
+                                        Direction::kOut);
+                  shuffle_offset.push_back(index);
                 }
-                if (label == triplet.dst_label) {
-                  auto ie_iter = graph.GetInEdgeIterator(
-                      label, v, triplet.src_label, triplet.edge_label);
-                  while (ie_iter.IsValid()) {
-                    auto nbr = ie_iter.GetNeighbor();
-                    if (pred(triplet, nbr, v, ie_iter.GetData(), Direction::kIn,
-                             index)) {
-                      assert(ie_iter.GetData().type == label_prop.second);
-                      builder.push_back_opt(triplet, nbr, v, ie_iter.GetData(),
-                                            Direction::kIn);
-                      shuffle_offset.push_back(index);
-                    }
-                    ie_iter.Next();
-                  }
-                }
+                oe_iter.Next();
               }
-            });
+            }
+            if (label == triplet.dst_label) {
+              auto ie_iter = graph.GetInEdgeIterator(
+                  label, v, triplet.src_label, triplet.edge_label);
+              while (ie_iter.IsValid()) {
+                auto nbr = ie_iter.GetNeighbor();
+                if (pred(triplet, nbr, v, ie_iter.GetData(), Direction::kIn)) {
+                  assert(ie_iter.GetData().type == label_prop.second);
+                  builder.push_back_opt(triplet, nbr, v, ie_iter.GetData(),
+                                        Direction::kIn);
+                  shuffle_offset.push_back(index);
+                }
+                ie_iter.Next();
+              }
+            }
+          }
+        });
         ctx.set_with_reshuffle(params.alias, builder.finish(nullptr),
                                shuffle_offset);
         return ctx;
@@ -270,26 +268,25 @@ class EdgeExpand {
         auto builder =
             SDMLEdgeColumnBuilder::builder(Direction::kOut, label_props);
 
-        foreach_vertex(
-            input_vertex_list, [&](size_t index, label_t label, vid_t v) {
-              for (auto& label_prop : label_props) {
-                auto& triplet = label_prop.first;
-                if (label != triplet.src_label)
-                  continue;
-                auto oe_iter = graph.GetOutEdgeIterator(
-                    label, v, triplet.dst_label, triplet.edge_label);
-                while (oe_iter.IsValid()) {
-                  auto nbr = oe_iter.GetNeighbor();
-                  if (pred(triplet, v, nbr, oe_iter.GetData(), Direction::kOut,
-                           index)) {
-                    assert(oe_iter.GetData().type == label_prop.second);
-                    builder.push_back_opt(triplet, v, nbr, oe_iter.GetData());
-                    shuffle_offset.push_back(index);
-                  }
-                  oe_iter.Next();
-                }
+        foreach_vertex(input_vertex_list, [&](size_t index, label_t label,
+                                              vid_t v) {
+          for (auto& label_prop : label_props) {
+            auto& triplet = label_prop.first;
+            if (label != triplet.src_label)
+              continue;
+            auto oe_iter = graph.GetOutEdgeIterator(label, v, triplet.dst_label,
+                                                    triplet.edge_label);
+            while (oe_iter.IsValid()) {
+              auto nbr = oe_iter.GetNeighbor();
+              if (pred(triplet, v, nbr, oe_iter.GetData(), Direction::kOut)) {
+                assert(oe_iter.GetData().type == label_prop.second);
+                builder.push_back_opt(triplet, v, nbr, oe_iter.GetData());
+                shuffle_offset.push_back(index);
               }
-            });
+              oe_iter.Next();
+            }
+          }
+        });
         ctx.set_with_reshuffle(params.alias, builder.finish(nullptr),
                                shuffle_offset);
         return ctx;
@@ -309,26 +306,25 @@ class EdgeExpand {
         auto builder =
             SDMLEdgeColumnBuilder::builder(Direction::kIn, label_props);
 
-        foreach_vertex(
-            input_vertex_list, [&](size_t index, label_t label, vid_t v) {
-              for (auto& label_prop : label_props) {
-                auto& triplet = label_prop.first;
-                if (label != triplet.dst_label)
-                  continue;
-                auto ie_iter = graph.GetInEdgeIterator(
-                    label, v, triplet.src_label, triplet.edge_label);
-                while (ie_iter.IsValid()) {
-                  auto nbr = ie_iter.GetNeighbor();
-                  if (pred(triplet, nbr, v, ie_iter.GetData(), Direction::kIn,
-                           index)) {
-                    assert(ie_iter.GetData().type == label_prop.second);
-                    builder.push_back_opt(triplet, nbr, v, ie_iter.GetData());
-                    shuffle_offset.push_back(index);
-                  }
-                  ie_iter.Next();
-                }
+        foreach_vertex(input_vertex_list, [&](size_t index, label_t label,
+                                              vid_t v) {
+          for (auto& label_prop : label_props) {
+            auto& triplet = label_prop.first;
+            if (label != triplet.dst_label)
+              continue;
+            auto ie_iter = graph.GetInEdgeIterator(label, v, triplet.src_label,
+                                                   triplet.edge_label);
+            while (ie_iter.IsValid()) {
+              auto nbr = ie_iter.GetNeighbor();
+              if (pred(triplet, nbr, v, ie_iter.GetData(), Direction::kIn)) {
+                assert(ie_iter.GetData().type == label_prop.second);
+                builder.push_back_opt(triplet, nbr, v, ie_iter.GetData());
+                shuffle_offset.push_back(index);
               }
-            });
+              ie_iter.Next();
+            }
+          }
+        });
         ctx.set_with_reshuffle(params.alias, builder.finish(nullptr),
                                shuffle_offset);
         return ctx;
@@ -401,8 +397,7 @@ class EdgeExpand {
     SPVPWrapper(const PRED_T& pred) : pred_(pred) {}
 
     inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                           const Any& edata, Direction dir,
-                           size_t path_idx) const {
+                           const Any& edata, Direction dir) const {
       if (dir == Direction::kOut) {
         return pred_(label.dst_label, dst);
       } else {
@@ -472,35 +467,36 @@ class EdgeExpand {
     static thread_local std::vector<vid_t> d0_vec;
 
     d0_set.Init(graph.GetVertexSet(d0_nbr_label), false);
-    for (auto v : casted_input_vertex_list->vertices()) {
-      if (LT) {
-        csr0.foreach_edges_lt(v, param, [&](vid_t u, const Date& date) {
-          d0_set[u] = true;
-          d0_vec.push_back(u);
-        });
-      } else {
-        csr0.foreach_edges_gt(v, param, [&](vid_t u, const Date& date) {
-          d0_set[u] = true;
-          d0_vec.push_back(u);
-        });
-      }
-      for (auto& e1 : csr1.get_edges(v)) {
-        auto nbr1 = e1.get_neighbor();
-        for (auto& e2 : csr2.get_edges(nbr1)) {
-          auto nbr2 = e2.get_neighbor();
-          if (d0_set[nbr2]) {
-            builder1.push_back_opt(nbr1);
-            builder2.push_back_opt(nbr2);
-            offsets.push_back(idx);
+    casted_input_vertex_list->foreach_vertex(
+        [&](size_t index, label_t label, vid_t v) {
+          if (LT) {
+            csr0.foreach_edges_lt(v, param, [&](vid_t u, const Date& date) {
+              d0_set[u] = true;
+              d0_vec.push_back(u);
+            });
+          } else {
+            csr0.foreach_edges_gt(v, param, [&](vid_t u, const Date& date) {
+              d0_set[u] = true;
+              d0_vec.push_back(u);
+            });
           }
-        }
-      }
-      for (auto u : d0_vec) {
-        d0_set[u] = false;
-      }
-      d0_vec.clear();
-      ++idx;
-    }
+          for (auto& e1 : csr1.get_edges(v)) {
+            auto nbr1 = e1.get_neighbor();
+            for (auto& e2 : csr2.get_edges(nbr1)) {
+              auto nbr2 = e2.get_neighbor();
+              if (d0_set[nbr2]) {
+                builder1.push_back_opt(nbr1);
+                builder2.push_back_opt(nbr2);
+                offsets.push_back(idx);
+              }
+            }
+          }
+          for (auto u : d0_vec) {
+            d0_set[u] = false;
+          }
+          d0_vec.clear();
+          ++idx;
+        });
 
     std::shared_ptr<IContextColumn> col1 = builder1.finish(nullptr);
     std::shared_ptr<IContextColumn> col2 = builder2.finish(nullptr);

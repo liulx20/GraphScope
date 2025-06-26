@@ -73,12 +73,11 @@ bool edge_expand_get_v_fusable(const physical::EdgeExpand& ee_opr,
 struct VertexPredicateWrapper {
   VertexPredicateWrapper(const GeneralVertexPredicate& pred) : pred_(pred) {}
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir,
-                         size_t path_idx) const {
+                         const Any& edata, Direction dir) const {
     if (dir == Direction::kOut) {
-      return pred_(label.dst_label, dst, path_idx, arena_);
+      return pred_(label.dst_label, dst, arena_);
     } else {
-      return pred_(label.src_label, src, path_idx, arena_);
+      return pred_(label.src_label, src, arena_);
     }
   }
   mutable Arena arena_;
@@ -91,14 +90,13 @@ struct VertexEdgePredicateWrapper {
       : v_pred_(v_pred), e_pred_(e_pred) {}
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir,
-                         size_t path_idx) const {
+                         const Any& edata, Direction dir) const {
     if (dir == Direction::kOut) {
-      return v_pred_(label.dst_label, dst, path_idx, arena_) &&
-             e_pred_(label, src, dst, edata, dir, path_idx, arena_);
+      return v_pred_(label.dst_label, dst, arena_) &&
+             e_pred_(label, src, dst, edata, dir, arena_);
     } else {
-      return v_pred_(label.src_label, src, path_idx, arena_) &&
-             e_pred_(label, src, dst, edata, dir, path_idx, arena_);
+      return v_pred_(label.src_label, src, arena_) &&
+             e_pred_(label, src, dst, edata, dir, arena_);
     }
   }
 
@@ -114,14 +112,13 @@ struct ExactVertexEdgePredicateWrapper {
       : v_pred_(v_pred), e_pred_(e_pred) {}
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir,
-                         size_t path_idx) const {
+                         const Any& edata, Direction dir) const {
     if (dir == Direction::kOut) {
-      return v_pred_(label.dst_label, dst, path_idx) &&
-             e_pred_(label, src, dst, edata, dir, path_idx, arena_);
+      return v_pred_(label.dst_label, dst) &&
+             e_pred_(label, src, dst, edata, dir, arena_);
     } else {
-      return v_pred_(label.src_label, src, path_idx) &&
-             e_pred_(label, src, dst, edata, dir, path_idx, arena_);
+      return v_pred_(label.src_label, src) &&
+             e_pred_(label, src, dst, edata, dir, arena_);
     }
   }
 
@@ -135,12 +132,11 @@ struct ExactVertexPredicateWrapper {
   ExactVertexPredicateWrapper(const ExactVertexPredicate& pred) : pred_(pred) {}
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir,
-                         size_t path_idx) const {
+                         const Any& edata, Direction dir) const {
     if (dir == Direction::kOut) {
-      return pred_(label.dst_label, dst, path_idx);
+      return pred_(label.dst_label, dst);
     } else {
-      return pred_(label.src_label, src, path_idx);
+      return pred_(label.src_label, src);
     }
   }
 
@@ -151,9 +147,8 @@ struct GeneralEdgePredicateWrapper {
   GeneralEdgePredicateWrapper(const GeneralEdgePredicate& pred) : pred_(pred) {}
 
   inline bool operator()(const LabelTriplet& label, vid_t src, vid_t dst,
-                         const Any& edata, Direction dir,
-                         size_t path_idx) const {
-    return pred_(label, src, dst, edata, dir, path_idx, arena_);
+                         const Any& edata, Direction dir) const {
+    return pred_(label, src, dst, edata, dir, arena_);
   }
 
   mutable Arena arena_;

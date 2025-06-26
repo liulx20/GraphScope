@@ -57,8 +57,8 @@ class GetVFromVerticesWithLabelWithInOpr : public IReadOperator {
                                   opr_.params().predicate());
       return GetV::get_vertex_from_vertices(
           graph, std::move(ctx), v_params_,
-          [&arena, &pred](label_t label, vid_t v, size_t idx) {
-            return pred(label, v, idx, arena);
+          [&arena, &pred](label_t label, vid_t v) {
+            return pred(label, v, arena);
           });
     }
   }
@@ -120,8 +120,8 @@ class GetVFromVerticesWithPredicateOpr : public IReadOperator {
     Arena arena;
     return GetV::get_vertex_from_vertices(
         graph, std::move(ctx), v_params_,
-        [&arena, &pred](label_t label, vid_t v, size_t idx) {
-          return pred(label, v, idx, arena);
+        [&arena, &pred](label_t label, vid_t v) {
+          return pred(label, v, arena);
         });
   }
 
@@ -134,12 +134,12 @@ struct GeneralVertexPredicateWrapper {
   GeneralVertexPredicateWrapper(const GeneralVertexPredicate& pred)
       : pred_(pred) {}
 
-  inline bool operator()(label_t label, vid_t v, size_t path_idx, int) const {
-    return pred_(label, v, path_idx, arena_, 0);
+  inline bool operator()(label_t label, vid_t v, int) const {
+    return pred_(label, v, arena_, 0);
   }
 
-  inline bool operator()(label_t label, vid_t v, size_t path_idx) const {
-    return pred_(label, v, path_idx, arena_);
+  inline bool operator()(label_t label, vid_t v) const {
+    return pred_(label, v, arena_);
   }
   mutable Arena arena_;
 

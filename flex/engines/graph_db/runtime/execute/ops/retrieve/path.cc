@@ -259,6 +259,7 @@ static bool is_shortest_path(const physical::PhysicalPlan& plan, int i) {
   return false;
 }
 
+/**
 class SPOrderByLimitOpr : public IReadOperator {
  public:
   SPOrderByLimitOpr(
@@ -311,6 +312,9 @@ class SPOrderByLimitOpr : public IReadOperator {
       const gs::runtime::GraphReadInterface& graph,
       const std::map<std::string, std::string>& params,
       gs::runtime::Context&& ctx, gs::runtime::OprTimer& timer) override {
+    LOG(FATAL) << "SPOrderByLimitOpr should not be called directly, "
+               << "use SPOrderByLimitWithOutPredOpr or "
+               << "SPOrderByLimitWithGPredOpr instead";
     auto sp_vertex_pred = pred_(graph, params);
     bl::result<gs::runtime::Context> ret;
     if (sp_vertex_pred->data_type() == RTAnyType::kStringValue) {
@@ -340,7 +344,7 @@ class SPOrderByLimitOpr : public IReadOperator {
   std::function<std::unique_ptr<SPVertexPredicate>(
       const GraphReadInterface&, const std::map<std::string, std::string>&)>
       pred_;
-};
+};*/
 
 class SPOrderByLimitWithOutPredOpr : public IReadOperator {
  public:
@@ -383,7 +387,7 @@ class SPOrderByLimitWithGPredOpr : public IReadOperator {
                                    VarType::kVertexVar);
     Arena arena;
     auto pred = [&v_pred, &arena](label_t label, vid_t vid) {
-      return v_pred->eval_vertex(label, vid, 0, arena).as_bool();
+      return v_pred->eval_vertex(label, vid, arena).as_bool();
     };
 
     return PathExpand::single_source_shortest_path_with_order_by_length_limit(
@@ -432,18 +436,18 @@ bl::result<ReadOpBuildResultT> SPOrderByLimitOprBuilder::Build(
     }
     const auto& get_v_opr = plan.plan(op_idx + 2).opr().vertex();
     if (get_v_opr.has_params() && get_v_opr.params().has_predicate()) {
-      auto sp_vertex_pred =
-          parse_special_vertex_predicate(get_v_opr.params().predicate());
-      if (sp_vertex_pred.has_value()) {
-        return std::make_pair(std::make_unique<SPOrderByLimitOpr>(
-                                  spp, limit_upper, sp_vertex_pred.value()),
-                              ret_meta);
-      } else {
-        return std::make_pair(
-            std::make_unique<SPOrderByLimitWithGPredOpr>(
-                spp, limit_upper, get_v_opr.params().predicate()),
-            ret_meta);
-      }
+      /** auto sp_vertex_pred =
+           parse_special_vertex_predicate(get_v_opr.params().predicate());
+       if (sp_vertex_pred.has_value()) {
+         return std::make_pair(std::make_unique<SPOrderByLimitOpr>(
+                                   spp, limit_upper, sp_vertex_pred.value()),
+                               ret_meta);
+       } else {*/
+      return std::make_pair(
+          std::make_unique<SPOrderByLimitWithGPredOpr>(
+              spp, limit_upper, get_v_opr.params().predicate()),
+          ret_meta);
+      //}
     } else {
       return std::make_pair(
           std::make_unique<SPOrderByLimitWithOutPredOpr>(spp, limit_upper),
@@ -454,7 +458,7 @@ bl::result<ReadOpBuildResultT> SPOrderByLimitOprBuilder::Build(
   }
 }
 
-class SPSPredOpr : public IReadOperator {
+/**class SPSPredOpr : public IReadOperator {
  public:
   SPSPredOpr(
       const ShortestPathParams& spp,
@@ -470,6 +474,8 @@ class SPSPredOpr : public IReadOperator {
       const std::map<std::string, std::string>& params,
       gs::runtime::Context&& ctx, gs::runtime::OprTimer& timer) override {
     auto sp_vertex_pred = pred_(graph, params);
+    LOG(FATAL) << "SPSPredOpr should not be used in production code, "
+               << "it is only for testing purpose";
     return PathExpand::
         single_source_shortest_path_with_special_vertex_predicate(
             graph, std::move(ctx), spp_, *sp_vertex_pred);
@@ -480,9 +486,9 @@ class SPSPredOpr : public IReadOperator {
   std::function<std::unique_ptr<SPVertexPredicate>(
       const GraphReadInterface&, const std::map<std::string, std::string>&)>
       pred_;
-};
+};*/
 
-class SPGPredOpr : public IReadOperator {
+/**class SPGPredOpr : public IReadOperator {
  public:
   SPGPredOpr(const ShortestPathParams& spp, const common::Expression& pred)
       : spp_(spp), pred_(pred) {}
@@ -497,7 +503,7 @@ class SPGPredOpr : public IReadOperator {
                                       VarType::kVertexVar);
     Arena arena;
     auto pred = [&arena, &predicate](label_t label, vid_t v) {
-      return predicate->eval_vertex(label, v, 0, arena).as_bool();
+      return predicate->eval_vertex(label, v, arena).as_bool();
     };
 
     return PathExpand::single_source_shortest_path(graph, std::move(ctx), spp_,
@@ -507,7 +513,7 @@ class SPGPredOpr : public IReadOperator {
  private:
   ShortestPathParams spp_;
   common::Expression pred_;
-};
+};*/
 class SPWithoutPredOpr : public IReadOperator {
  public:
   SPWithoutPredOpr(const ShortestPathParams& spp) : spp_(spp) {}
@@ -663,22 +669,24 @@ bl::result<ReadOpBuildResultT> SPOprBuilder::Build(
       return std::make_pair(std::make_unique<SSSDSPOpr>(spp, oid_getter),
                             ret_meta);
     } else {
-      if (vertex.has_params() && vertex.params().has_predicate()) {
-        auto sp_vertex_pred =
-            parse_special_vertex_predicate(vertex.params().predicate());
-        if (sp_vertex_pred.has_value()) {
-          return std::make_pair(
-              std::make_unique<SPSPredOpr>(spp, sp_vertex_pred.value()),
-              ret_meta);
-        } else {
-          return std::make_pair(
-              std::make_unique<SPGPredOpr>(spp, vertex.params().predicate()),
-              ret_meta);
-        }
-      } else {
-        return std::make_pair(std::make_unique<SPWithoutPredOpr>(spp),
-                              ret_meta);
-      }
+      CHECK(!vertex.params().has_predicate())
+          << "Currently only support "
+             "shortest path without predicate";
+      /** if (vertex.has_params() && vertex.params().has_predicate()) {
+         auto sp_vertex_pred =
+             parse_special_vertex_predicate(vertex.params().predicate());
+         if (sp_vertex_pred.has_value()) {
+           return std::make_pair(
+               std::make_unique<SPSPredOpr>(spp, sp_vertex_pred.value()),
+               ret_meta);
+         } else {
+           return std::make_pair(
+               std::make_unique<SPGPredOpr>(spp, vertex.params().predicate()),
+               ret_meta);
+         }
+       } else {*/
+      return std::make_pair(std::make_unique<SPWithoutPredOpr>(spp), ret_meta);
+      //}
     }
   } else if (is_all_shortest_path(plan, op_idx)) {
     auto vertex = plan.plan(op_idx + 2).opr().vertex();
