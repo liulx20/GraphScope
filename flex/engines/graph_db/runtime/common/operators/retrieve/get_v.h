@@ -467,7 +467,7 @@ class GetV {
                      });
       ctx.reshuffle(offset);
     } else {
-      const std::set<label_t>& label_set = input_vertex_list.get_labels_set();
+      const auto& label_set = input_vertex_list.get_labels_set();
       if (label_set.size() == 1) {
         auto builder = SLVertexColumnBuilder::builder(*label_set.begin());
         foreach_vertex(input_vertex_list,

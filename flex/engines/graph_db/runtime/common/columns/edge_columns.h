@@ -15,10 +15,10 @@
 #ifndef RUNTIME_COMMON_COLUMNS_EDGE_COLUMNS_H_
 #define RUNTIME_COMMON_COLUMNS_EDGE_COLUMNS_H_
 
+#include <variant>
 #include "flex/engines/graph_db/runtime/common/columns/columns_utils.h"
 #include "flex/engines/graph_db/runtime/common/columns/i_context_column.h"
 #include "flex/utils/property/column.h"
-
 namespace gs {
 
 namespace runtime {
@@ -66,7 +66,7 @@ struct edge_property_vec {
     }
   }
 
-  EdgeData get(size_t idx) const {
+  inline EdgeData get(size_t idx) const {
     return std::visit(
         [idx](const auto& col) { return EdgeData(col.get_view(idx)); },
         edge_col_);
@@ -80,7 +80,7 @@ struct edge_property_vec {
 
   inline void set_edge_data(const EdgeData& edge_record, size_t idx) {
     std::visit(
-        [idx, edge_record](auto& col) {
+        [idx, &edge_record](auto& col) {
           using T = typename std::decay_t<decltype(col)>::EdgeDataType;
           col.set(idx, edge_record.as<T>());
         },

@@ -221,19 +221,18 @@ expand_vertex_np_me_sp(
 
     col = builder.finish(nullptr);
   } else {
-    auto builder = MSVertexColumnBuilder::builder();
+    auto builder = MLVertexColumnBuilder::builder();
     size_t csr_idx = 0;
     for (auto& csr : views) {
       label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
       label_t edge_label = std::get<1>(label_dirs[csr_idx]);
       Direction dir = std::get<2>(label_dirs[csr_idx]);
-      builder.start_label(nbr_label);
       input.foreach_vertex([&](size_t idx, label_t l, vid_t v) {
         auto es = csr.get_edges(v);
         for (auto& e : es) {
           if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label, dir,
                    e.get_data())) {
-            builder.push_back_opt(e.get_neighbor());
+            builder.push_back_opt(nbr_label, e.get_neighbor());
             offsets.push_back(idx);
           }
         }
@@ -484,7 +483,7 @@ expand_vertex_np_se(
   }
   return std::make_pair(col, std::move(offsets));
 }
-
+/**
 template <typename EDATA_T, typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_np_se(
@@ -578,7 +577,7 @@ expand_vertex_np_se(
   }
   return std::make_pair(col, std::move(offsets));
 }
-
+*/
 template <typename EDATA_T, typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_np_me_sp(
@@ -761,6 +760,7 @@ expand_vertex_np_me_sp_optional(
   }
   return std::make_pair(col, std::move(offsets));
 }
+/**
 template <typename EDATA_T, typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_np_me_sp(
@@ -841,7 +841,7 @@ expand_vertex_np_me_sp(
     col = builder.finish(nullptr);
   }
   return std::make_pair(col, std::move(offsets));
-}
+}*/
 
 template <typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
@@ -873,7 +873,7 @@ expand_vertex_np_me_mp(
   });
   return std::make_pair(builder.finish(nullptr), std::move(offsets));
 }
-
+/**
 template <typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_np_me_mp(
@@ -905,7 +905,7 @@ expand_vertex_np_me_mp(
     }
   });
   return std::make_pair(builder.finish(nullptr), std::move(offsets));
-}
+}*/
 
 template <typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
@@ -1106,7 +1106,7 @@ std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_impl(const GraphReadInterface& graph, const MLVertexColumn& input,
                    const std::vector<LabelTriplet>& labels, Direction dir,
                    const GPRED_T& gpred) {
-  const std::set<label_t>& input_labels = input.get_labels_set();
+  const auto& input_labels = input.get_labels_set();
   int label_num = graph.schema().vertex_label_num();
   std::vector<std::vector<std::tuple<label_t, label_t, Direction>>> label_dirs(
       label_num);
@@ -1211,6 +1211,7 @@ expand_vertex_impl(const GraphReadInterface& graph, const MLVertexColumn& input,
       graph, input, label_dirs, GPredWrapper<GPRED_T, Any>(gpred));
 }
 
+/**
 template <typename GPRED_T>
 std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_impl(const GraphReadInterface& graph, const MSVertexColumn& input,
@@ -1319,7 +1320,7 @@ expand_vertex_impl(const GraphReadInterface& graph, const MSVertexColumn& input,
   }
   return expand_vertex_np_me_mp<GPredWrapper<GPRED_T, Any>>(
       graph, input, label_dirs, GPredWrapper<GPRED_T, Any>(gpred));
-}
+}*/
 
 std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
@@ -1341,12 +1342,12 @@ std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_without_predicate_optional_impl(
     const GraphReadInterface& graph, const MLVertexColumnBase& input,
     const std::vector<LabelTriplet>& labels, Direction dir);
-
+/**
 std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>
 expand_vertex_without_predicate_impl(const GraphReadInterface& graph,
                                      const MSVertexColumn& input,
                                      const std::vector<LabelTriplet>& labels,
-                                     Direction dir);
+                                     Direction dir);*/
 
 template <typename EDATA_T, typename PRED_T>
 inline std::pair<std::shared_ptr<IContextColumn>, std::vector<size_t>>

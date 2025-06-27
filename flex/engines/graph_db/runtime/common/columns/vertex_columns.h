@@ -46,7 +46,7 @@ class IVertexColumn : public IContextColumn {
 
   RTAnyType elem_type() const override { return RTAnyType::kVertex; }
 
-  virtual std::set<label_t> get_labels_set() const = 0;
+  virtual std::unordered_set<label_t> get_labels_set() const = 0;
 };
 
 class IVertexColumnBuilder : public IContextColumnBuilder {
@@ -113,8 +113,8 @@ class SLVertexColumn : public SLVertexColumnBase {
     }
   }
 
-  std::set<label_t> get_labels_set() const override {
-    std::set<label_t> ret;
+  std::unordered_set<label_t> get_labels_set() const override {
+    std::unordered_set<label_t> ret;
     ret.insert(label_);
     return ret;
   }
@@ -136,7 +136,8 @@ class SLVertexColumnBuilder : public IVertexColumnBuilder {
   static SLVertexColumnBuilder builder(label_t label) {
     return SLVertexColumnBuilder(label);
   }
-  static SLVertexColumnBuilder builder(const std::set<label_t>& labels) {
+  static SLVertexColumnBuilder builder(
+      const std::unordered_set<label_t>& labels) {
     return SLVertexColumnBuilder(labels);
   }
 
@@ -146,7 +147,7 @@ class SLVertexColumnBuilder : public IVertexColumnBuilder {
     return builder;
   }
   static SLVertexColumnBuilder optional_builder(
-      const std::set<label_t>& labels) {
+      const std::unordered_set<label_t>& labels) {
     SLVertexColumnBuilder builder(labels);
     builder.is_optional_ = true;
     return builder;
@@ -171,7 +172,7 @@ class SLVertexColumnBuilder : public IVertexColumnBuilder {
 
  private:
   SLVertexColumnBuilder(label_t label) : label_(label), is_optional_(false) {}
-  SLVertexColumnBuilder(const std::set<label_t>& labels)
+  SLVertexColumnBuilder(const std::unordered_set<label_t>& labels)
       : label_(*labels.begin()), is_optional_(false) {
     assert(labels.size() == 1);
   }
@@ -221,7 +222,9 @@ class OptionalSLVertexColumn : public SLVertexColumnBase {
     }
   }
 
-  std::set<label_t> get_labels_set() const override { return {label_}; }
+  std::unordered_set<label_t> get_labels_set() const override {
+    return {label_};
+  }
 
   ISigColumn* generate_signature() const override;
 
@@ -229,127 +232,6 @@ class OptionalSLVertexColumn : public SLVertexColumnBase {
   friend class SLVertexColumnBuilder;
   label_t label_;
   std::vector<vid_t> vertices_;
-};
-
-class MSVertexColumnBuilder;
-class MSVertexColumn : public IVertexColumn {
- public:
-  MSVertexColumn() = default;
-  ~MSVertexColumn() = default;
-
-  size_t size() const override {
-    size_t ret = 0;
-    for (auto& pair : vertices_) {
-      ret += pair.second.size();
-    }
-    return ret;
-  }
-
-  std::string column_info() const override {
-    std::string labels;
-    for (auto label : labels_) {
-      labels += std::to_string(label);
-      labels += ", ";
-    }
-    if (!labels.empty()) {
-      labels.resize(labels.size() - 2);
-    }
-    return "MSVertexColumn(" + labels + ")[" + std::to_string(size()) + "]";
-  }
-
-  inline VertexColumnType vertex_column_type() const override {
-    return VertexColumnType::kMultiSegment;
-  }
-
-  std::shared_ptr<IContextColumn> shuffle(
-      const std::vector<size_t>& offsets) const override;
-
-  inline VertexRecord get_vertex(size_t idx) const override {
-    for (auto& pair : vertices_) {
-      if (idx < pair.second.size()) {
-        return {pair.first, pair.second[idx]};
-      }
-      idx -= pair.second.size();
-    }
-    LOG(FATAL) << "not found...";
-    return {std::numeric_limits<label_t>::max(),
-            std::numeric_limits<vid_t>::max()};
-  }
-
-  template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func) const {
-    size_t index = 0;
-    for (auto& pair : vertices_) {
-      label_t label = pair.first;
-      for (auto v : pair.second) {
-        func(index++, label, v);
-      }
-    }
-  }
-
-  std::set<label_t> get_labels_set() const override { return labels_; }
-
-  ISigColumn* generate_signature() const override;
-
-  inline size_t seg_num() const { return vertices_.size(); }
-
-  inline label_t seg_label(size_t seg_id) const {
-    return vertices_[seg_id].first;
-  }
-
-  const std::vector<vid_t>& seg_vertices(size_t seg_id) const {
-    return vertices_[seg_id].second;
-  }
-
- private:
-  friend class MSVertexColumnBuilder;
-  std::vector<std::pair<label_t, std::vector<vid_t>>> vertices_;
-  std::set<label_t> labels_;
-};
-
-class MSVertexColumnBuilder : public IVertexColumnBuilder {
- public:
-  static MSVertexColumnBuilder builder() { return MSVertexColumnBuilder(); }
-  ~MSVertexColumnBuilder() = default;
-  void reserve(size_t size) override {}
-
-  inline void push_back_vertex(VertexRecord v) override {
-    if (v.label_ == cur_label_) {
-      cur_list_.push_back(v.vid_);
-    } else {
-      if (!cur_list_.empty()) {
-        vertices_.emplace_back(cur_label_, std::move(cur_list_));
-        cur_list_.clear();
-      }
-      cur_label_ = v.label_;
-      cur_list_.push_back(v.vid_);
-    }
-  }
-
-  void start_label(label_t label) {
-    if (!cur_list_.empty() && cur_label_ != label) {
-      vertices_.emplace_back(cur_label_, std::move(cur_list_));
-      cur_list_.clear();
-    }
-    cur_label_ = label;
-  }
-
-  inline void push_back_opt(vid_t v) { cur_list_.push_back(v); }
-
-  inline void push_back_null() override {
-    LOG(FATAL) << "MSVertexColumnBuilder does not support null value.";
-  }
-
-  std::shared_ptr<IContextColumn> finish(
-      const std::shared_ptr<Arena>&) override;
-
- private:
-  MSVertexColumnBuilder() = default;
-
-  label_t cur_label_;
-  std::vector<vid_t> cur_list_;
-
-  std::vector<std::pair<label_t, std::vector<vid_t>>> vertices_;
 };
 
 class MLVertexColumnBuilder;
@@ -394,7 +276,9 @@ class MLVertexColumn : public MLVertexColumnBase {
     }
   }
 
-  std::set<label_t> get_labels_set() const override { return labels_; }
+  std::unordered_set<label_t> get_labels_set() const override {
+    return labels_;
+  }
 
   ISigColumn* generate_signature() const override;
 
@@ -403,7 +287,7 @@ class MLVertexColumn : public MLVertexColumnBase {
  private:
   friend class MLVertexColumnBuilder;
   std::vector<VertexRecord> vertices_;
-  std::set<label_t> labels_;
+  std::unordered_set<label_t> labels_;
 };
 
 class MLVertexColumnBuilder : public IVertexColumnBuilder {
@@ -414,11 +298,12 @@ class MLVertexColumnBuilder : public IVertexColumnBuilder {
     builder.is_optional_ = true;
     return builder;
   }
-  static MLVertexColumnBuilder builder(const std::set<label_t>& labels) {
+  static MLVertexColumnBuilder builder(
+      const std::unordered_set<label_t>& labels) {
     return MLVertexColumnBuilder(labels);
   }
   static MLVertexColumnBuilder optional_builder(
-      const std::set<label_t>& labels) {
+      const std::unordered_set<label_t>& labels) {
     MLVertexColumnBuilder builder(labels);
     builder.is_optional_ = true;
     return builder;
@@ -431,6 +316,10 @@ class MLVertexColumnBuilder : public IVertexColumnBuilder {
     vertices_.push_back(v);
   }
 
+  inline void push_back_opt(label_t label, vid_t vid) {
+    labels_.insert(label);
+    vertices_.emplace_back(VertexRecord{label, vid});
+  }
   inline void push_back_vertex(VertexRecord v) override {
     labels_.insert(v.label_);
     vertices_.push_back(v);
@@ -441,11 +330,11 @@ class MLVertexColumnBuilder : public IVertexColumnBuilder {
 
  private:
   MLVertexColumnBuilder() : is_optional_(false) {}
-  MLVertexColumnBuilder(const std::set<label_t>& labels)
+  MLVertexColumnBuilder(const std::unordered_set<label_t>& labels)
       : labels_(labels), is_optional_(false) {}
 
   std::vector<VertexRecord> vertices_;
-  std::set<label_t> labels_;
+  std::unordered_set<label_t> labels_;
   bool is_optional_;
 };
 
@@ -497,12 +386,14 @@ class OptionalMLVertexColumn : public MLVertexColumnBase {
     }
   }
 
-  std::set<label_t> get_labels_set() const override { return labels_; }
+  std::unordered_set<label_t> get_labels_set() const override {
+    return labels_;
+  }
 
  private:
   friend class MLVertexColumnBuilder;
   std::vector<VertexRecord> vertices_;
-  std::set<label_t> labels_;
+  std::unordered_set<label_t> labels_;
 };
 
 template <typename FUNC_T>
@@ -525,9 +416,6 @@ void foreach_vertex(const IVertexColumn& col, const FUNC_T& func) {
           dynamic_cast<const OptionalMLVertexColumn&>(col);
       ref.foreach_vertex(func);
     }
-  } else {
-    const MSVertexColumn& ref = dynamic_cast<const MSVertexColumn&>(col);
-    ref.foreach_vertex(func);
   }
 }
 

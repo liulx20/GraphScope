@@ -40,7 +40,7 @@ bl::result<Context> PathExpand::edge_expand_v(const GraphReadInterface& graph,
     if (params.dir == Direction::kOut) {
       auto& input_vertex_list =
           *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.start_tag));
-      std::set<label_t> labels;
+      std::unordered_set<label_t> labels;
       std::vector<std::vector<LabelTriplet>> out_labels_map(
           graph.schema().vertex_label_num());
       for (const auto& label : params.labels) {
@@ -94,7 +94,7 @@ bl::result<Context> PathExpand::edge_expand_v(const GraphReadInterface& graph,
     } else if (params.dir == Direction::kIn) {
       auto& input_vertex_list =
           *std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.start_tag));
-      std::set<label_t> labels;
+      std::unordered_set<label_t> labels;
       std::vector<std::vector<LabelTriplet>> in_labels_map(
           graph.schema().vertex_label_num());
       for (auto& label : params.labels) {
@@ -146,7 +146,7 @@ bl::result<Context> PathExpand::edge_expand_v(const GraphReadInterface& graph,
                              shuffle_offset);
       return ctx;
     } else if (params.dir == Direction::kBoth) {
-      std::set<label_t> labels;
+      std::unordered_set<label_t> labels;
       std::vector<std::vector<LabelTriplet>> in_labels_map(
           graph.schema().vertex_label_num()),
           out_labels_map(graph.schema().vertex_label_num());

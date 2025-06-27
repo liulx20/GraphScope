@@ -15,9 +15,9 @@
 
 #ifndef CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_EDGE_COLUMNS_H_
 #define CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_EDGE_COLUMNS_H_
+#include <variant>
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/i_context_column.h"
 #include "flex/engines/graph_db/chunked_runtime/utils/configs.h"
-
 namespace gs {
 namespace chunked_runtime {
 enum class EdgeColumnType { kSDSL, kSDML, kBDSL, kBDML };

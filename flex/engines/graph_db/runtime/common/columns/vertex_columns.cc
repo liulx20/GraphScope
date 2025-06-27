@@ -157,39 +157,8 @@ std::shared_ptr<IContextColumn> SLVertexColumnBuilder::finish(
   }
 }
 
-std::shared_ptr<IContextColumn> MSVertexColumn::shuffle(
-    const std::vector<size_t>& offsets) const {
-  auto builder = MLVertexColumnBuilder::builder();
-  builder.reserve(offsets.size());
-  for (auto offset : offsets) {
-    builder.push_back_vertex(get_vertex(offset));
-  }
-  return builder.finish(this->get_arena());
-}
-
 ISigColumn* SLVertexColumn::generate_signature() const {
   return new SigColumn<vid_t>(vertices_);
-}
-
-ISigColumn* MSVertexColumn::generate_signature() const {
-  LOG(FATAL) << "not implemented...";
-  return nullptr;
-}
-
-std::shared_ptr<IContextColumn> MSVertexColumnBuilder::finish(
-    const std::shared_ptr<Arena>& arena) {
-  if (!cur_list_.empty()) {
-    vertices_.emplace_back(cur_label_, std::move(cur_list_));
-    cur_list_.clear();
-  }
-  auto ret = std::make_shared<MSVertexColumn>();
-  auto& label_set = ret->labels_;
-  for (auto& pair : vertices_) {
-    label_set.insert(pair.first);
-  }
-  ret->vertices_.swap(vertices_);
-  ret->set_arena(arena);
-  return ret;
 }
 
 std::shared_ptr<IContextColumn> MLVertexColumn::shuffle(
@@ -208,7 +177,7 @@ ISigColumn* MLVertexColumn::generate_signature() const {
 
 void MLVertexColumn::generate_dedup_offset(std::vector<size_t>& offsets) const {
   offsets.clear();
-  std::set<VertexRecord> vset;
+  std::unordered_set<VertexRecord, VertexRecordHash> vset;
   size_t n = vertices_.size();
   for (size_t i = 0; i != n; ++i) {
     auto cur = vertices_[i];

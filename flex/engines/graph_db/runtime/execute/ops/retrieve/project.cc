@@ -875,11 +875,6 @@ parse_special_expr(const common::Expression& expr, int alias) {
                   std::dynamic_pointer_cast<MLVertexColumn>(vertex_col);
               return create_ml_property_expr(ctx, graph, *typed_vertex_col,
                                              name, type, alias);
-            } else {
-              auto typed_vertex_col =
-                  std::dynamic_pointer_cast<MSVertexColumn>(vertex_col);
-              return create_ml_property_expr(ctx, graph, *typed_vertex_col,
-                                             name, type, alias);
             }
           }
         }

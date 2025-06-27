@@ -1114,12 +1114,12 @@ class EdgePropVec : public EdgePropVecBase {
 
   EdgeData get(size_t idx) const override { return EdgeData(prop_data_[idx]); }
 
-  T get_view(size_t idx) const { return prop_data_[idx]; }
+  inline T get_view(size_t idx) const { return prop_data_[idx]; }
   void resize(size_t size) override { prop_data_.resize(size); }
   void clear() override { prop_data_.clear(); }
   void reserve(size_t size) override { prop_data_.reserve(size); }
   T operator[](size_t idx) const { return prop_data_[idx]; }
-  void set(size_t idx, const T& val) {
+  inline void set(size_t idx, const T& val) {
     if (prop_data_.size() <= idx) {
       prop_data_.resize(idx + 1);
     }
@@ -1151,12 +1151,14 @@ class EdgePropVec<grape::EmptyType> : public EdgePropVecBase {
     return EdgeData(grape::EmptyType());
   }
 
-  grape::EmptyType get_view(size_t idx) const { return grape::EmptyType(); }
+  inline grape::EmptyType get_view(size_t idx) const {
+    return grape::EmptyType();
+  }
   void resize(size_t size) override { size_ = size; }
   void clear() override {}
   void reserve(size_t size) override {}
   grape::EmptyType operator[](size_t idx) const { return grape::EmptyType(); }
-  void set(size_t idx, const grape::EmptyType& val) {}
+  inline void set(size_t idx, const grape::EmptyType& val) {}
 
   PropertyType type() const override { return PropertyType::kEmpty; }
 

@@ -43,14 +43,13 @@ class Scan {
       }
       ctx.set(params.alias, builder.finish(nullptr));
     } else if (params.tables.size() > 1) {
-      auto builder = MSVertexColumnBuilder::builder();
+      auto builder = MLVertexColumnBuilder::builder();
 
       for (auto label : params.tables) {
         auto vertices = graph.GetVertexSet(label);
-        builder.start_label(label);
         for (auto vid : vertices) {
           if (predicate(label, vid)) {
-            builder.push_back_opt(vid);
+            builder.push_back_opt(label, vid);
           }
         }
       }
@@ -79,20 +78,19 @@ class Scan {
       }
       ctx.set(params.alias, builder.finish(nullptr));
     } else if (params.tables.size() > 1) {
-      auto builder = MSVertexColumnBuilder::builder();
+      auto builder = MLVertexColumnBuilder::builder();
 
       for (auto label : params.tables) {
         if (cur_limit <= 0) {
           break;
         }
         auto vertices = graph.GetVertexSet(label);
-        builder.start_label(label);
         for (auto vid : vertices) {
           if (cur_limit <= 0) {
             break;
           }
           if (predicate(label, vid)) {
-            builder.push_back_opt(vid);
+            builder.push_back_opt(label, vid);
             cur_limit--;
           }
         }

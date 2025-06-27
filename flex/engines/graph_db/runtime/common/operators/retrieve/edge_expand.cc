@@ -22,7 +22,8 @@ namespace gs {
 namespace runtime {
 
 static std::vector<LabelTriplet> get_expand_label_set(
-    const GraphReadInterface& graph, const std::set<label_t>& label_set,
+    const GraphReadInterface& graph,
+    const std::unordered_set<label_t>& label_set,
     const std::vector<LabelTriplet>& labels, Direction dir) {
   std::vector<LabelTriplet> label_triplets;
   if (dir == Direction::kOut) {
@@ -347,7 +348,7 @@ bl::result<Context> EdgeExpand::expand_edge_without_predicate(
   } else {
     auto column =
         std::dynamic_pointer_cast<IVertexColumn>(ctx.get(params.v_tag));
-    auto label_set = column->get_labels_set();
+    const auto& label_set = column->get_labels_set();
     auto labels =
         get_expand_label_set(graph, label_set, params.labels, params.dir);
     std::vector<std::pair<LabelTriplet, PropertyType>> label_props;
@@ -577,7 +578,7 @@ bl::result<Context> EdgeExpand::expand_vertex_without_predicate(
         graph, *casted_input_vertex_list, params.labels, params.dir);
     ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
     return ctx;
-  } else if (input_vertex_list_type == VertexColumnType::kMultiSegment) {
+  } /**else if (input_vertex_list_type == VertexColumnType::kMultiSegment) {
     if (input_vertex_list->is_optional() || params.is_optional) {
       LOG(ERROR) << "not support optional vertex column as input currently";
       RETURN_UNSUPPORTED_ERROR(
@@ -589,7 +590,8 @@ bl::result<Context> EdgeExpand::expand_vertex_without_predicate(
         graph, *casted_input_vertex_list, params.labels, params.dir);
     ctx.set_with_reshuffle(params.alias, pair.first, pair.second);
     return ctx;
-  } else {
+  } */
+  else {
     LOG(ERROR) << "not support vertex column type "
                << static_cast<int>(input_vertex_list_type);
     RETURN_UNSUPPORTED_ERROR(
@@ -690,16 +692,15 @@ Context expand_vertex_ep_lt_ml_impl(
           graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
     }
   }
-  auto builder = MSVertexColumnBuilder::builder();
+  auto builder = MLVertexColumnBuilder::builder();
   size_t csr_idx = 0;
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-    builder.start_label(nbr_label);
     casted_input_vertex_list->foreach_vertex(
         [&](size_t idx, label_t label, vid_t v) {
           csr.foreach_edges_lt(v, max_value, [&](vid_t nbr, const T& e) {
-            builder.push_back_opt(nbr);
+            builder.push_back_opt(nbr_label, nbr);
             offsets.push_back(idx);
           });
         });
@@ -861,17 +862,15 @@ Context expand_vertex_ep_gt_ml_impl(
           graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
     }
   }
-  auto builder = MSVertexColumnBuilder::builder();
+  auto builder = MLVertexColumnBuilder::builder();
   size_t csr_idx = 0;
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-    builder.start_label(nbr_label);
-    LOG(INFO) << "start label: " << static_cast<int>(nbr_label);
     casted_input_vertex_list->foreach_vertex(
         [&](size_t idx, label_t label, vid_t v) {
           csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
-            builder.push_back_opt(nbr);
+            builder.push_back_opt(nbr_label, nbr);
             offsets.push_back(idx);
           });
         });

@@ -930,12 +930,7 @@ std::unique_ptr<ReducerBase> make_reducer(const GraphReadInterface& graph,
               ctx, std::move(wrapper), kind, alias);
         } else {
           LOG(FATAL) << "unsupport vertex column type";
-          auto typed_vertex_col =
-              std::dynamic_pointer_cast<MSVertexColumn>(vertex_col);
-          MLVertexWrapper<decltype(*typed_vertex_col)> wrapper(
-              *typed_vertex_col);
-          return _make_reducer<decltype(wrapper), false>(
-              ctx, std::move(wrapper), kind, alias);
+          return nullptr;
         }
       } else if (col->column_type() == ContextColumnType::kValue) {
         if (col->elem_type() == RTAnyType::kI64Value) {
