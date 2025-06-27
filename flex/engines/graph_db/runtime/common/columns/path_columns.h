@@ -36,7 +36,6 @@ class IPathColumn : public IContextColumn {
   virtual int get_path_length(size_t idx) const {
     return get_path(idx).len() - 1;
   }
-  virtual ISigColumn* generate_signature() const = 0;
   virtual void generate_dedup_offset(std::vector<size_t>& offsets) const = 0;
 };
 
@@ -61,10 +60,6 @@ class GeneralPathColumn : public IPathColumn {
   inline RTAnyType elem_type() const override { return RTAnyType::kPath; }
   inline RTAny get_elem(size_t idx) const override { return RTAny(data_[idx]); }
   inline const Path& get_path(size_t idx) const override { return data_[idx]; }
-  ISigColumn* generate_signature() const override {
-    LOG(FATAL) << "not implemented for " << this->column_info();
-    return nullptr;
-  }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
@@ -133,10 +128,6 @@ class OptionalGeneralPathColumn : public IPathColumn {
     return RTAny(data_[idx]);
   }
   inline const Path& get_path(size_t idx) const override { return data_[idx]; }
-  ISigColumn* generate_signature() const override {
-    LOG(FATAL) << "not implemented for " << this->column_info();
-    return nullptr;
-  }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);

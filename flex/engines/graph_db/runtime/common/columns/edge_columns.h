@@ -171,19 +171,6 @@ class SDSLEdgeColumn : public IEdgeColumn {
     ColumnsUtils::generate_dedup_offset(edges_, size(), offsets);
   }
 
-  ISigColumn* generate_signature() const override {
-    // TODO: dedup with property value
-    std::map<std::pair<vid_t, vid_t>, size_t> edge_map;
-    std::vector<size_t> sigs;
-    for (size_t i = 0; i < size(); ++i) {
-      if (edge_map.find(edges_[i]) == edge_map.end()) {
-        edge_map[edges_[i]] = i;
-      }
-      sigs.push_back(edge_map[edges_[i]]);
-    }
-    return new SigColumn<size_t>(sigs);
-  }
-
   std::string column_info() const override {
     return "SDSLEdgeColumn: label = " + label_.to_string() +
            ", dir = " + std::to_string((int) dir_) +
@@ -237,10 +224,6 @@ class OptionalSDSLEdgeColumn : public IEdgeColumn {
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     column_.generate_dedup_offset(offsets);
-  }
-
-  ISigColumn* generate_signature() const override {
-    return column_.generate_signature();
   }
 
   std::string column_info() const override {

@@ -89,29 +89,6 @@ void SLVertexColumn::generate_dedup_offset(std::vector<size_t>& offsets) const {
   }
 }
 
-std::pair<std::shared_ptr<IContextColumn>, std::vector<std::vector<size_t>>>
-SLVertexColumn::generate_aggregate_offset() const {
-  std::vector<std::vector<size_t>> offsets;
-  auto builder = SLVertexColumnBuilder::builder(label());
-  phmap::flat_hash_map<vid_t, size_t> vertex_to_offset;
-  size_t idx = 0;
-  for (auto v : vertices_) {
-    auto iter = vertex_to_offset.find(v);
-    if (iter == vertex_to_offset.end()) {
-      builder.push_back_opt(v);
-      vertex_to_offset.emplace(v, offsets.size());
-      std::vector<size_t> tmp;
-      tmp.push_back(idx);
-      offsets.emplace_back(std::move(tmp));
-    } else {
-      offsets[iter->second].push_back(idx);
-    }
-    ++idx;
-  }
-
-  return std::make_pair(builder.finish(this->get_arena()), std::move(offsets));
-}
-
 std::shared_ptr<IContextColumn> SLVertexColumn::union_col(
     std::shared_ptr<IContextColumn> other) const {
   CHECK(other->column_type() == ContextColumnType::kVertex);
@@ -157,10 +134,6 @@ std::shared_ptr<IContextColumn> SLVertexColumnBuilder::finish(
   }
 }
 
-ISigColumn* SLVertexColumn::generate_signature() const {
-  return new SigColumn<vid_t>(vertices_);
-}
-
 std::shared_ptr<IContextColumn> MLVertexColumn::shuffle(
     const std::vector<size_t>& offsets) const {
   auto builder = MLVertexColumnBuilder::builder(labels_);
@@ -169,10 +142,6 @@ std::shared_ptr<IContextColumn> MLVertexColumn::shuffle(
     builder.push_back_vertex(vertices_[offset]);
   }
   return builder.finish(this->get_arena());
-}
-
-ISigColumn* MLVertexColumn::generate_signature() const {
-  return new SigColumn<VertexRecord>(vertices_);
 }
 
 void MLVertexColumn::generate_dedup_offset(std::vector<size_t>& offsets) const {
@@ -274,10 +243,6 @@ std::shared_ptr<IContextColumn> OptionalMLVertexColumn::optional_shuffle(
     }
   }
   return builder.finish(this->get_arena());
-}
-
-ISigColumn* OptionalSLVertexColumn::generate_signature() const {
-  return new SigColumn<vid_t>(vertices_);
 }
 
 }  // namespace runtime

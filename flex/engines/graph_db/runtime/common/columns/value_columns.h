@@ -74,19 +74,6 @@ class ValueColumn : public IValueColumn<T> {
 
   inline const std::vector<T>& data() const { return data_; }
 
-  ISigColumn* generate_signature() const override {
-    if constexpr (std::is_same_v<T, std::string_view>) {
-      return new SigColumn<std::string_view>(data_);
-    } else if constexpr (std::is_same_v<T, bool> ||
-                         std::is_same_v<T, Relation> ||
-                         gs::runtime::is_view_type<T>::value) {
-      LOG(FATAL) << "not implemented for " << this->column_info();
-      return nullptr;
-    } else {
-      return new SigColumn<T>(data_);
-    }
-  }
-
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
   }
@@ -168,11 +155,6 @@ class ListValueColumn : public ListValueColumnBase {
   }
 
   List get_value(size_t idx) const override { return data_[idx]; }
-
-  ISigColumn* generate_signature() const override {
-    LOG(FATAL) << "not implemented for " << this->column_info();
-    return nullptr;
-  }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);
@@ -317,19 +299,6 @@ class OptionalValueColumn : public IValueColumn<T> {
   }
 
   inline T get_value(size_t idx) const override { return data_[idx]; }
-
-  ISigColumn* generate_signature() const override {
-    if constexpr (std::is_same_v<T, std::string_view>) {
-      return new SigColumn<std::string_view>(data_);
-    } else if constexpr (std::is_same_v<T, bool> ||
-                         std::is_same_v<T, Relation> ||
-                         gs::runtime::is_view_type<T>::value) {
-      LOG(FATAL) << "not implemented for " << this->column_info();
-      return nullptr;
-    } else {
-      return new SigColumn<T>(data_);
-    }
-  }
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override {
     ColumnsUtils::generate_dedup_offset(data_, data_.size(), offsets);

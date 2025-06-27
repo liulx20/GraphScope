@@ -35,92 +35,6 @@ enum class ContextColumnType {
   kOptionalValue,
 };
 
-class ISigColumn {
- public:
-  ISigColumn() = default;
-  virtual ~ISigColumn() = default;
-  virtual size_t get_sig(size_t idx) const = 0;
-};
-
-template <typename T>
-class SigColumn : public ISigColumn {
- public:
-  SigColumn(const std::vector<T>& data) : data_(data.data()) {}
-  ~SigColumn() = default;
-  inline size_t get_sig(size_t idx) const override {
-    return static_cast<size_t>(data_[idx]);
-  }
-
- private:
-  const T* data_;
-};
-
-template <>
-class SigColumn<Date> : public ISigColumn {
- public:
-  SigColumn(const std::vector<Date>& data) : data_(data.data()) {}
-  ~SigColumn() = default;
-  inline size_t get_sig(size_t idx) const override {
-    return static_cast<size_t>(data_[idx].milli_second);
-  }
-
- private:
-  const Date* data_;
-};
-
-template <>
-class SigColumn<Day> : public ISigColumn {
- public:
-  SigColumn(const std::vector<Day>& data) : data_(data.data()) {}
-  ~SigColumn() = default;
-  inline size_t get_sig(size_t idx) const override {
-    return static_cast<size_t>(data_[idx].to_u32());
-  }
-
- private:
-  const Day* data_;
-};
-template <>
-class SigColumn<VertexRecord> : public ISigColumn {
- public:
-  SigColumn(const std::vector<VertexRecord>& data) : data_(data.data()) {}
-  ~SigColumn() = default;
-  inline size_t get_sig(size_t idx) const override {
-    const auto& v = data_[idx];
-    size_t ret = v.label_;
-    ret <<= 32;
-    ret += v.vid_;
-    return ret;
-  }
-
- private:
-  const VertexRecord* data_;
-};
-
-template <>
-class SigColumn<std::string_view> : public ISigColumn {
- public:
-  SigColumn(const std::vector<std::string_view>& data) {
-    std::unordered_map<std::string_view, size_t> table;
-    sig_list_.reserve(data.size());
-    for (auto& str : data) {
-      auto iter = table.find(str);
-      if (iter == table.end()) {
-        size_t idx = table.size();
-        table.emplace(str, idx);
-        sig_list_.push_back(idx);
-      } else {
-        sig_list_.push_back(iter->second);
-      }
-    }
-  }
-  ~SigColumn() = default;
-  inline size_t get_sig(size_t idx) const override { return sig_list_[idx]; }
-
- private:
-  std::vector<size_t> sig_list_;
-};
-
 class IContextColumnBuilder;
 class IOptionalContextColumnBuilder;
 
@@ -166,21 +80,8 @@ class IContextColumn {
 
   virtual bool is_optional() const { return false; }
 
-  virtual ISigColumn* generate_signature() const {
-    LOG(FATAL) << "not implemented for " << this->column_info();
-    return nullptr;
-  }
-
   virtual void generate_dedup_offset(std::vector<size_t>& offsets) const {
     LOG(FATAL) << "not implemented for " << this->column_info();
-  }
-
-  virtual std::pair<std::shared_ptr<IContextColumn>,
-                    std::vector<std::vector<size_t>>>
-  generate_aggregate_offset() const {
-    LOG(INFO) << "not implemented for " << this->column_info();
-    std::shared_ptr<IContextColumn> col(nullptr);
-    return std::make_pair(col, std::vector<std::vector<size_t>>());
   }
 
   virtual bool order_by_limit(bool asc, size_t limit,

@@ -102,9 +102,6 @@ class SLVertexColumn : public SLVertexColumnBase {
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override;
 
-  std::pair<std::shared_ptr<IContextColumn>, std::vector<std::vector<size_t>>>
-  generate_aggregate_offset() const override;
-
   template <typename FUNC_T>
   void foreach_vertex(const FUNC_T& func) const {
     size_t num = vertices_.size();
@@ -120,10 +117,6 @@ class SLVertexColumn : public SLVertexColumnBase {
   }
 
   inline label_t label() const { return label_; }
-
-  ISigColumn* generate_signature() const override;
-
-  // inline const std::vector<vid_t>& vertices() const { return vertices_; }
 
  private:
   friend class SLVertexColumnBuilder;
@@ -226,8 +219,6 @@ class OptionalSLVertexColumn : public SLVertexColumnBase {
     return {label_};
   }
 
-  ISigColumn* generate_signature() const override;
-
  private:
   friend class SLVertexColumnBuilder;
   label_t label_;
@@ -279,8 +270,6 @@ class MLVertexColumn : public MLVertexColumnBase {
   std::unordered_set<label_t> get_labels_set() const override {
     return labels_;
   }
-
-  ISigColumn* generate_signature() const override;
 
   void generate_dedup_offset(std::vector<size_t>& offsets) const override;
 
