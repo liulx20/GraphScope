@@ -74,14 +74,57 @@ class GetVCollector {
 
 struct GetVState : public IOprState {
   GetVState(std::shared_ptr<IOprState> src_state)
-      : src_state_(std::move(src_state)) {}
+      : initialized_(false), src_state_(std::move(src_state)) {}
 
-  void clear() override { src_chunks_.clear(); }
+  void clear() override {
+    local_states_.clear();
+    src_chunks_.clear();
+    cur_idx_ = 0;
+  }
   bool initialized() const override { return initialized_; }
   DataChunks& src_chunks() override { return src_chunks_; }
   std::shared_ptr<IOprState> src_state() override { return src_state_; }
 
-  bool getNextChunks(DataChunks& chunks) override { return false; }
+  bool getNextChunks(DataChunks& chunks) override {
+    if (cur_idx_ >= local_states_.size()) {
+      return false;
+    }
+    bool flag = false;
+    for (size_t i = 0; i < Configs::MAX_THREAD_NUM; ++i) {
+      while (true) {
+        if (cur_idx_ >= local_states_.size()) {
+          break;  // No more local states to process
+        }
+
+        if (local_states_[cur_idx_].offsets.size() == 0) {
+          cur_idx_++;
+          continue;  // Skip empty columns
+        }
+        flag = true;
+        auto& local_state = local_states_[cur_idx_];
+        auto& vertex_col = local_state.column;
+        auto& offsets = local_state.offsets;
+        if (vertex_col == nullptr) {
+          chunks.emplace_back(DataChunk::create(src_chunks_[cur_idx_], offsets,
+                                                alias_, src_table_));
+        } else {
+          chunks.emplace_back(DataChunk::create(
+              src_chunks_[cur_idx_], vertex_col, offsets, alias_, src_table_));
+        }
+        cur_idx_++;
+        break;
+      }
+    }
+
+    return flag;
+  }
+
+  void initialize(int src_table, int alias) {
+    src_table_ = src_table;
+    alias_ = alias;
+    cur_idx_ = 0;
+    initialized_ = true;
+  }
 
   LocalGetVState& getLocalState() {
     local_states_.emplace_back();
@@ -93,6 +136,9 @@ struct GetVState : public IOprState {
   bool initialized_;
   DataChunks src_chunks_;
   std::shared_ptr<IOprState> src_state_;
+  int src_table_;
+  int alias_;
+  size_t cur_idx_;
 };
 }  // namespace ops
 }  // namespace chunked_runtime

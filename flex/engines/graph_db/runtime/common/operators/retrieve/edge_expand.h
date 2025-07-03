@@ -463,13 +463,12 @@ class EdgeExpand {
     auto builder2 = SLVertexColumnBuilder::builder(d2_nbr_label);
     std::vector<size_t> offsets;
 
-    size_t idx = 0;
     static thread_local GraphReadInterface::vertex_array_t<bool> d0_set;
     static thread_local std::vector<vid_t> d0_vec;
 
     d0_set.Init(graph.GetVertexSet(d0_nbr_label), false);
     casted_input_vertex_list->foreach_vertex(
-        [&](size_t index, label_t label, vid_t v) {
+        [&](size_t idx, label_t label, vid_t v) {
           if (LT) {
             csr0.foreach_edges_lt(v, param, [&](vid_t u, const Date& date) {
               d0_set[u] = true;
@@ -496,7 +495,6 @@ class EdgeExpand {
             d0_set[u] = false;
           }
           d0_vec.clear();
-          ++idx;
         });
 
     std::shared_ptr<IContextColumn> col1 = builder1.finish(nullptr);

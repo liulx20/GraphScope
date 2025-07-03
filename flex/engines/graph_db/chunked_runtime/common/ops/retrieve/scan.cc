@@ -30,7 +30,7 @@ bl::result<void> Scan::find_vertex_with_oid(const GraphReadInterface& graph,
   if (graph.GetVertexIndex(label, oid, vid)) {
     state.collect(vid);
   }
-  state.set_initialized(true);
+  state.initialize(alias);
   return bl::result<void>();
 }
 
@@ -45,7 +45,7 @@ bl::result<void> Scan::find_vertex_with_gid(const GraphReadInterface& graph,
     LOG(ERROR) << "Invalid label id: "
                << static_cast<int>(GlobalId::get_label_id(gid));
   }
-  state.set_initialized(true);
+  state.initialize(alias);
   return bl::result<void>();
 }
 

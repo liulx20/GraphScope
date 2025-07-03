@@ -272,6 +272,7 @@ class SPOrderByLimitWithOutPredOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<SSSPState&>(state);
+    casted_state.initialize(spp_.start_tag, spp_.v_alias, spp_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalSSSPState();
@@ -312,6 +313,7 @@ class SPOrderByLimitWithGPredOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<SSSPState&>(state);
+    casted_state.initialize(spp_.start_tag, spp_.v_alias, spp_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto v_pred =
@@ -439,6 +441,7 @@ class ASPOpr : public IReadOpr {
 
     auto v = std::make_pair(aspp_.labels[0].dst_label, vid);
     auto& casted_state = dynamic_cast<PathState&>(state);
+    casted_state.initialize(aspp_.start_tag, aspp_.v_alias, aspp_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalPathState();
@@ -486,6 +489,7 @@ class SSSDSPOpr : public IReadOpr {
     }
     auto v = std::make_pair(spp_.labels[0].dst_label, vid);
     auto& casted_state = dynamic_cast<PathState&>(state);
+    casted_state.initialize(spp_.start_tag, spp_.v_alias, spp_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalPathState();
@@ -623,6 +627,7 @@ class PathExpandVOpr : public IReadOpr {
                               IOprState& state) override {
     auto& chunks = state.src_chunks();
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(pep_.start_tag, pep_.alias);
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
       return PathExpand::edge_expand_v(graph, chunk, pep_, local_state);
@@ -716,6 +721,7 @@ class PathExpandOpr : public IReadOpr {
                               IOprState& state) override {
     auto& chunks = state.src_chunks();
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(pep_.start_tag, pep_.alias);
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
       return PathExpand::edge_expand_p(graph, chunk, pep_, local_state);

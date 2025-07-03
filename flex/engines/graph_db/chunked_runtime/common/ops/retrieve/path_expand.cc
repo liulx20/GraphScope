@@ -585,6 +585,8 @@ bl::result<void> PathExpand::all_shortest_paths_with_given_source_and_dest(
     RETURN_UNSUPPORTED_ERROR("only support same src and dst label");
   }
 
+  state.init(label_triplet.dst_label);
+
   ctx.foreach_vertex(
       params.start_tag, [&](size_t index, label_t label, vid_t v) {
         std::vector<std::vector<vid_t>> paths;

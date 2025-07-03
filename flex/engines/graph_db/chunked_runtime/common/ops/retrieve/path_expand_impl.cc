@@ -20,7 +20,7 @@ namespace gs {
 namespace chunked_runtime {
 namespace ops {
 bl::result<void> iterative_expand_vertex(const GraphReadInterface& graph,
-                                         const DataChunk& input, size_t v_tag,
+                                         const DataChunk& input, int v_tag,
                                          label_t edge_label, Direction dir,
                                          int lower, int upper,
                                          LocalEdgeExpandState& state) {
@@ -165,7 +165,7 @@ bl::result<void> iterative_expand_vertex(const GraphReadInterface& graph,
 template <typename EDATA_T>
 bl::result<void> iterative_expand_vertex_on_graph_view(
     const GraphReadInterface::graph_view_t<EDATA_T>& view,
-    const DataChunk& input, size_t v_tag, int lower, int upper,
+    const DataChunk& input, int v_tag, int lower, int upper,
     LocalEdgeExpandState& state) {
   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
   auto builder = state.getEdgeCollector<SLVertexColumn, label_t>(input_label);
@@ -226,7 +226,7 @@ template <typename EDATA_T>
 bl::result<void> iterative_expand_vertex_on_dual_graph_view(
     const GraphReadInterface::graph_view_t<EDATA_T>& iview,
     const GraphReadInterface::graph_view_t<EDATA_T>& oview,
-    const DataChunk& input, size_t v_tag, int lower, int upper,
+    const DataChunk& input, int v_tag, int lower, int upper,
     LocalEdgeExpandState& state) {
   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
   auto builder = state.getEdgeCollector<SLVertexColumn, label_t>(input_label);
@@ -290,7 +290,7 @@ bl::result<void> iterative_expand_vertex_on_dual_graph_view(
 }
 
 bl::result<void> path_expand_vertex_without_predicate_impl(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir, int lower,
     int upper, LocalEdgeExpandState& state) {
   if (labels.size() == 1) {

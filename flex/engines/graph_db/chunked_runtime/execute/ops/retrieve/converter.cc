@@ -12,13 +12,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include "flex/engines/graph_db/chunked_runtime/common/ops/retrieve/edge_expand_state.h"
 
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/converter.h"
+#include "flex/engines/graph_db/runtime/execute/operator.h"
 namespace gs {
 namespace chunked_runtime {
-
-TCCollector LocalTCState::getTCCollector(label_t label0, label_t label1) {
-  return TCCollector(*this, label0, label1);
-}
+namespace ops {}  // namespace ops
 }  // namespace chunked_runtime
 }  // namespace gs

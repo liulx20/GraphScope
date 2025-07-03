@@ -17,16 +17,13 @@
 #define CHUNKED_RUNTIME_EXECUTE_PLAN_PARSER_H_
 
 #include "flex/engines/graph_db/chunked_runtime/execute/pipeline.h"
+#include "flex/engines/graph_db/runtime/common/context.h"
+#include "flex/engines/graph_db/runtime/execute/operator.h"
 
 namespace gs {
 
 namespace chunked_runtime {
-/*struct ParseMeta {
-  std::map<int, int> tag_convert_map;
-  std::vector<std::vector<int>> tags;
-  std::vector<int> tags_reserve;
-};
-
+using gs::runtime::ContextMeta;
 class PlanParser {
  public:
   PlanParser() { read_op_builders_.resize(64); }
@@ -45,37 +42,39 @@ class PlanParser {
   // void register_update_operator_builder(
   //   std::unique_ptr<IUpdateOperatorBuilder>&& builder);
 
-  bl::result<std::pair<ReadPipeline, ContextMeta>>
+  bl::result<std::tuple<std::unique_ptr<IReadOpr>, ContextMeta, int>>
   parse_read_pipeline_with_meta(const gs::Schema& schema,
                                 const ContextMeta& ctx_meta,
                                 const physical::PhysicalPlan& plan);
 
-  bl::result<ReadPipeline> parse_read_pipeline(
-      const gs::Schema& schema, const ContextMeta& ctx_meta,
-      const physical::PhysicalPlan& plan);
+  bl::result<
+      std::tuple<std::unique_ptr<gs::runtime::IReadOperator>, ContextMeta, int>>
+  parse_read_pipeline(const gs::Schema& schema, const ContextMeta& ctx_meta,
+                      const physical::PhysicalPlan& plan);
 
-  /**bl::result<InsertPipeline> parse_write_pipeline(
+  /**
+  bl::result<InsertPipeline> parse_write_pipeline(
       const gs::Schema& schema, const physical::PhysicalPlan& plan);
 
   bl::result<UpdatePipeline> parse_update_pipeline(
-      const gs::Schema& schema, const physical::PhysicalPlan& plan);
+      const gs::Schema& schema, const physical::PhysicalPlan& plan);*/
 
-private:
-std::vector<std::vector<
-    std::pair<std::vector<physical::PhysicalOpr_Operator::OpKindCase>,
-              std::unique_ptr<IReadOperatorBuilder>>>>
-    read_op_builders_;
+ private:
+  std::vector<std::vector<
+      std::pair<std::vector<physical::PhysicalOpr_Operator::OpKindCase>,
+                std::unique_ptr<IReadOperatorBuilder>>>>
+      read_op_builders_;
+  /**
+  std::map<physical::PhysicalOpr_Operator::OpKindCase,
+           std::unique_ptr<IInsertOperatorBuilder>>
+      write_op_builders_;
 
-std::map<physical::PhysicalOpr_Operator::OpKindCase,
-         std::unique_ptr<IInsertOperatorBuilder>>
-    write_op_builders_;
-
-std::map<physical::PhysicalOpr_Operator::OpKindCase,
-         std::unique_ptr<IUpdateOperatorBuilder>>
-    update_op_builders_;
-
+  std::map<physical::PhysicalOpr_Operator::OpKindCase,
+           std::unique_ptr<IUpdateOperatorBuilder>>
+      update_op_builders_;
+  */
 };
-*/
+
 }  // namespace chunked_runtime
 
 }  // namespace gs

@@ -25,7 +25,7 @@ namespace ops {
 /**
 template <typename EDATA_T, typename PRED_T>
 bl::result<void> single_source_shortest_path_impl(
-    const GraphReadInterface& graph, size_t v_tag, label_t e_label,
+    const GraphReadInterface& graph, int v_tag, label_t e_label,
     Direction dir, int lower, int upper, const PRED_T& pred) {
   std::shared_ptr<Arena> path_impls = std::make_shared<Arena>();
   label_t v_label = *input.get_vertex_labels_set(v_tag).begin();
@@ -60,7 +60,7 @@ bl::result<void> single_source_shortest_path_impl(
 }*/
 
 bl::result<void> path_expand_vertex_without_predicate_impl(
-    const GraphReadInterface& graph, const DataChunk& chunk, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& chunk, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir, int lower,
     int upper, LocalEdgeExpandState& state);
 

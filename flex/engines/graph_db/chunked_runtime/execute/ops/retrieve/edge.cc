@@ -167,6 +167,9 @@ class EdgeExpandVWithoutPredOpr : public IReadOpr {
                               IOprState& state) override {
     auto& chunks = state.src_chunks();
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
+    CHECK(casted_state.initialized())
+        << "EdgeExpandState should be initialized before expanding edges.";
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
       return EdgeExpand::expand_vertex_without_predicate(graph, chunk, eep_,
@@ -218,6 +221,7 @@ class EdgeExpandVWithEPGTOpr : public IReadOpr {
                               IOprState& state) override {
     std::string param_value = params.at(param_);
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = state.src_chunks();
     return ForEachChunk(
         chunks, [&](const DataChunk& chunk) -> bl::result<void> {
@@ -260,6 +264,7 @@ class EdgeExpandVWithEPLTOpr : public IReadOpr {
                               IOprState& state) override {
     std::string param_value = params.at(param_);
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = state.src_chunks();
     return ForEachChunk(
         chunks, [&](const DataChunk& chunk) -> bl::result<void> {
@@ -306,6 +311,7 @@ class EdgeExpandVWithEdgePredOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
@@ -334,7 +340,9 @@ class EdgeExpandEWithoutPredicateOpr : public IReadOpr {
  public:
   EdgeExpandEWithoutPredicateOpr(std::unique_ptr<IReadOpr>&& src_opr,
                                  const EdgeExpandParams& eep)
-      : source_opr_(std::move(src_opr)), eep_(eep) {}
+      : source_opr_(std::move(src_opr)), eep_(eep) {
+    CHECK(source_opr_ != nullptr) << "Source operator should not be null.";
+  }
 
   std::string get_operator_name() const override {
     return "EdgeExpandEWithoutPredicateOpr";
@@ -344,6 +352,7 @@ class EdgeExpandEWithoutPredicateOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
@@ -387,6 +396,7 @@ class EdgeExpandEWithSPredOpr : public IReadOpr {
                               IOprState& state) override {
     auto pred = sp_edge_pred_(graph, params);
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(
         chunks, [&](const DataChunk& chunk) -> bl::result<void> {
@@ -437,6 +447,7 @@ class EdgeExpandEWithGPredOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
@@ -492,6 +503,7 @@ class EdgeExpandVWithExactVertexOpr : public IReadOpr {
                                " and oid " + std::to_string(oid));
     }
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
@@ -545,6 +557,7 @@ class EdgeExpandVWithVertexEdgePredOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();
@@ -593,6 +606,7 @@ class EdgeExpandVWithSPVertexPredOpr : public IReadOpr {
                               IOprState& state) override {
     auto pred = sp_vertex_pred_(graph, params);
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(
         chunks, [&](const DataChunk& chunk) -> bl::result<void> {
@@ -642,6 +656,7 @@ class EdgeExpandVWithGPVertexPredOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<EdgeExpandState&>(state);
+    casted_state.initialize(eep_.v_tag, eep_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalEdgeExpandState();

@@ -28,10 +28,37 @@ class ValueColumn : public IContextColumn {
   ValueColumn()
       : size_(0),
         data_(std::make_unique<T[]>(Configs::CHUNK_SIZE)),
-        valid_(nullptr) {}
+        valid_(nullptr),
+        arena_(nullptr) {}
 
   ContextColumnType column_type() const override {
     return ContextColumnType::kValue;
+  }
+
+  ValueColumn(ValueColumn<T>&& other)
+      : is_optional_(other.is_optional_),
+        size_(other.size_),
+        data_(std::move(other.data_)),
+        valid_(std::move(other.valid_)),
+        arena_(std::move(other.arena_)) {
+    other.size_ = 0;
+    other.data_ = nullptr;
+    other.valid_ = nullptr;
+  }
+
+  ValueColumn(const ValueColumn<T>& other)
+      : is_optional_(other.is_optional_),
+        size_(other.size_),
+        data_(std::make_unique<T[]>(Configs::CHUNK_SIZE)),
+        valid_(other.valid_
+                   ? std::make_unique<uint8_t[]>(Configs::CHUNK_SIZE / 8)
+                   : nullptr),
+        arena_(other.arena_) {
+    std::copy(other.data_.get(), other.data_.get() + size_, data_.get());
+    if (valid_) {
+      std::copy(other.valid_.get(),
+                other.valid_.get() + Configs::CHUNK_SIZE / 8, valid_.get());
+    }
   }
 
   void clear() override { size_ = 0; }
@@ -78,6 +105,34 @@ class ValueColumn : public IContextColumn {
   }
   std::string column_info() const override {
     return "ValueColumn[" + std::to_string(size_) + "]";
+  }
+
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override {
+    auto ptr = std::make_shared<ValueColumn<T>>();
+
+    if (!shift) {
+      for (size_t i = 0; i < size_; ++i) {
+        ptr->data_[i] = data_[offsets[i] & 0xFFFFFFFF];
+      }
+    } else {
+      for (size_t i = 0; i < size_; ++i) {
+        ptr->data_[i] = data_[offsets[i] >> 32];
+      }
+    }
+
+    if (is_optional_) {
+      ptr->is_optional_ = true;
+      ptr->valid_ = std::make_unique<uint8_t[]>(Configs::CHUNK_SIZE / 8);
+      for (size_t i = 0; i < size_; ++i) {
+        int offset = shift ? offsets[i] >> 32 : offsets[i] & 0xFFFFFFFF;
+        uint8_t offset_byte = (valid_[offset / 8]) >> (offset % 8);
+        ptr->valid_[i / 8] |= (offset_byte << (i % 8));
+      }
+    }
+
+    ptr->size_ = size_;
+    return ptr;
   }
 
  private:
@@ -140,6 +195,9 @@ class ValueColumn<List> : public IContextColumn {
     data_[size_++] = List();
   }
   inline bool full() const { return size_ == Configs::CHUNK_SIZE; }
+
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override;
 
  private:
   RTAnyType elem_type_;

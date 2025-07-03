@@ -23,9 +23,6 @@ class TupleExpr : public ExprBase {
   TupleExpr(std::vector<std::unique_ptr<ExprBase>>&& exprs);
 
   RTAny eval_path(size_t idx, Arena&) const override;
-  RTAny eval_vertex(label_t label, vid_t v, Arena&) const override;
-  RTAny eval_edge(const LabelTriplet& label, vid_t src, vid_t dst,
-                  const Any& data, Arena&) const override;
 
   RTAnyType type() const override;
 

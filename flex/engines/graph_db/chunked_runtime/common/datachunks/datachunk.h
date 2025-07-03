@@ -18,21 +18,263 @@
 #include <memory>
 
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/edge_columns.h"
+#include "flex/engines/graph_db/chunked_runtime/common/datachunks/path_columns.h"
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/table.h"
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/value_columns.h"
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/vertex_columns.h"
 namespace gs {
 namespace chunked_runtime {
+
 class DataChunk {
  public:
-  DataChunk() : leaves_size_(0) {}
+  void info() const {
+    LOG(INFO) << "DataChunk info: table size: " << table_->col_num()
+              << ", alias_map size: " << alias_map_.size()
+              << ", leaves size: " << leaves_.size()
+              << ", offsets size: " << offsets_.size();
+    for (const auto& [alias, idx] : alias_map_) {
+      LOG(INFO) << "Alias: " << alias << ", Index: " << idx;
+    }
+  }
+  static DataChunk create(const std::shared_ptr<IContextColumn>& column,
+                          int alias) {
+    DataChunk chunk;
+    chunk.table_ = std::make_shared<Table>();
+    chunk.table_->columns_.emplace_back(column);
+    chunk.alias_map_[alias] = 0;
+    return chunk;
+  }
+
+  static std::shared_ptr<ValueColumn<size_t>> generate_leaves_offsets(
+      const ValueColumn<size_t>& offsets, size_t len) {
+    auto leaves_offsets = std::make_shared<ValueColumn<size_t>>();
+    size_t cur_offset = 0;
+    leaves_offsets->emplace_back(cur_offset << 32);
+    for (size_t i = 0; i < offsets.size(); ++i) {
+      while ((offsets[i] >> 32) != cur_offset) {
+        cur_offset++;
+        leaves_offsets->emplace_back(i << 32);
+      }
+      (*leaves_offsets)[cur_offset] += 1;
+    }
+    for (size_t i = cur_offset + 1; i < len; ++i) {
+      leaves_offsets->emplace_back(i << 32);
+    }
+    return leaves_offsets;
+  }
+  static DataChunk create(DataChunk& other, const ValueColumn<size_t>& offsets,
+                          int src_table_id, int alias) {
+    DataChunk chunk;
+    chunk.table_ = std::make_shared<Table>();
+    src_table_id = other.alias_map_.at(src_table_id);
+    std::unordered_map<uint32_t, int32_t> revert_map;
+    for (const auto& pair : other.alias_map_) {
+      revert_map[pair.second] = pair.first;
+    }
+    chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
+    for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
+      chunk.leaves_.emplace_back(std::make_shared<Table>());
+      chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
+                                  chunk.alias_map_);
+      chunk.offsets_.emplace_back(other.offsets_[i]);
+    }
+    if (src_table_id == 0) {
+      CHECK(src_table_id != 0) << "src_table_id should not be 0";
+
+    } else {
+      chunk.leaves_[src_table_id - 1]->shuffle(offsets);
+      chunk.offsets_[src_table_id - 1]->shuffle(offsets, false);
+      if (offsets.size() != other.leaves_[src_table_id - 1]->row_num()) {
+        chunk.offsets_[src_table_id - 1] = generate_leaves_offsets(
+            offsets, chunk.offsets_[src_table_id - 1]->size());
+      }
+    }
+    return chunk;
+  }
+
+  static DataChunk create(DataChunk& other,
+                          std::shared_ptr<IContextColumn> column,
+                          ValueColumn<size_t>& offsets, int src_table_id,
+                          int alias) {
+    DataChunk chunk;
+    chunk.table_ = std::make_shared<Table>();
+    src_table_id = other.alias_map_.at(src_table_id);
+    std::unordered_map<uint32_t, int32_t> revert_map;
+    for (const auto& pair : other.alias_map_) {
+      revert_map[pair.second] = pair.first;
+    }
+    chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
+    for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
+      chunk.leaves_.emplace_back(std::make_shared<Table>());
+      chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
+                                  chunk.alias_map_);
+      chunk.offsets_.emplace_back(other.offsets_[i]);
+    }
+
+    if (src_table_id == 0) {
+      CHECK(src_table_id != 0) << "src_table_id should not be 0";
+      /**
+      chunk.table_->shuffle(offsets);
+      chunk.table_->columns_.emplace_back(column);
+      chunk.alias_map_[alias] =
+          GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));*/
+    } else {
+      chunk.leaves_[src_table_id - 1]->shuffle(offsets);
+      chunk.offsets_[src_table_id - 1]->shuffle(offsets, false);
+      chunk.leaves_[src_table_id - 1]->columns_.emplace_back(column);
+      chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(
+          src_table_id, (chunk.leaves_[src_table_id - 1]->col_num() - 1));
+      if (offsets.size() != other.leaves_[src_table_id - 1]->row_num()) {
+        chunk.offsets_[src_table_id - 1] = generate_leaves_offsets(
+            offsets, chunk.offsets_[src_table_id - 1]->size());
+      }
+    }
+
+    return chunk;
+  }
+
+  static DataChunk create(DataChunk& other, const ValueColumn<size_t>& offsets,
+                          const ValueColumn<size_t>& leaves_offsets,
+                          std::shared_ptr<IContextColumn> column, int alias,
+                          int src_table_id) {
+    DataChunk chunk;
+    chunk.table_ = std::make_shared<Table>();
+    other.info();
+    src_table_id = TABLE_ID(other.alias_map_.at(src_table_id));
+
+    std::unordered_map<uint32_t, int32_t> revert_map;
+    for (const auto& pair : other.alias_map_) {
+      revert_map[pair.second] = pair.first;
+    }
+    if (src_table_id == 0) {
+      chunk.offsets_.resize(other.offsets_.size());
+      for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
+        chunk.leaves_.emplace_back(std::make_shared<Table>());
+        chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
+                                    chunk.alias_map_);
+        chunk.offsets_[i] = other.offsets_[i];
+      }
+      chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
+      chunk.table_->shuffle(offsets);
+      chunk.offsets_.emplace_back(
+          std::make_shared<ValueColumn<size_t>>(leaves_offsets));
+      chunk.leaves_.emplace_back(std::make_shared<Table>());
+      chunk.leaves_.back()->push_back(column);
+      chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(chunk.offsets_.size(), 0);
+    } else {
+      chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
+      chunk.table_->shuffle(offsets, true);
+      chunk.offsets_.resize(other.offsets_.size());
+      for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
+        chunk.leaves_.emplace_back(std::make_shared<Table>());
+        if (i + 1 == src_table_id) {
+          continue;
+        }
+        chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
+                                    chunk.alias_map_);
+        chunk.offsets_[i] = other.offsets_[i];
+        chunk.offsets_[i]->shuffle(offsets, true);
+      }
+      for (int i = 0;
+           i < static_cast<int>(chunk.leaves_[src_table_id - 1]->col_num());
+           ++i) {
+        uint32_t idx = GLOBAL_COLUMN_ID(src_table_id, i);
+        int32_t v = revert_map.at(idx);
+        if (v == -1) {
+          continue;
+        } else {
+          auto col =
+              other.leaves_[src_table_id - 1]->get(i)->shuffle(offsets, false);
+          chunk.table_->push_back(col);
+          chunk.alias_map_[v] =
+              GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));
+        }
+      }
+      chunk.offsets_[src_table_id - 1] =
+          std::make_shared<ValueColumn<size_t>>(leaves_offsets);
+      chunk.leaves_[src_table_id - 1]->push_back(column);
+      chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(src_table_id, 0);
+    }
+    return chunk;
+  }
+
+  static DataChunk create(
+      DataChunk& other, const ValueColumn<size_t>& offsets,
+      const ValueColumn<size_t>& leaves_offsets,
+      std::vector<std::pair<std::shared_ptr<IContextColumn>, int>> columns,
+      int src_table_id) {
+    DataChunk chunk;
+    chunk.table_ = std::make_shared<Table>();
+    src_table_id = other.alias_map_.at(src_table_id);
+    std::unordered_map<uint32_t, int32_t> revert_map;
+    for (const auto& pair : other.alias_map_) {
+      revert_map[pair.second] = pair.first;
+    }
+    if (src_table_id == 0) {
+      for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
+        chunk.leaves_.emplace_back(std::make_shared<Table>());
+        chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
+                                    chunk.alias_map_);
+        chunk.offsets_.emplace_back(other.offsets_[i]);
+      }
+      chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
+      chunk.table_->shuffle(offsets);
+      chunk.offsets_.emplace_back(
+          std::make_shared<ValueColumn<size_t>>(leaves_offsets));
+      chunk.leaves_.emplace_back(std::make_shared<Table>());
+      size_t idx = 0;
+      for (const auto& pair : columns) {
+        chunk.leaves_.back()->push_back(pair.first);
+        chunk.alias_map_[pair.second] =
+            GLOBAL_COLUMN_ID(chunk.offsets_.size(), idx++);
+      }
+    } else {
+      chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
+      chunk.table_->shuffle(offsets, true);
+      for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
+        chunk.leaves_.emplace_back(std::make_shared<Table>());
+        if (i + 1 == src_table_id) {
+          continue;
+        }
+        chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
+                                    chunk.alias_map_);
+        chunk.offsets_.emplace_back(other.offsets_[i]);
+        chunk.offsets_[i]->shuffle(offsets, true);
+      }
+      for (int i = 0;
+           i < static_cast<int>(chunk.leaves_[src_table_id - 1]->col_num());
+           ++i) {
+        uint32_t idx = GLOBAL_COLUMN_ID(src_table_id, i);
+        int32_t v = revert_map.at(idx);
+        if (v == -1) {
+          continue;
+        } else {
+          auto col =
+              other.leaves_[src_table_id - 1]->get(i)->shuffle(offsets, false);
+          chunk.table_->push_back(col);
+          chunk.alias_map_[v] =
+              GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));
+        }
+      }
+      chunk.offsets_[src_table_id - 1] =
+          std::make_shared<ValueColumn<size_t>>(leaves_offsets);
+      for (const auto& pair : columns) {
+        chunk.leaves_[src_table_id - 1]->push_back(pair.first);
+        chunk.alias_map_[pair.second] = GLOBAL_COLUMN_ID(src_table_id, 0);
+      }
+    }
+    return chunk;
+  }
+
+  DataChunk() : table_(nullptr) {}
 
   void clear() {
     table_->clear();
-    leaves_size_ = 0;
     for (auto& leaf : leaves_) {
       leaf->clear();
     }
+    alias_map_.clear();
+    offsets_.clear();
   }
 
   size_t row_num() const {
@@ -40,8 +282,8 @@ class DataChunk {
     size_t cnt = 0;
     for (size_t i = 0; i < row_num; ++i) {
       size_t cur = 1;
-      const auto& offsets = offsets_[i];
-      for (size_t j = 0; j < leaves_size_; ++j) {
+      const auto& offsets = *offsets_[i];
+      for (size_t j = 0; j < leaves_.size(); ++j) {
         cur *= (offsets[j] >> 32);
       }
       cnt += cur;
@@ -49,69 +291,95 @@ class DataChunk {
     return cnt;
   }
 
-  bool is_optional(size_t idx) const {
-    uint32_t table_id = idx >>= 32;
-    uint32_t column_id = idx & 0xFFFFFFFF;
+  bool is_optional(int idx) const {
+    idx = alias_map_.at(idx);
+    uint32_t table_id = TABLE_ID(idx);
+    uint32_t column_id = COLUMN_ID(idx);
     if (table_id == 0) {
       return table_->get(column_id)->is_optional();
     } else {
-      CHECK_LT(table_id, leaves_size_);
-      return leaves_[table_id]->get(column_id)->is_optional();
+      return leaves_[table_id - 1]->get(column_id)->is_optional();
     }
   }
 
   // vertex column infos
 
-  std::unordered_set<label_t> get_vertex_labels_set(size_t idx) const {
+  std::unordered_set<label_t> get_vertex_labels_set(int idx) const {
     return dynamic_cast<IVertexColumn*>(get(idx))->get_labels_set();
   }
 
-  VertexColumnType get_vertex_column_type(size_t idx) const {
+  VertexColumnType get_vertex_column_type(int idx) const {
     return dynamic_cast<IVertexColumn*>(get(idx))->vertex_column_type();
   }
 
   template <typename FUNC_T>
-  void foreach_vertex(size_t v_tag, const FUNC_T& func) const {}
+  void foreach_vertex(int v_tag, const FUNC_T& func) const {
+    uint32_t idx = alias_map_.at(v_tag);
+    uint32_t table_id = TABLE_ID(idx);
+    if (table_id == 0) {
+      auto col = dynamic_cast<IVertexColumn*>(table_->get(COLUMN_ID(idx)));
+      col->foreach_vertex(func);
+    } else {
+      auto col = dynamic_cast<IVertexColumn*>(
+          leaves_[table_id - 1]->get(COLUMN_ID(idx)));
+      col->foreach_vertex(func, *offsets_[table_id - 1]);
+    }
+  }
 
   // edge column infos
-  std::vector<LabelTriplet> get_edge_labels(size_t idx) const {
+  std::vector<LabelTriplet> get_edge_labels(int idx) const {
     return dynamic_cast<IEdgeColumn*>(get(idx))->get_labels();
   }
 
-  EdgeColumnType get_edge_column_type(size_t idx) const {
+  EdgeColumnType get_edge_column_type(int idx) const {
     return dynamic_cast<IEdgeColumn*>(get(idx))->edge_column_type();
   }
 
   template <typename FUNC_T>
-  void foreach_edge(size_t v_tag, const FUNC_T& func) const {}
+  void foreach_edge(int v_tag, const FUNC_T& func) const {}
 
-  ContextColumnType get_column_type(size_t idx) const {
+  ContextColumnType get_column_type(int idx) const {
     return get(idx)->column_type();
   }
 
-  Direction get_edge_direction(size_t idx) const {
+  Direction get_edge_direction(int idx) const {
     return dynamic_cast<IEdgeColumn*>(get(idx))->dir();
   }
 
   template <typename FUNC_T>
-  void foreach_path(size_t index, const FUNC_T& func) const {}
-
-  inline IContextColumn* get(size_t idx) const {
-    uint32_t table_id = idx >>= 32;
-    uint32_t column_id = idx & 0xFFFFFFFF;
+  void foreach_path(int index, const FUNC_T& func) const {
+    uint32_t idx = alias_map_.at(index);
+    uint32_t table_id = TABLE_ID(idx);
     if (table_id == 0) {
-      return table_->get(column_id);
+      auto col = dynamic_cast<IPathColumn*>(table_->get(COLUMN_ID(idx)));
+      col->foreach_path(func);
     } else {
-      CHECK_LT(table_id, leaves_size_);
-      return leaves_[table_id]->get(column_id);
+      auto col = dynamic_cast<IPathColumn*>(
+          leaves_[table_id - 1]->get(COLUMN_ID(idx)));
+      col->foreach_path(func, *offsets_[table_id - 1]);
     }
   }
 
+  inline IContextColumn* get(uint32_t idx) const {
+    idx = alias_map_.at(idx);
+    uint32_t table_id = TABLE_ID(idx);
+    uint32_t column_id = COLUMN_ID(idx);
+    if (table_id == 0) {
+      return table_->get(column_id);
+    } else {
+      return leaves_[table_id - 1]->get(column_id);
+    }
+  }
+
+  const std::unordered_map<int32_t, uint32_t>& alias_map() const {
+    return alias_map_;
+  }
+
  private:
-  size_t leaves_size_;
   std::shared_ptr<Table> table_;
   std::vector<std::shared_ptr<Table>> leaves_;
-  std::vector<ValueColumn<size_t>> offsets_;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets_;
+  std::unordered_map<int32_t, uint32_t> alias_map_;
 };
 
 }  // namespace chunked_runtime

@@ -22,6 +22,7 @@
 #include "flex/engines/graph_db/app/cypher_write_app.h"
 #include "flex/engines/graph_db/app/hqps_app.h"
 #include "flex/engines/graph_db/app/server_app.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/plan_parser.h"
 #include "flex/engines/graph_db/database/graph_db_session.h"
 #include "flex/engines/graph_db/database/wal/wal.h"
 #include "flex/engines/graph_db/runtime/execute/plan_parser.h"
@@ -436,6 +437,7 @@ void GraphDB::initApps(
 
   auto& parser = gs::runtime::PlanParser::get();
   parser.init();
+  gs::chunked_runtime::PlanParser::get().init();
   app_factories_[Schema::ADHOC_READ_PLUGIN_ID] =
       std::make_shared<CypherReadAppFactory>();
 

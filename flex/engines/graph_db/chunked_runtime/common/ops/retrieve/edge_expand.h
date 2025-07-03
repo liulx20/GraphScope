@@ -245,7 +245,7 @@ class EdgeExpand {
             while (ie_iter.IsValid()) {
               auto nbr = ie_iter.GetNeighbor();
               if (pred(triplet, v, nbr, ie_iter.GetData(), Direction::kIn)) {
-                assert(oe_iter.GetData().type == label_prop.second);
+                assert(ie_iter.GetData().type == label_prop.second);
                 collector.push_back_opt(index, triplet, v, nbr,
                                         ie_iter.GetData());
               }
@@ -348,14 +348,13 @@ class EdgeExpand {
       const std::array<std::tuple<label_t, label_t, label_t, Direction>, 3>&
           labels,
       int input_tag, int alias1, int alias2, bool LT, const std::string& val,
-      LocalEdgeExpandState& state) {
+      LocalTCState& state) {
     if (ctx.get_vertex_column_type(input_tag) != VertexColumnType::kSingle) {
       RETURN_UNSUPPORTED_ERROR(
           "Unsupported input for triangle counting, only single vertex column");
     }
-    /*auto casted_input_vertex_list =
-        std::dynamic_pointer_cast<SLVertexColumn>(input_vertex_list);
-    label_t input_label = casted_input_vertex_list->label();
+
+    label_t input_label = *ctx.get_vertex_labels_set(input_tag).begin();
     auto dir0 = std::get<3>(labels[0]);
     auto dir1 = std::get<3>(labels[1]);
     auto dir2 = std::get<3>(labels[2]);
@@ -381,18 +380,18 @@ class EdgeExpand {
                     : graph.GetIncomingGraphView<T3>(d1_nbr_label, d2_nbr_label,
                                                      d2_e_label);
 
-    T1 param = TypedConverter<T1>::typed_from_string(val);
+    T1 param = gs::runtime::TypedConverter<T1>::typed_from_string(val);
 
-    auto builder1 = SLVertexColumnBuilder::builder(d1_nbr_label);
-    auto builder2 = SLVertexColumnBuilder::builder(d2_nbr_label);
+    // auto builder1 = SLVertexColumnBuilder::builder(d1_nbr_label);
+    // auto builder2 = SLVertexColumnBuilder::builder(d2_nbr_label);
+    auto builder = state.getTCCollector(d1_nbr_label, d2_nbr_label);
     std::vector<size_t> offsets;
 
-    size_t idx = 0;
     static thread_local GraphReadInterface::vertex_array_t<bool> d0_set;
     static thread_local std::vector<vid_t> d0_vec;
 
     d0_set.Init(graph.GetVertexSet(d0_nbr_label), false);
-    for (auto v : casted_input_vertex_list->vertices()) {
+    ctx.foreach_vertex(input_tag, [&](size_t idx, label_t label, vid_t v) {
       if (LT) {
         csr0.foreach_edges_lt(v, param, [&](vid_t u, const Date& date) {
           d0_set[u] = true;
@@ -409,9 +408,7 @@ class EdgeExpand {
         for (auto& e2 : csr2.get_edges(nbr1)) {
           auto nbr2 = e2.get_neighbor();
           if (d0_set[nbr2]) {
-            builder1.push_back_opt(nbr1);
-            builder2.push_back_opt(nbr2);
-            offsets.push_back(idx);
+            builder.push_back(idx, nbr1, nbr2);
           }
         }
       }
@@ -419,14 +416,8 @@ class EdgeExpand {
         d0_set[u] = false;
       }
       d0_vec.clear();
-      ++idx;
-    }
+    });
 
-    std::shared_ptr<IContextColumn> col1 = builder1.finish(nullptr);
-    std::shared_ptr<IContextColumn> col2 = builder2.finish(nullptr);
-    ctx.set_with_reshuffle(alias1, col1, offsets);
-    ctx.set(alias2, col2);
-    return ctx;*/
     return bl::result<void>();
   }
 };

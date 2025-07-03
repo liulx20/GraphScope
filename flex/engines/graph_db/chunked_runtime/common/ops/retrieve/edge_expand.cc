@@ -585,11 +585,11 @@ bl::result<void> EdgeExpand::expand_vertex_without_predicate(
 
 template <typename T>
 bl::result<void> expand_vertex_ep_lt_ml_impl(
-    const GraphReadInterface& graph, const DataChunk& ctx, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& ctx, int v_tag,
     const std::vector<std::tuple<label_t, label_t, Direction>>& label_dirs,
     label_t input_label, const std::string& ep_val, int alias,
     LocalEdgeExpandState& state) {
-  /*T max_value(TypedConverter<T>::typed_from_string(ep_val));
+  T max_value(gs::runtime::TypedConverter<T>::typed_from_string(ep_val));
   std::vector<GraphReadInterface::graph_view_t<T>> views;
   for (auto& t : label_dirs) {
     label_t nbr_label = std::get<0>(t);
@@ -604,25 +604,19 @@ bl::result<void> expand_vertex_ep_lt_ml_impl(
           graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
     }
   }
-  auto builder = MSVertexColumnBuilder::builder();
+  auto builder = state.getEdgeCollector<MLVertexColumn>();
   size_t csr_idx = 0;
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-    size_t idx = 0;
-    builder.start_label(nbr_label);
-    for (auto v : casted_input_vertex_list->vertices()) {
+    ctx.foreach_vertex(v_tag, [&](size_t idx, label_t label, vid_t v) {
       csr.foreach_edges_lt(v, max_value, [&](vid_t nbr, const T& e) {
-        builder.push_back_opt(nbr);
-        offsets.push_back(idx);
+        builder.push_back_opt(idx, nbr_label, nbr);
       });
-      ++idx;
-    }
+    });
     ++csr_idx;
   }
-  std::shared_ptr<IContextColumn> col = builder.finish(nullptr);
-  ctx.set_with_reshuffle(alias, col, offsets);
-  return ctx;*/
+
   return bl::result<void>();
 }
 bl::result<void> EdgeExpand::expand_vertex_ep_lt(
@@ -717,84 +711,74 @@ bl::result<void> EdgeExpand::expand_vertex_ep_lt(
 
 template <typename T>
 bl::result<void> expand_vertex_ep_gt_sl_impl(
-    const GraphReadInterface& graph, const DataChunk& ctx, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& ctx, int v_tag,
     const std::vector<std::tuple<label_t, label_t, Direction>>& label_dirs,
     label_t input_label, const std::string& ep_val, int alias,
     LocalEdgeExpandState& state) {
-  /** T max_value(TypedConverter<T>::typed_from_string(ep_val));
-   std::vector<GraphReadInterface::graph_view_t<T>> views;
-   for (auto& t : label_dirs) {
-     label_t nbr_label = std::get<0>(t);
-     label_t edge_label = std::get<1>(t);
-     Direction dir = std::get<2>(t);
-     if (dir == Direction::kOut) {
-       views.emplace_back(
-           graph.GetOutgoingGraphView<T>(input_label, nbr_label, edge_label));
-     } else {
-       CHECK(dir == Direction::kIn);
-       views.emplace_back(
-           graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
-     }
-   }
-   auto builder = SLVertexColumnBuilder::builder(std::get<0>(label_dirs[0]));
-   std::vector<size_t> offsets;
-   for (auto& csr : views) {
-     size_t idx = 0;
-     for (auto v : casted_input_vertex_list->vertices()) {
-       csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
-         builder.push_back_opt(nbr);
-         offsets.push_back(idx);
-       });
-       ++idx;
-     }
-   }
-   std::shared_ptr<IContextColumn> col = builder.finish(nullptr);
-   ctx.set_with_reshuffle(alias, col, offsets);
-   return ctx;*/
+  T max_value(gs::runtime::TypedConverter<T>::typed_from_string(ep_val));
+  std::vector<GraphReadInterface::graph_view_t<T>> views;
+  for (auto& t : label_dirs) {
+    label_t nbr_label = std::get<0>(t);
+    label_t edge_label = std::get<1>(t);
+    Direction dir = std::get<2>(t);
+    if (dir == Direction::kOut) {
+      views.emplace_back(
+          graph.GetOutgoingGraphView<T>(input_label, nbr_label, edge_label));
+    } else {
+      CHECK(dir == Direction::kIn);
+      views.emplace_back(
+          graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
+    }
+  }
+  auto builder =
+      state.getEdgeCollector<SLVertexColumn>(std::get<0>(label_dirs[0]));
+  std::vector<size_t> offsets;
+  for (auto& csr : views) {
+    ctx.foreach_vertex(v_tag, [&](size_t idx, label_t label, vid_t v) {
+      csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
+        builder.push_back_opt(idx, nbr);
+        offsets.push_back(idx);
+      });
+    });
+  }
+
   return bl::result<void>();
 }
 
 template <typename T>
 bl::result<void> expand_vertex_ep_gt_ml_impl(
-    const GraphReadInterface& graph, const DataChunk& ctx, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& ctx, int v_tag,
     const std::vector<std::tuple<label_t, label_t, Direction>>& label_dirs,
     label_t input_label, const EdgeExpandParams& params,
     const std::string& ep_val, int alias, LocalEdgeExpandState& state) {
-  /** T max_value = TypedConverter<T>::typed_from_string(ep_val);
-   std::vector<GraphReadInterface::graph_view_t<T>> views;
-   for (auto& t : label_dirs) {
-     label_t nbr_label = std::get<0>(t);
-     label_t edge_label = std::get<1>(t);
-     Direction dir = std::get<2>(t);
-     if (dir == Direction::kOut) {
-       views.emplace_back(
-           graph.GetOutgoingGraphView<T>(input_label, nbr_label, edge_label));
-     } else {
-       CHECK(dir == Direction::kIn);
-       views.emplace_back(
-           graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
-     }
-   }
-   auto builder = MSVertexColumnBuilder::builder();
-   size_t csr_idx = 0;
-   std::vector<size_t> offsets;
-   for (auto& csr : views) {
-     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-     size_t idx = 0;
-     builder.start_label(nbr_label);
-     LOG(INFO) << "start label: " << static_cast<int>(nbr_label);
-     for (auto v : casted_input_vertex_list->vertices()) {
-       csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
-         builder.push_back_opt(nbr);
-         offsets.push_back(idx);
-       });
-       ++idx;
-     }
-     ++csr_idx;
-   }
-   std::shared_ptr<IContextColumn> col = builder.finish(nullptr);
-   ctx.set_with_reshuffle(alias, col, offsets);
-   return ctx;*/
+  T max_value = gs::runtime::TypedConverter<T>::typed_from_string(ep_val);
+  std::vector<GraphReadInterface::graph_view_t<T>> views;
+  for (auto& t : label_dirs) {
+    label_t nbr_label = std::get<0>(t);
+    label_t edge_label = std::get<1>(t);
+    Direction dir = std::get<2>(t);
+    if (dir == Direction::kOut) {
+      views.emplace_back(
+          graph.GetOutgoingGraphView<T>(input_label, nbr_label, edge_label));
+    } else {
+      CHECK(dir == Direction::kIn);
+      views.emplace_back(
+          graph.GetIncomingGraphView<T>(input_label, nbr_label, edge_label));
+    }
+  }
+  auto builder = state.getEdgeCollector<MLVertexColumn>();
+  size_t csr_idx = 0;
+  std::vector<size_t> offsets;
+  for (auto& csr : views) {
+    label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
+    ctx.foreach_vertex(v_tag, [&](size_t idx, label_t label, vid_t v) {
+      csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
+        builder.push_back_opt(idx, nbr_label, nbr);
+      });
+    });
+    ++csr_idx;
+  }
+
   return bl::result<void>();
 }
 

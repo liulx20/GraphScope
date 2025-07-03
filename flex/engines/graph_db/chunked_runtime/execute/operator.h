@@ -25,6 +25,7 @@
 #include "flex/proto_generated_gie/physical.pb.h"
 
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/datachunks.h"
+#include "flex/engines/graph_db/runtime/common/context.h"
 
 namespace gs {
 
@@ -60,15 +61,23 @@ class IReadOpr {
       const GraphReadInterface& graph,
       const std::map<std::string, std::string>& params, IOprState& state,
       DataChunks& chunks) {
-    if (!state.initialized() && !state.getNextChunks(chunks)) {
+    if (!state.initialized() || !state.getNextChunks(chunks)) {
       if (source_opr() != nullptr) {
-        if (source_opr()->getNextChunks(graph, params, *state.src_state(),
-                                        state.src_chunks())) {
+        if (source_opr()
+                ->getNextChunks(graph, params, *state.src_state(),
+                                state.src_chunks())
+                .value()) {
           EvalChunks(graph, params, state);
+          LOG(INFO) << "Chunks retrieved from source operator: "
+                    << source_opr()->get_operator_name()
+                    << ", chunk num: " << state.src_chunks().chunk_num();
           return state.getNextChunks(chunks);
         }
+        return false;
+      } else {
+        EvalChunks(graph, params, state);
+        return state.getNextChunks(chunks);
       }
-      return false;
     }
     return true;
   }
@@ -77,10 +86,7 @@ class IReadOpr {
       const std::map<std::string, std::string>& params, Context&& ctx,
       OprTimer& timer) = 0;*/
 };
-struct ContextMeta {
-  // Placeholder for context metadata
-  void set(int) {}
-};
+
 class IReadSinkOpr : public IReadOpr {
  public:
   virtual ~IReadSinkOpr() = default;
@@ -89,7 +95,9 @@ class IReadSinkOpr : public IReadOpr {
                        const std::map<std::string, std::string>& params,
                        IOprState& state) = 0;
 };
-using ReadOpBuildResultT = std::pair<std::unique_ptr<IReadOpr>, ContextMeta>;
+using gs::runtime::ContextMeta;
+using ReadOpBuildResultT =
+    std::pair<std::unique_ptr<IReadOpr>, gs::runtime::ContextMeta>;
 class IReadOperatorBuilder {
  public:
   virtual ~IReadOperatorBuilder() = default;

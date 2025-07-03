@@ -44,6 +44,8 @@
 #include "flex/engines/graph_db/runtime/execute/ops/update/set.h"
 #include "flex/engines/graph_db/runtime/execute/ops/update/vertex.h"
 
+#include "flex/engines/graph_db/chunked_runtime/execute/plan_parser.h"
+
 namespace gs {
 
 namespace runtime {
@@ -196,7 +198,16 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
   int opr_num = plan.plan_size();
   std::vector<std::unique_ptr<IReadOperator>> operators;
   ContextMeta cur_ctx_meta = ctx_meta;
-  for (int i = 0; i < opr_num;) {
+  int i = 0;
+
+  auto res = gs::chunked_runtime::PlanParser::get().parse_read_pipeline(
+      schema, ctx_meta, plan);
+  auto opr = std::move(std::get<0>(res.value()));
+  if (opr) {
+    operators.emplace_back(std::move(opr));
+  }
+  i = std::get<2>(res.value());
+  for (; i < opr_num;) {
     physical::PhysicalOpr_Operator::OpKindCase cur_op_kind =
         plan.plan(i).opr().op_kind_case();
     if (cur_op_kind == physical::PhysicalOpr_Operator::OpKindCase::kSink) {

@@ -16,6 +16,7 @@
 #ifndef CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_PATH_COLUMNS_H_
 #define CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_PATH_COLUMNS_H_
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/i_context_column.h"
+#include "flex/engines/graph_db/chunked_runtime/common/datachunks/value_columns.h"
 #include "flex/engines/graph_db/chunked_runtime/utils/configs.h"
 namespace gs {
 namespace chunked_runtime {
@@ -30,6 +31,13 @@ class IPathColumn : public IContextColumn {
   virtual int get_path_length(size_t idx) const {
     return get_path(idx).len() - 1;
   }
+
+  template <typename FUNC_T>
+  void foreach_path(const FUNC_T& func) const;
+
+  template <typename FUNC_T>
+  void foreach_path(const FUNC_T& func,
+                    const ValueColumn<size_t>& offsets) const;
 };
 
 class GeneralPathColumn : public IPathColumn {
@@ -106,6 +114,31 @@ class GeneralPathColumn : public IPathColumn {
   Path operator[](size_t i) const { return data_[i]; }
   Path& operator[](size_t i) { return data_[i]; }
 
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override;
+
+  template <typename FUNC_T>
+  void foreach_path(const FUNC_T& func) const {
+    for (size_t i = 0; i < size_; ++i) {
+      func(i, data_[i]);
+    }
+  }
+
+  template <typename FUNC_T>
+  void foreach_path(const FUNC_T& func,
+                    const ValueColumn<size_t>& offsets) const {
+    size_t sz = offsets.size();
+    for (size_t i = 0; i < sz; ++i) {
+      int len = offsets[i] & 0xFFFFFFFF;
+      int offset = offsets[i] >> 32;
+      for (int j = 0; j < len; ++j) {
+        int idx = offset + j;
+        size_t index = (i << 32) | idx;
+        func(index, data_[idx]);
+      }
+    }
+  }
+
  private:
   bool is_optional_;
   size_t size_;
@@ -113,6 +146,16 @@ class GeneralPathColumn : public IPathColumn {
   std::unique_ptr<uint8_t[]> valid_;
   std::shared_ptr<Arena> arena_;
 };
+
+template <typename FUNC_T>
+inline void IPathColumn::foreach_path(const FUNC_T& func) const {
+  static_cast<const GeneralPathColumn*>(this)->foreach_path(func);
+}
+template <typename FUNC_T>
+inline void IPathColumn::foreach_path(
+    const FUNC_T& func, const ValueColumn<size_t>& offsets) const {
+  static_cast<const GeneralPathColumn*>(this)->foreach_path(func, offsets);
+}
 }  // namespace chunked_runtime
 }  // namespace gs
 

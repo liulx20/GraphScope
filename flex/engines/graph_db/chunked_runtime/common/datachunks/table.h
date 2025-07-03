@@ -21,36 +21,57 @@
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/i_context_column.h"
 namespace gs {
 namespace chunked_runtime {
+
+#define TABLE_ID(idx) ((idx) >> 16)
+#define COLUMN_ID(idx) ((idx) & 0xFFFF)
+#define GLOBAL_COLUMN_ID(table_id, column_id) \
+  ((table_id << 16) | (column_id & 0xFFFF))
 class Table {
  public:
-  Table() : col_num_(0) {}
+  Table() {}
   ~Table() = default;
 
   // Get the number of rows in the table
   size_t row_num() const {
-    if (col_num_ == 0) {
+    if (columns_.size() == 0) {
       return 0;
     }
     return columns_[0]->size();
   }
 
   // Get the number of columns in the table
-  size_t col_num() const { return col_num_; }
+  size_t col_num() const { return columns_.size(); }
 
   // Get a column by its index
-  IContextColumn* get(size_t index) const {
-    return columns_[index & 0xFFFFFFFFF].get();
-  }
+  IContextColumn* get(uint32_t index) const { return columns_[index].get(); }
 
   // Clear the table
-  void clear() {
-    col_num_ = 0;
-    for (auto& column : columns_) {
-      column->clear();
+  void clear() { columns_.clear(); }
+
+  void copy_from(Table& table, uint32_t table_id,
+                 const std::unordered_map<uint32_t, int32_t>& revert_map,
+                 std::unordered_map<int32_t, uint32_t>& alias_map) {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(table.columns_.size());
+         ++i) {
+      uint32_t idx = GLOBAL_COLUMN_ID(table_id, i);
+      if (revert_map.at(idx) == -1) {
+        continue;
+      }
+      alias_map[revert_map.at(idx)] =
+          GLOBAL_COLUMN_ID(table_id, columns_.size());
+      columns_.emplace_back(table.columns_[i]);
     }
   }
 
-  size_t col_num_;
+  void shuffle(const ValueColumn<size_t>& offsets, bool shift = false) {
+    for (auto& column : columns_) {
+      auto ret = column->shuffle(offsets, shift);
+    }
+  }
+  void push_back(const std::shared_ptr<IContextColumn>& column) {
+    columns_.emplace_back(column);
+  }
+
   std::vector<std::shared_ptr<IContextColumn>> columns_;
 };
 }  // namespace chunked_runtime

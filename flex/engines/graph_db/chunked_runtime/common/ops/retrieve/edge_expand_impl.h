@@ -48,28 +48,26 @@ inline bool check_exist_special_edge(const GraphReadInterface& graph,
 template <typename EDATA_T, typename PRED_T>
 bool expand_vertex_on_graph_view(
     const GraphReadInterface::graph_view_t<EDATA_T>& view,
-    const DataChunk& chunk, size_t v_tag, label_t nbr_label, label_t e_label,
+    const DataChunk& chunk, int v_tag, label_t nbr_label, label_t e_label,
     Direction dir, const PRED_T& pred, LocalEdgeExpandState& state) {
-  /*label_t input_label = input.label();
+  label_t input_label = *chunk.get_vertex_labels_set(v_tag).begin();
 
-  auto collector =
-      LocalEdgeExpandState::getEdgeCollector<SLVertexColumn, label_t>(
-          nbr_label);
-  for (auto [index, v] : input.vertices()) {
+  auto collector = state.getEdgeCollector<SLVertexColumn, label_t>(nbr_label);
+  chunk.foreach_vertex(v_tag, [&](size_t index, label_t l, vid_t v) {
     auto es = view.get_edges(v);
     for (auto& e : es) {
       if (pred(input_label, v, nbr_label, e.get_neighbor(), e_label, dir,
                e.get_data())) {
-        builder.push_back_opt(index, e.get_neighbor());
+        collector.push_back_opt(index, e.get_neighbor());
       }
     }
-  }*/
+  });
   return true;
 }
 
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_se(const GraphReadInterface& graph,
-                                const DataChunk& input, size_t v_tag,
+                                const DataChunk& input, int v_tag,
                                 label_t nbr_label, label_t edge_label,
                                 Direction dir, const PRED_T& pred,
                                 LocalEdgeExpandState& state) {
@@ -87,7 +85,7 @@ inline bool expand_vertex_np_se(const GraphReadInterface& graph,
 template <typename EDATA_T, typename PRED_T>
 bool expand_vertex_on_graph_view_optional(
     const GraphReadInterface::graph_view_t<EDATA_T>& view,
-    const DataChunk& chunk, size_t v_tag, label_t nbr_label, label_t e_label,
+    const DataChunk& chunk, int v_tag, label_t nbr_label, label_t e_label,
     Direction dir, const PRED_T& pred, LocalEdgeExpandState& state) {
   label_t input_label = *chunk.get_vertex_labels_set(v_tag).begin();
   auto collector = state.getEdgeCollector<SLVertexColumn, label_t>(input_label);
@@ -133,7 +131,7 @@ bool expand_vertex_on_graph_view_optional(
 
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_se_optional(const GraphReadInterface& graph,
-                                         const DataChunk& input, size_t v_tag,
+                                         const DataChunk& input, int v_tag,
                                          label_t nbr_label, label_t edge_label,
                                          Direction dir, const PRED_T& pred,
                                          LocalEdgeExpandState& state) {
@@ -150,187 +148,178 @@ inline bool expand_vertex_np_se_optional(const GraphReadInterface& graph,
 
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_me_sp(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::tuple<label_t, label_t, Direction>>& label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
-  /**std::vector<GraphReadInterface::graph_view_t<EDATA_T>> views;
+  std::vector<GraphReadInterface::graph_view_t<EDATA_T>> views;
   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
-   std::vector<label_t> nbr_labels;
-   for (auto& t : label_dirs) {
-     label_t nbr_label = std::get<0>(t);
-     label_t edge_label = std::get<1>(t);
-     Direction dir = std::get<2>(t);
-     nbr_labels.push_back(nbr_label);
-     if (dir == Direction::kOut) {
-       views.emplace_back(graph.GetOutgoingGraphView<EDATA_T>(
-           input_label, nbr_label, edge_label));
-     } else {
-       CHECK(dir == Direction::kIn);
-       views.emplace_back(graph.GetIncomingGraphView<EDATA_T>(
-           input_label, nbr_label, edge_label));
-     }
-   }
+  std::vector<label_t> nbr_labels;
+  for (auto& t : label_dirs) {
+    label_t nbr_label = std::get<0>(t);
+    label_t edge_label = std::get<1>(t);
+    Direction dir = std::get<2>(t);
+    nbr_labels.push_back(nbr_label);
+    if (dir == Direction::kOut) {
+      views.emplace_back(graph.GetOutgoingGraphView<EDATA_T>(
+          input_label, nbr_label, edge_label));
+    } else {
+      CHECK(dir == Direction::kIn);
+      views.emplace_back(graph.GetIncomingGraphView<EDATA_T>(
+          input_label, nbr_label, edge_label));
+    }
+  }
 
-   std::vector<size_t> offsets;
-   std::shared_ptr<IContextColumn> col(nullptr);
-   bool single_nbr_label = true;
-   for (size_t k = 1; k < nbr_labels.size(); ++k) {
-     if (nbr_labels[k] != nbr_labels[0]) {
-       single_nbr_label = false;
-       break;
-     }
-   }
-   if (single_nbr_label) {
-     size_t idx = 0;
-     auto builder =
-         state.getEdgeCollector<SLVertexColumn, label_t>(nbr_labels[0]);
-     for (auto v : input.vertices()) {
-       size_t csr_idx = 0;
-       for (auto& csr : views) {
-         label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-         label_t edge_label = std::get<1>(label_dirs[csr_idx]);
-         Direction dir = std::get<2>(label_dirs[csr_idx]);
-         auto es = csr.get_edges(v);
-         for (auto& e : es) {
-           if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label,
-   dir, e.get_data())) { builder.push_back_opt(idx, e.get_neighbor());
-           }
-         }
-         ++csr_idx;
-       }
-       ++idx;
-     }
+  bool single_nbr_label = true;
+  for (size_t k = 1; k < nbr_labels.size(); ++k) {
+    if (nbr_labels[k] != nbr_labels[0]) {
+      single_nbr_label = false;
+      break;
+    }
+  }
+  if (single_nbr_label) {
+    auto builder =
+        state.getEdgeCollector<SLVertexColumn, label_t>(nbr_labels[0]);
+    input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
+      size_t csr_idx = 0;
+      for (auto& csr : views) {
+        label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
+        label_t edge_label = std::get<1>(label_dirs[csr_idx]);
+        Direction dir = std::get<2>(label_dirs[csr_idx]);
+        auto es = csr.get_edges(v);
+        for (auto& e : es) {
+          if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label, dir,
+                   e.get_data())) {
+            builder.push_back_opt(idx, e.get_neighbor());
+          }
+        }
+        ++csr_idx;
+      }
+    });
 
-     col = builder.finish(nullptr);
-   } else {
-     size_t idx = 0;
-     auto builder = MSVertexColumnBuilder::builder();
-     size_t csr_idx = 0;
-     for (auto& csr : views) {
-       label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-       label_t edge_label = std::get<1>(label_dirs[csr_idx]);
-       Direction dir = std::get<2>(label_dirs[csr_idx]);
-       idx = 0;
-       builder.start_label(nbr_label);
-       for (auto v : input.vertices()) {
-         auto es = csr.get_edges(v);
-         for (auto& e : es) {
-           if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label,
-   dir, e.get_data())) { builder.push_back_opt(e.get_neighbor());
-             offsets.push_back(idx);
-           }
-         }
-         ++idx;
-       }
-       ++csr_idx;
-     }
-     col = builder.finish(nullptr);
-   }
+  } else {
+    auto builder = state.getEdgeCollector<MLVertexColumn>();
+    size_t csr_idx = 0;
+    for (auto& csr : views) {
+      label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
+      label_t edge_label = std::get<1>(label_dirs[csr_idx]);
+      Direction dir = std::get<2>(label_dirs[csr_idx]);
 
-   return std::make_pair(col, std::move(offsets));*/
+      input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
+        auto es = csr.get_edges(v);
+        for (auto& e : es) {
+          if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label, dir,
+                   e.get_data())) {
+            builder.push_back_opt(idx, nbr_label, e.get_neighbor());
+          }
+        }
+      });
+      ++csr_idx;
+    }
+  }
+
   return true;
 }
+
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_me_sp_optional(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::tuple<label_t, label_t, Direction>>& label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
-  /** std::vector<GraphReadInterface::graph_view_t<EDATA_T>> views;
-   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
-   std::vector<label_t> nbr_labels;
-   for (auto& t : label_dirs) {
-     label_t nbr_label = std::get<0>(t);
-     label_t edge_label = std::get<1>(t);
-     Direction dir = std::get<2>(t);
-     nbr_labels.push_back(nbr_label);
-     if (dir == Direction::kOut) {
-       views.emplace_back(graph.GetOutgoingGraphView<EDATA_T>(
-           input_label, nbr_label, edge_label));
-     } else {
-       CHECK(dir == Direction::kIn);
-       views.emplace_back(graph.GetIncomingGraphView<EDATA_T>(
-           input_label, nbr_label, edge_label));
-     }
-   }
+  std::vector<GraphReadInterface::graph_view_t<EDATA_T>> views;
+  label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
+  std::vector<label_t> nbr_labels;
+  for (auto& t : label_dirs) {
+    label_t nbr_label = std::get<0>(t);
+    label_t edge_label = std::get<1>(t);
+    Direction dir = std::get<2>(t);
+    nbr_labels.push_back(nbr_label);
+    if (dir == Direction::kOut) {
+      views.emplace_back(graph.GetOutgoingGraphView<EDATA_T>(
+          input_label, nbr_label, edge_label));
+    } else {
+      CHECK(dir == Direction::kIn);
+      views.emplace_back(graph.GetIncomingGraphView<EDATA_T>(
+          input_label, nbr_label, edge_label));
+    }
+  }
 
-   bool single_nbr_label = true;
-   for (size_t k = 1; k < nbr_labels.size(); ++k) {
-     if (nbr_labels[k] != nbr_labels[0]) {
-       single_nbr_label = false;
-       break;
-     }
-   }
-   if (single_nbr_label) {
-     auto collector =
-         state.getEdgeCollector<SLVertexColumn, label_t>(nbr_labels[0]);
-     input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
-       if (v == std::numeric_limits<vid_t>::max()) {
-         collector.push_back_null(idx);
-         return;
-       }
-       bool found = false;
-       size_t csr_idx = 0;
-       for (auto& csr : views) {
-         label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-         label_t edge_label = std::get<1>(label_dirs[csr_idx]);
-         Direction dir = std::get<2>(label_dirs[csr_idx]);
-         auto es = csr.get_edges(v);
-         for (auto& e : es) {
-           if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label,
-   dir, e.get_data())) { collector.push_back_opt(idx, e.get_neighbor()); found =
-   true;
-           }
-         }
-         ++csr_idx;
-       }
-       if (!found) {
-         collector.push_back_null(idx);
-       }
-       ++idx;
-     });
-   } else {
-     auto collector = state.getEdgeCollector<MLVertexColumn>();
-     size_t csr_idx = 0;
-     for (auto& csr : views) {
-       label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-       label_t edge_label = std::get<1>(label_dirs[csr_idx]);
-       Direction dir = std::get<2>(label_dirs[csr_idx]);
-       input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
-         if (v == std::numeric_limits<vid_t>::max()) {
-           collector.push_back_null(idx);
-           return;
-         }
-         bool found = false;
-         auto es = csr.get_edges(v);
-         for (auto& e : es) {
-           if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label,
-   dir, e.get_data())) { collector.push_back_opt(idx, nbr_label,
-   e.get_neighbor()); found = true;
-           }
-         }
-         // fix me
-         if (!found) {
-           collector.push_back_null(idx);
-         }
-       });
+  bool single_nbr_label = true;
+  for (size_t k = 1; k < nbr_labels.size(); ++k) {
+    if (nbr_labels[k] != nbr_labels[0]) {
+      single_nbr_label = false;
+      break;
+    }
+  }
+  if (single_nbr_label) {
+    auto collector =
+        state.getEdgeCollector<SLVertexColumn, label_t>(nbr_labels[0]);
+    input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
+      if (v == std::numeric_limits<vid_t>::max()) {
+        collector.push_back_null(idx);
+        return;
+      }
+      bool found = false;
+      size_t csr_idx = 0;
+      for (auto& csr : views) {
+        label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
+        label_t edge_label = std::get<1>(label_dirs[csr_idx]);
+        Direction dir = std::get<2>(label_dirs[csr_idx]);
+        auto es = csr.get_edges(v);
+        for (auto& e : es) {
+          if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label, dir,
+                   e.get_data())) {
+            collector.push_back_opt(idx, e.get_neighbor());
+            found = true;
+          }
+        }
+        ++csr_idx;
+      }
+      if (!found) {
+        collector.push_back_null(idx);
+      }
+      ++idx;
+    });
+  } else {
+    auto collector = state.getEdgeCollector<MLVertexColumn>();
+    size_t csr_idx = 0;
+    for (auto& csr : views) {
+      label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
+      label_t edge_label = std::get<1>(label_dirs[csr_idx]);
+      Direction dir = std::get<2>(label_dirs[csr_idx]);
+      input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
+        if (v == std::numeric_limits<vid_t>::max()) {
+          collector.push_back_null(idx);
+          return;
+        }
+        bool found = false;
+        auto es = csr.get_edges(v);
+        for (auto& e : es) {
+          if (pred(input_label, v, nbr_label, e.get_neighbor(), edge_label, dir,
+                   e.get_data())) {
+            collector.push_back_opt(idx, nbr_label, e.get_neighbor());
+            found = true;
+          }
+        }
+        // fix me
+        if (!found) {
+          collector.push_back_null(idx);
+        }
+      });
 
-       ++csr_idx;
-     }
-   }*/
+      ++csr_idx;
+    }
+  }
   return true;
 }
 template <typename PRED_T>
 inline bool expand_vertex_np_me_mp(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::tuple<label_t, label_t, Direction>>& labels,
     const PRED_T& pred, LocalEdgeExpandState& state) {
-  /**
   auto builder = state.getEdgeCollector<MLVertexColumn>();
-  label_t input_label = input.label();
-  size_t idx = 0;
+  label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
 
-  std::vector<size_t> offsets;
-  for (auto v : input.vertices()) {
+  input.foreach_vertex(v_tag, [&](size_t idx, label_t l, vid_t v) {
     for (auto& t : labels) {
       label_t nbr_label = std::get<0>(t);
       label_t edge_label = std::get<1>(t);
@@ -349,14 +338,13 @@ inline bool expand_vertex_np_me_mp(
         it.Next();
       }
     }
-    ++idx;
-  }*/
+  });
   return true;
 }
 
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_se(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::vector<std::tuple<label_t, label_t, Direction>>>&
         label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
@@ -450,7 +438,7 @@ inline bool expand_vertex_np_se(
 /**
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_se(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::vector<std::tuple<label_t, label_t, Direction>>>&
         label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
@@ -544,7 +532,7 @@ inline bool expand_vertex_np_se(
 */
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_me_sp(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::vector<std::tuple<label_t, label_t, Direction>>>&
         label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
@@ -617,7 +605,7 @@ inline bool expand_vertex_np_me_sp(
 
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_vertex_np_me_sp_optional(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::vector<std::tuple<label_t, label_t, Direction>>>&
         label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
@@ -790,7 +778,7 @@ expand_vertex_np_me_sp(
 */
 template <typename PRED_T>
 inline bool expand_vertex_np_me_mp(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::vector<std::tuple<label_t, label_t, Direction>>>&
         label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
@@ -852,7 +840,7 @@ expand_vertex_np_me_mp(
 */
 template <typename PRED_T>
 inline bool expand_vertex_optional_impl(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<std::vector<std::tuple<label_t, label_t, Direction>>>&
         label_dirs,
     const PRED_T& pred, LocalEdgeExpandState& state) {
@@ -928,7 +916,7 @@ struct GPredWrapper<GPRED_T, Any> {
 
 template <typename VERTEX_COL_T, typename GPRED_T>
 inline bool expand_vertex_impl(const GraphReadInterface& graph,
-                               const DataChunk& input, size_t v_tag,
+                               const DataChunk& input, int v_tag,
                                const std::vector<LabelTriplet>& labels,
                                Direction dir, const GPRED_T& gpred,
                                LocalEdgeExpandState& state) {
@@ -1275,91 +1263,90 @@ inline bool expand_vertex_impl(const GraphReadInterface& graph,
 
 template <typename VERTEX_COL_T>
 bool expand_vertex_without_predicate_impl(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state) = delete;
 
 template <typename VERTEX_COL_T>
 bool expand_vertex_without_predicate_optional_impl(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state) = delete;
 
 template <>
 bool expand_vertex_without_predicate_impl<SLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state);
 template <>
 bool expand_vertex_without_predicate_impl<MLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state);
 
 template <>
 bool expand_vertex_without_predicate_optional_impl<SLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state);
 
 template <>
 bool expand_vertex_without_predicate_optional_impl<MLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state);
 
 template <typename EDATA_T, typename PRED_T>
 inline bool expand_edge_ep_se(const GraphReadInterface& graph,
-                              const SLVertexColumn& input, label_t nbr_label,
-                              label_t edge_label, Direction dir,
-                              const PropertyType& prop_type,
-                              const PRED_T& pred) {
-  /**label_t input_label = input.label();
+                              const DataChunk& input, int v_tag,
+                              label_t nbr_label, label_t edge_label,
+                              Direction dir, const PropertyType& prop_type,
+                              const PRED_T& pred, LocalEdgeExpandState& state) {
+  label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
   CHECK((dir == Direction::kIn) || (dir == Direction::kOut));
   LabelTriplet triplet(dir == Direction::kIn ? nbr_label : input_label,
                        dir == Direction::kIn ? input_label : nbr_label,
                        edge_label);
-  SDSLEdgeColumnBuilderBeta<EDATA_T> builder(dir, triplet, prop_type);
+  auto builder = state.getEdgeCollector<SDSLEdgeColumn, Direction, LabelTriplet,
+                                        PropertyType>(dir, triplet, prop_type);
+  // SDSLEdgeColumnBuilderBeta<EDATA_T> builder(dir, triplet, prop_type);
   std::vector<size_t> offsets;
   if (dir == Direction::kIn) {
     GraphReadInterface::graph_view_t<EDATA_T> view =
-        graph.GetIncomingGraphView<EDATA_T>(input_label, nbr_label,
-  edge_label); size_t idx = 0; for (auto v : input.vertices()) { auto es =
-  view.get_edges(v); for (auto& e : es) { Any edata =
-  AnyConverter<EDATA_T>::to_any(e.get_data()); if (pred(triplet,
-  e.get_neighbor(), v, edata, dir, idx)) {
-          builder.push_back_opt(e.get_neighbor(), v, e.get_data());
-          offsets.push_back(idx);
+        graph.GetIncomingGraphView<EDATA_T>(input_label, nbr_label, edge_label);
+    input.foreach_vertex(v_tag, [&](size_t idx, label_t v_label, vid_t v) {
+      auto es = view.get_edges(v);
+      for (auto& e : es) {
+        Any edata = AnyConverter<EDATA_T>::to_any(e.get_data());
+        if (pred(triplet, e.get_neighbor(), v, edata, dir, idx)) {
+          builder.push_back_opt(idx, e.get_neighbor(), v, e.get_data());
         }
       }
-      ++idx;
-    }
+    });
   } else if (dir == Direction::kOut) {
-    CHECK(dir == Direction::kOut);
     GraphReadInterface::graph_view_t<EDATA_T> view =
-        graph.GetOutgoingGraphView<EDATA_T>(input_label, nbr_label,
-  edge_label); size_t idx = 0; for (auto v : input.vertices()) { auto es =
-  view.get_edges(v); for (auto& e : es) { Any edata =
-  AnyConverter<EDATA_T>::to_any(e.get_data()); if (pred(triplet, v,
-  e.get_neighbor(), edata, dir, idx)) { builder.push_back_opt(v,
-  e.get_neighbor(), e.get_data()); offsets.push_back(idx);
+        graph.GetOutgoingGraphView<EDATA_T>(input_label, nbr_label, edge_label);
+    input.foreach_vertex(v_tag, [&](size_t idx, label_t v_label, vid_t v) {
+      auto es = view.get_edges(v);
+      for (auto& e : es) {
+        Any edata = AnyConverter<EDATA_T>::to_any(e.get_data());
+        if (pred(triplet, v, e.get_neighbor(), edata, dir, idx)) {
+          builder.push_back_opt(idx, v, e.get_neighbor(), e.get_data());
         }
       }
-      ++idx;
-    }
+    });
   } else {
     // We will handle edge_expand with both direction outside this function,
     // in EdgeExpand::expand_edge.
-    return std::make_pair(nullptr, std::vector<size_t>());
+    return false;
   }
 
-  return std::make_pair(builder.finish(nullptr), std::move(offsets));*/
   return true;
 }
 
 template <typename PRED_T>
 bool expand_edge_impl(const GraphReadInterface& graph, const DataChunk& input,
-                      size_t v_tag, const LabelTriplet& triplet,
+                      int v_tag, const LabelTriplet& triplet,
                       const PRED_T& pred, Direction dir,
                       LocalEdgeExpandState& state) {
   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();

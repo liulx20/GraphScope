@@ -13,31 +13,28 @@
  * limitations under the License.
  */
 
-#ifndef CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_DATA_CHUNKS_H_
-#define CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_DATA_CHUNKS_H_
-
-#include "flex/engines/graph_db/chunked_runtime/common/datachunks/datachunk.h"
+#include "flex/engines/graph_db/chunked_runtime/common/datachunks/value_columns.h"
 
 namespace gs {
 namespace chunked_runtime {
-class DataChunks {
- public:
-  DataChunks() {}
-  ~DataChunks() = default;
-  void clear() { chunks_.clear(); }
 
-  void emplace_back(DataChunk&& chunk) {
-    chunks_.emplace_back(std::move(chunk));
+std::shared_ptr<IContextColumn> ValueColumn<List>::shuffle(
+    const ValueColumn<size_t>& offsets, bool shift) {
+  auto ptr = std::make_shared<ValueColumn<List>>(elem_type_);
+
+  if (!shift) {
+    for (size_t i = 0; i < size_; ++i) {
+      ptr->data_[i] = data_[offsets[i] & 0xFFFFFFFF];
+    }
+  } else {
+    for (size_t i = 0; i < size_; ++i) {
+      ptr->data_[i] = data_[offsets[i] >> 32];
+    }
   }
-  size_t chunk_num() const { return chunks_.size(); }
 
-  DataChunk& operator[](size_t idx) { return chunks_[idx]; }
-
-  const DataChunk& operator[](size_t idx) const { return chunks_[idx]; }
-
- private:
-  std::vector<DataChunk> chunks_;
-};
+  ptr->size_ = size_;
+  ptr->arena_ = arena_;
+  return ptr;
+}
 }  // namespace chunked_runtime
 }  // namespace gs
-#endif  // CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_DATA_CHUNKS_H_

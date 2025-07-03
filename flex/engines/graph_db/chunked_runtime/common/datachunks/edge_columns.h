@@ -17,6 +17,7 @@
 #define CHUNKED_RUNTIME_COMMON_DATA_CHUNKS_EDGE_COLUMNS_H_
 #include <variant>
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/i_context_column.h"
+#include "flex/engines/graph_db/chunked_runtime/common/datachunks/value_columns.h"
 #include "flex/engines/graph_db/chunked_runtime/utils/configs.h"
 namespace gs {
 namespace chunked_runtime {
@@ -27,35 +28,103 @@ using gs::runtime::EdgePropVec;
 using gs::runtime::EdgeRecord;
 using gs::runtime::LabelTriplet;
 using gs::runtime::RTAnyType;
-using edge_property_vec =
-    std::variant<EdgePropVec<grape::EmptyType>, EdgePropVec<int64_t>,
-                 EdgePropVec<int32_t>, EdgePropVec<double>,
-                 EdgePropVec<std::string_view>, EdgePropVec<bool>,
-                 EdgePropVec<Date>, EdgePropVec<Day>, EdgePropVec<RecordView>>;
-inline edge_property_vec create_edge_prop_vec(PropertyType type) {
-  if (type == PropertyType::Int64()) {
-    return EdgePropVec<int64_t>();
-  } else if (type == PropertyType::StringView()) {
-    return EdgePropVec<std::string_view>();
-  } else if (type == PropertyType::Date()) {
-    return EdgePropVec<Date>();
-  } else if (type == PropertyType::Day()) {
-    return EdgePropVec<Day>();
-  } else if (type == PropertyType::Int32()) {
-    return EdgePropVec<int32_t>();
-  } else if (type == PropertyType::Double()) {
-    return EdgePropVec<double>();
-  } else if (type == PropertyType::Bool()) {
-    return EdgePropVec<bool>();
-  } else if (type == PropertyType::Empty()) {
-    return EdgePropVec<grape::EmptyType>();
-  } else if (type == PropertyType::RecordView()) {
-    return EdgePropVec<RecordView>();
-  } else {
-    LOG(FATAL) << "not support for " << type;
-    return EdgePropVec<grape::EmptyType>();
+struct edge_property_vec {
+  std::variant<EdgePropVec<grape::EmptyType>, EdgePropVec<int64_t>,
+               EdgePropVec<int32_t>, EdgePropVec<double>,
+               EdgePropVec<std::string_view>, EdgePropVec<bool>,
+               EdgePropVec<Date>, EdgePropVec<Day>, EdgePropVec<RecordView>>
+      edge_col_;
+  edge_property_vec() = default;
+  template <typename T>
+  edge_property_vec(const EdgePropVec<T>& col) : edge_col_(col) {}
+
+  edge_property_vec(edge_property_vec&& other) noexcept
+      : edge_col_(std::move(other.edge_col_)) {}
+  edge_property_vec(const edge_property_vec& other)
+      : edge_col_(other.edge_col_) {}
+  edge_property_vec& operator=(edge_property_vec&& other) noexcept {
+    edge_col_ = std::move(other.edge_col_);
+    return *this;
   }
-}
+  inline static edge_property_vec create_edge_prop_vec(PropertyType type) {
+    if (type == PropertyType::Int64()) {
+      return EdgePropVec<int64_t>();
+    } else if (type == PropertyType::StringView()) {
+      return EdgePropVec<std::string_view>();
+    } else if (type == PropertyType::Date()) {
+      return EdgePropVec<Date>();
+    } else if (type == PropertyType::Day()) {
+      return EdgePropVec<Day>();
+    } else if (type == PropertyType::Int32()) {
+      return EdgePropVec<int32_t>();
+    } else if (type == PropertyType::Double()) {
+      return EdgePropVec<double>();
+    } else if (type == PropertyType::Bool()) {
+      return EdgePropVec<bool>();
+    } else if (type == PropertyType::Empty()) {
+      return EdgePropVec<grape::EmptyType>();
+    } else if (type == PropertyType::RecordView()) {
+      return EdgePropVec<RecordView>();
+    } else {
+      LOG(FATAL) << "not support for " << type;
+      return EdgePropVec<grape::EmptyType>();
+    }
+  }
+
+  inline EdgeData get(size_t idx) const {
+    return std::visit(
+        [idx](const auto& col) { return EdgeData(col.get_view(idx)); },
+        edge_col_);
+  }
+
+  inline void get_edge_data(EdgeData& edge_record, size_t idx) const {
+    std::visit([&edge_record,
+                idx](auto&& col) { edge_record = EdgeData(col.get_view(idx)); },
+               edge_col_);
+  }
+
+  inline void set_edge_data(const EdgeData& edge_record, size_t idx) {
+    std::visit(
+        [idx, &edge_record](auto& col) {
+          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
+          col.set(idx, edge_record.as<T>());
+        },
+        edge_col_);
+  }
+
+  inline void set_null(size_t idx) {
+    std::visit(
+        [idx](auto& col) {
+          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
+          col.set(idx, T());
+        },
+        edge_col_);
+  }
+
+  inline size_t size() const {
+    return std::visit([](const auto& col) { return col.size(); }, edge_col_);
+  }
+
+  inline void resize(size_t size) {
+    std::visit([size](auto& col) { col.resize(size); }, edge_col_);
+  }
+
+  inline void set_any(size_t idx, const edge_property_vec& other,
+                      size_t other_idx) {
+    std::visit(
+        [idx, other, other_idx](auto& col) {
+          auto data = other.get(other_idx);
+          col.set(
+              idx,
+              data.as<typename std::decay_t<decltype(col)>::EdgeDataType>());
+        },
+        edge_col_);
+  }
+
+  void clear() {
+    std::visit([](auto& col) { col.clear(); }, edge_col_);
+  }
+};
 
 struct LabelTripletHash {
   std::size_t operator()(const LabelTriplet& lt) const {
@@ -86,6 +155,13 @@ class IEdgeColumn : public IContextColumn {
   virtual Direction dir() const = 0;
   virtual std::vector<LabelTriplet> get_labels() const = 0;
   virtual EdgeColumnType edge_column_type() const = 0;
+
+  template <typename FUNC_T>
+  void foreach_edge(const FUNC_T& func) const;
+
+  template <typename FUNC_T>
+  void foreach_edge(const FUNC_T& func,
+                    const ValueColumn<size_t>& offsets) const;
 };
 
 class SDSLEdgeColumn : public IEdgeColumn {
@@ -95,7 +171,7 @@ class SDSLEdgeColumn : public IEdgeColumn {
       : dir_(dir),
         label_(label),
         prop_type_(prop_type),
-        prop_col_(create_edge_prop_vec(prop_type)) {
+        prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)) {
     edges_ = std::make_unique<std::pair<vid_t, vid_t>[]>(
         gs::chunked_runtime::Configs::CHUNK_SIZE);
   }
@@ -105,9 +181,7 @@ class SDSLEdgeColumn : public IEdgeColumn {
     ret.label_triplet_ = label_;
     ret.src_ = edges_[idx].first;
     ret.dst_ = edges_[idx].second;
-    std::visit(
-        [&ret, idx](auto&& col) { ret.prop_ = EdgeData(col.get_view(idx)); },
-        prop_col_);
+    prop_col_.get_edge_data(ret.prop_, idx);
     ret.dir_ = dir_;
     return ret;
   }
@@ -133,12 +207,7 @@ class SDSLEdgeColumn : public IEdgeColumn {
     push_back_opt(e.src_, e.dst_, e.prop_);
   }
   inline void push_back_opt(vid_t src, vid_t dst, const EdgeData& data) {
-    std::visit(
-        [this, idx = size_, data](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          col.set(idx, data.as<T>());
-        },
-        prop_col_);
+    prop_col_.set_edge_data(data, size_);
     edges_[size_++] = std::make_pair(src, dst);
   }
 
@@ -146,12 +215,7 @@ class SDSLEdgeColumn : public IEdgeColumn {
     is_optional_ = true;
     edges_[size_] = std::make_pair(std::numeric_limits<vid_t>::max(),
                                    std::numeric_limits<vid_t>::max());
-    std::visit(
-        [this](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          col.set(size_, T());
-        },
-        prop_col_);
+    prop_col_.set_null(size_++);
   }
 
   inline bool full() const {
@@ -164,9 +228,35 @@ class SDSLEdgeColumn : public IEdgeColumn {
   }
 
   inline void clear() override {
+    prop_col_.clear();
     size_ = 0;
     is_optional_ = false;
-    std::visit([](auto& col) { col.clear(); }, prop_col_);
+  }
+
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override;
+
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func) const {
+    for (size_t i = 0; i < size_; ++i) {
+      func(i, label_, edges_[i].first, edges_[i].second, prop_col_.get(i));
+    }
+  }
+
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func,
+                           const ValueColumn<size_t>& offsets) const {
+    size_t sz = offsets.size();
+    for (size_t i = 0; i < sz; ++i) {
+      int len = offsets[i] & 0xFFFFFFFF;
+      int offset = offsets[i] >> 32;
+      for (int j = 0; j < len; ++j) {
+        size_t idx = offset + j;
+        size_t index = (i << 32) | idx;
+        func(index, label_, edges_[idx].first, edges_[idx].second,
+             prop_col_.get(idx));
+      }
+    }
   }
 
  private:
@@ -192,9 +282,13 @@ class SDMLEdgeColumn : public IEdgeColumn {
     for (const auto& label : labels) {
       edge_labels_.emplace_back(label);
       index_[label.first] = idx++;
-      prop_cols_[index_[label.first]] = create_edge_prop_vec(label.second);
+      prop_cols_[index_[label.first]] =
+          edge_property_vec::create_edge_prop_vec(label.second);
     }
   }
+
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override;
 
   inline EdgeRecord get_edge(size_t idx) const override {
     auto& e = edges_[idx];
@@ -205,8 +299,8 @@ class SDMLEdgeColumn : public IEdgeColumn {
     ret.label_triplet_ = label;
     ret.src_ = std::get<1>(e);
     ret.dst_ = std::get<2>(e);
-    std::visit([&ret, offset](auto& col) { ret.prop_ = col.get(offset); },
-               prop_cols_[index]);
+    prop_cols_[index].get_edge_data(ret.prop_, offset);
+
     ret.dir_ = dir_;
     return ret;
   }
@@ -246,13 +340,7 @@ class SDMLEdgeColumn : public IEdgeColumn {
                             const EdgeData& data) {
     auto index = index_[label];
     size_t len;
-    std::visit(
-        [this, index, &len, data](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          len = col.size();
-          col.emplace_back(data.as<T>());
-        },
-        prop_cols_[index]);
+    prop_cols_[index].set_edge_data(data, size_);
     edges_[size_++] = std::make_tuple(index, src, dst, len);
   }
 
@@ -265,13 +353,7 @@ class SDMLEdgeColumn : public IEdgeColumn {
   inline void push_back_null() {
     size_t len;
     is_optional_ = true;
-    std::visit(
-        [this, &len](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          len = col.size();
-          col.emplace_back(T());
-        },
-        prop_cols_[0]);
+    prop_cols_[0].set_null(size_);
     edges_[size_++] = std::make_tuple(0, std::numeric_limits<vid_t>::max(),
                                       std::numeric_limits<vid_t>::max(), len);
   }
@@ -292,7 +374,40 @@ class SDMLEdgeColumn : public IEdgeColumn {
     size_ = 0;
     is_optional_ = false;
     for (auto& col : prop_cols_) {
-      std::visit([](auto& c) { c.clear(); }, col);
+      col.clear();
+    }
+  }
+
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func) const {
+    for (size_t i = 0; i < size_; ++i) {
+      auto& e = edges_[i];
+      auto index = std::get<0>(e);
+      auto label = edge_labels_[index].first;
+      auto src = std::get<1>(e);
+      auto dst = std::get<2>(e);
+      auto offset = std::get<3>(e);
+      func(i, label, src, dst, prop_cols_[index].get(offset));
+    }
+  }
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func,
+                           const ValueColumn<size_t>& offsets) const {
+    size_t sz = offsets.size();
+    for (size_t i = 0; i < sz; ++i) {
+      int len = offsets[i] & 0xFFFFFFFF;
+      int offset = offsets[i] >> 32;
+      for (int j = 0; j < len; ++j) {
+        size_t idx = offset + j;
+        auto& e = edges_[idx];
+        auto index = std::get<0>(e);
+        auto label = edge_labels_[index].first;
+        auto src = std::get<1>(e);
+        auto dst = std::get<2>(e);
+        auto offset = std::get<3>(e);
+        size_t index2 = (i << 32) | idx;
+        func(index2, label, src, dst, prop_cols_[index].get(offset));
+      }
     }
   }
 
@@ -311,7 +426,7 @@ class BDSLEdgeColumn : public IEdgeColumn {
   BDSLEdgeColumn(const LabelTriplet& label, PropertyType prop_type)
       : label_(label),
         prop_type_(prop_type),
-        prop_col_(create_edge_prop_vec(prop_type)) {
+        prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)) {
     edges_ = std::make_unique<std::tuple<vid_t, vid_t, bool>[]>(
         gs::chunked_runtime::Configs::CHUNK_SIZE);
     size_ = 0;
@@ -321,12 +436,7 @@ class BDSLEdgeColumn : public IEdgeColumn {
   inline void push_back_opt(vid_t src, vid_t dst, const EdgeData& data,
                             Direction dir) {
     edges_[size_] = std::make_tuple(src, dst, dir == Direction::kOut);
-    std::visit(
-        [this, idx = size_, data](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          col.emplace_back(data.as<T>());
-        },
-        prop_col_);
+    prop_col_.set_edge_data(data, size_);
     size_++;
   }
 
@@ -334,12 +444,7 @@ class BDSLEdgeColumn : public IEdgeColumn {
     is_optional_ = true;
     edges_[size_] = std::make_tuple(std::numeric_limits<vid_t>::max(),
                                     std::numeric_limits<vid_t>::max(), false);
-    std::visit(
-        [this](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          col.emplace_back(T());
-        },
-        prop_col_);
+    prop_col_.set_null(size_);
     size_++;
   }
 
@@ -351,7 +456,7 @@ class BDSLEdgeColumn : public IEdgeColumn {
     ret.label_triplet_ = label_;
     ret.src_ = src;
     ret.dst_ = dst;
-    std::visit([&ret, idx](auto& col) { ret.prop_ = col.get(idx); }, prop_col_);
+    prop_col_.get_edge_data(ret.prop_, idx);
     ret.dir_ = (dir ? Direction::kOut : Direction::kIn);
     return ret;
   }
@@ -384,10 +489,45 @@ class BDSLEdgeColumn : public IEdgeColumn {
   inline void clear() override {
     size_ = 0;
     is_optional_ = false;
-    std::visit([](auto& c) { c.clear(); }, prop_col_);
+    prop_col_.clear();
   }
 
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override;
+
   Direction dir() const override { return Direction::kBoth; }
+
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func) const {
+    for (size_t i = 0; i < size_; ++i) {
+      auto& e = edges_[i];
+      auto src = std::get<0>(e);
+      auto dst = std::get<1>(e);
+      auto dir = std::get<2>(e);
+      func(i, label_, src, dst, prop_col_.get(i),
+           (dir ? Direction::kOut : Direction::kIn));
+    }
+  }
+
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func,
+                           const ValueColumn<size_t>& offsets) const {
+    size_t sz = offsets.size();
+    for (size_t i = 0; i < sz; ++i) {
+      int len = offsets[i] & 0xFFFFFFFF;
+      int offset = offsets[i] >> 32;
+      for (int j = 0; j < len; ++j) {
+        size_t idx = offset + j;
+        auto& e = edges_[idx];
+        auto src = std::get<0>(e);
+        auto dst = std::get<1>(e);
+        auto dir = std::get<2>(e);
+        size_t index = (i << 32) | idx;
+        func(index, label_, src, dst, prop_col_.get(idx),
+             (dir ? Direction::kOut : Direction::kIn));
+      }
+    }
+  }
   bool is_optional_;
   uint32_t size_;
   LabelTriplet label_;
@@ -409,7 +549,8 @@ class BDMLEdgeColumn : public IEdgeColumn {
     for (const auto& label : labels) {
       edge_labels_.emplace_back(label);
       index_[label.first] = idx++;
-      prop_cols_[index_[label.first]] = create_edge_prop_vec(label.second);
+      prop_cols_[index_[label.first]] =
+          edge_property_vec::create_edge_prop_vec(label.second);
     }
   }
 
@@ -422,8 +563,8 @@ class BDMLEdgeColumn : public IEdgeColumn {
     ret.label_triplet_ = label;
     ret.src_ = std::get<1>(e);
     ret.dst_ = std::get<2>(e);
-    std::visit([&ret, offset](auto& col) { ret.prop_ = col.get(offset); },
-               prop_cols_[index]);
+    prop_cols_[index].get_edge_data(ret.prop_, offset);
+
     ret.dir_ = (std::get<4>(e) ? Direction::kOut : Direction::kIn);
     return ret;
   }
@@ -460,13 +601,7 @@ class BDMLEdgeColumn : public IEdgeColumn {
                             const EdgeData& data, Direction dir) {
     auto index = index_[label];
     size_t len;
-    std::visit(
-        [this, index, &len, data](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          len = col.size();
-          col.emplace_back(data.as<T>());
-        },
-        prop_cols_[index]);
+    prop_cols_[index].set_edge_data(data, size_);
     edges_[size_++] =
         std::make_tuple(index, src, dst, len, dir == Direction::kOut);
   }
@@ -474,13 +609,7 @@ class BDMLEdgeColumn : public IEdgeColumn {
   inline void push_back_null() {
     size_t len;
     is_optional_ = true;
-    std::visit(
-        [this, &len](auto& col) {
-          using T = typename std::decay_t<decltype(col)>::EdgeDataType;
-          len = col.size();
-          col.emplace_back(T());
-        },
-        prop_cols_[0]);
+    prop_cols_[0].set_null(size_);
     edges_[size_++] =
         std::make_tuple(0, std::numeric_limits<vid_t>::max(),
                         std::numeric_limits<vid_t>::max(), len, false);
@@ -500,11 +629,51 @@ class BDMLEdgeColumn : public IEdgeColumn {
     size_ = 0;
     is_optional_ = false;
     for (auto& col : prop_cols_) {
-      std::visit([](auto& c) { c.clear(); }, col);
+      col.clear();
     }
   }
 
   Direction dir() const override { return Direction::kBoth; }
+
+  std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
+                                          bool shift) override;
+
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func) const {
+    for (size_t i = 0; i < size_; ++i) {
+      auto& e = edges_[i];
+      auto index = std::get<0>(e);
+      auto label = edge_labels_[index].first;
+      auto src = std::get<1>(e);
+      auto dst = std::get<2>(e);
+      auto offset = std::get<3>(e);
+      auto dir = std::get<4>(e);
+      func(i, label, src, dst, prop_cols_[index].get(offset),
+           (dir ? Direction::kOut : Direction::kIn));
+    }
+  }
+  template <typename FUNC_T>
+  inline void foreach_edge(const FUNC_T& func,
+                           const ValueColumn<size_t>& offsets) const {
+    size_t sz = offsets.size();
+    for (size_t i = 0; i < sz; ++i) {
+      int len = offsets[i] & 0xFFFFFFFF;
+      int offset = offsets[i] >> 32;
+      for (int j = 0; j < len; ++j) {
+        size_t idx = offset + j;
+        auto& e = edges_[idx];
+        auto index = std::get<0>(e);
+        auto label = edge_labels_[index].first;
+        auto src = std::get<1>(e);
+        auto dst = std::get<2>(e);
+        auto offset = std::get<3>(e);
+        auto dir = std::get<4>(e);
+        size_t index2 = (i << 32) | idx;
+        func(index2, label, src, dst, prop_cols_[index].get(offset),
+             (dir ? Direction::kOut : Direction::kIn));
+      }
+    }
+  }
 
  private:
   uint32_t size_;
@@ -514,6 +683,39 @@ class BDMLEdgeColumn : public IEdgeColumn {
   std::unique_ptr<std::tuple<label_t, vid_t, vid_t, size_t, bool>[]> edges_;
   std::vector<edge_property_vec> prop_cols_;
 };
+
+template <typename FUNC_T>
+inline void IEdgeColumn::foreach_edge(const FUNC_T& func) const {
+  if (edge_column_type() == EdgeColumnType::kSDSL) {
+    static_cast<const SDSLEdgeColumn*>(this)->foreach_edge(func);
+  } else if (edge_column_type() == EdgeColumnType::kSDML) {
+    static_cast<const SDMLEdgeColumn*>(this)->foreach_edge(func);
+  } else if (edge_column_type() == EdgeColumnType::kBDSL) {
+    static_cast<const BDSLEdgeColumn*>(this)->foreach_edge(func);
+  } else if (edge_column_type() == EdgeColumnType::kBDML) {
+    static_cast<const BDMLEdgeColumn*>(this)->foreach_edge(func);
+  } else {
+    LOG(FATAL) << "Unknown edge column type: "
+               << static_cast<int>(edge_column_type());
+  }
+}
+
+template <typename FUNC_T>
+inline void IEdgeColumn::foreach_edge(
+    const FUNC_T& func, const ValueColumn<size_t>& offsets) const {
+  if (edge_column_type() == EdgeColumnType::kSDSL) {
+    static_cast<const SDSLEdgeColumn*>(this)->foreach_edge(func, offsets);
+  } else if (edge_column_type() == EdgeColumnType::kSDML) {
+    static_cast<const SDMLEdgeColumn*>(this)->foreach_edge(func, offsets);
+  } else if (edge_column_type() == EdgeColumnType::kBDSL) {
+    static_cast<const BDSLEdgeColumn*>(this)->foreach_edge(func, offsets);
+  } else if (edge_column_type() == EdgeColumnType::kBDML) {
+    static_cast<const BDMLEdgeColumn*>(this)->foreach_edge(func, offsets);
+  } else {
+    LOG(FATAL) << "Unknown edge column type: "
+               << static_cast<int>(edge_column_type());
+  }
+}
 
 }  // namespace chunked_runtime
 }  // namespace gs

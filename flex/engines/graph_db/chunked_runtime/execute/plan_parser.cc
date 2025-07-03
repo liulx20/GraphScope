@@ -13,12 +13,17 @@
  * limitations under the License.
  */
 
-#include "flex/engines/graph_db/runtime/execute/plan_parser.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/plan_parser.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/converter.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/edge.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/path.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/scan.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/vertex.h"
 
 namespace gs {
 
 namespace chunked_runtime {
-/**
+
 void PlanParser::init() {
   register_read_operator_builder(std::make_unique<ops::ScanOprBuilder>());
 
@@ -28,7 +33,7 @@ void PlanParser::init() {
   register_read_operator_builder(std::make_unique<ops::EdgeExpandOprBuilder>());
 
   register_read_operator_builder(std::make_unique<ops::VertexOprBuilder>());
-
+  /**
   register_read_operator_builder(
       std::make_unique<ops::ProjectOrderByOprBuilder>());
   register_read_operator_builder(std::make_unique<ops::ProjectOprBuilder>());
@@ -39,7 +44,7 @@ void PlanParser::init() {
 
   register_read_operator_builder(std::make_unique<ops::DedupOprBuilder>());
 
-  register_read_operator_builder(std::make_unique<ops::SelectOprBuilder>());
+  register_read_operator_builder(std::make_unique<ops::SelectOprBuilder>());*/
 
   register_read_operator_builder(
       std::make_unique<ops::SPOrderByLimitOprBuilder>());
@@ -48,6 +53,7 @@ void PlanParser::init() {
       std::make_unique<ops::PathExpandVOprBuilder>());
   register_read_operator_builder(std::make_unique<ops::PathExpandOprBuilder>());
 
+  /**
   register_read_operator_builder(std::make_unique<ops::JoinOprBuilder>());
 
   register_read_operator_builder(std::make_unique<ops::IntersectOprBuilder>());
@@ -58,31 +64,9 @@ void PlanParser::init() {
 
   register_read_operator_builder(std::make_unique<ops::UnionOprBuilder>());
 
-  register_read_operator_builder(std::make_unique<ops::SinkOprBuilder>());
-  register_read_operator_builder(
-      std::make_unique<ops::ProcedureCallOprBuilder>());
+  register_read_operator_builder(std::make_unique<ops::SinkOprBuilder>());*/
+}
 
-  register_write_operator_builder(std::make_unique<ops::LoadOprBuilder>());
-  register_write_operator_builder(
-      std::make_unique<ops::DedupInsertOprBuilder>());
-  register_write_operator_builder(
-      std::make_unique<ops::ProjectInsertOprBuilder>());
-  register_write_operator_builder(
-      std::make_unique<ops::SinkInsertOprBuilder>());
-  register_write_operator_builder(
-      std::make_unique<ops::UnfoldInsertOprBuilder>());
-
-  register_update_operator_builder(
-      std::make_unique<ops::UEdgeExpandOprBuilder>());
-  register_update_operator_builder(std::make_unique<ops::UScanOprBuilder>());
-  register_update_operator_builder(std::make_unique<ops::USetOprBuilder>());
-  register_update_operator_builder(std::make_unique<ops::UVertexOprBuilder>());
-  register_update_operator_builder(std::make_unique<ops::USinkOprBuilder>());
-  register_update_operator_builder(std::make_unique<ops::UProjectOprBuilder>());
-  register_update_operator_builder(std::make_unique<ops::USelectOprBuilder>());
-}*/
-
-/**
 PlanParser& PlanParser::get() {
   static PlanParser parser;
   return parser;
@@ -93,7 +77,7 @@ void PlanParser::register_read_operator_builder(
   auto ops = builder->GetOpKinds();
   read_op_builders_[*ops.begin()].emplace_back(ops, std::move(builder));
 }
-
+/**
 void PlanParser::register_write_operator_builder(
     std::unique_ptr<IInsertOperatorBuilder>&& builder) {
   auto op = builder->GetOpKind();
@@ -104,7 +88,7 @@ void PlanParser::register_update_operator_builder(
     std::unique_ptr<IUpdateOperatorBuilder>&& builder) {
   auto op = builder->GetOpKind();
   update_op_builders_[op] = std::move(builder);
-}
+}*/
 
 static std::string get_opr_name(
     physical::PhysicalOpr_Operator::OpKindCase op_kind) {
@@ -159,25 +143,29 @@ static std::string get_opr_name(
   }
 }
 
-bl::result<std::pair<ReadPipeline, ContextMeta>>
+bl::result<std::tuple<std::unique_ptr<IReadOpr>, ContextMeta, int>>
 PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
                                           const ContextMeta& ctx_meta,
                                           const physical::PhysicalPlan& plan) {
   int opr_num = plan.plan_size();
-  std::vector<std::unique_ptr<IReadOperator>> operators;
+  int i = 0;
+  std::unique_ptr<IReadOpr> previous_opr = nullptr;
   ContextMeta cur_ctx_meta = ctx_meta;
-  for (int i = 0; i < opr_num;) {
+  for (i = 0; i < opr_num;) {
     physical::PhysicalOpr_Operator::OpKindCase cur_op_kind =
         plan.plan(i).opr().op_kind_case();
     if (cur_op_kind == physical::PhysicalOpr_Operator::OpKindCase::kSink) {
-      // break;
+      break;
     }
     if (cur_op_kind == physical::PhysicalOpr_Operator::OpKindCase::kRoot) {
-      ++i;
-      continue;
+      break;
     }
     auto& builders = read_op_builders_[cur_op_kind];
     int old_i = i;
+    if (i != 0 && previous_opr == nullptr) {
+      LOG(FATAL) << plan.DebugString() << "Failed to parse plan at index " << i
+                 << ", previous operator is null.";
+    }
     gs::Status status = gs::Status::OK();
     for (auto& pair : builders) {
       auto pattern = pair.first;
@@ -193,30 +181,33 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
       }
       if (match) {
         bl::result<ReadOpBuildResultT> res_pair_status = bl::try_handle_some(
-            [&builder, &schema, &cur_ctx_meta, &plan,
-             &i]() -> bl::result<ReadOpBuildResultT> {
-              return builder->Build(schema, cur_ctx_meta, plan, i);
+            [&builder, &schema, &cur_ctx_meta, &plan, &i,
+             &previous_opr]() -> bl::result<ReadOpBuildResultT> {
+              return builder->Build(std::move(previous_opr), schema,
+                                    cur_ctx_meta, plan, i);
             },
             [&status](const gs::Status& err) {
               status = err;
-              return ReadOpBuildResultT(nullptr, ContextMeta());
+              return std::make_pair(nullptr, ContextMeta());
             },
             [&](const bl::error_info& err) {
               status =
                   gs::Status(gs::StatusCode::INTERNAL_ERROR,
                              "Error: " + std::to_string(err.error().value()) +
                                  ", Exception: " + err.exception()->what());
-              return ReadOpBuildResultT(nullptr, ContextMeta());
+              return std::make_pair(std::unique_ptr<IReadOpr>(nullptr),
+                                    ContextMeta());
             },
             [&]() {
               status = gs::Status(gs::StatusCode::UNKNOWN, "Unknown error");
-              return ReadOpBuildResultT(nullptr, ContextMeta());
+              return std::make_pair(std::unique_ptr<IReadOpr>(nullptr),
+                                    ContextMeta());
             });
         if (res_pair_status) {
           auto& opr = res_pair_status.value().first;
           auto& new_ctx_meta = res_pair_status.value().second;
           if (opr) {
-            operators.emplace_back(std::move(opr));
+            previous_opr = std::move(opr);
             cur_ctx_meta = new_ctx_meta;
             i = builder->stepping(i);
             // Reset status to OK after a successful match.
@@ -234,28 +225,34 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
       }
     }
     if (i == old_i) {
-      std::stringstream ss;
-      ss << "[Parse Failed] " << get_opr_name(cur_op_kind)
-         << " failed to parse plan at index " << i << " "
-         << plan.plan(i).DebugString() << ": "
-         << ", last match error: " << status.ToString();
-      auto err = gs::Status(gs::StatusCode::INTERNAL_ERROR, ss.str());
-      LOG(ERROR) << err.ToString();
-      return bl::new_error(err);
+      break;
+    } else {
+      CHECK(previous_opr != nullptr)
+          << "[Parse Failed] " << get_opr_name(cur_op_kind)
+          << " failed to parse plan at index " << i;
     }
   }
-  return std::make_pair(ReadPipeline(std::move(operators)), cur_ctx_meta);
+  return std::make_tuple(std::move(previous_opr), cur_ctx_meta, i);
 }
 
-bl::result<ReadPipeline> PlanParser::parse_read_pipeline(
-    const gs::Schema& schema, const ContextMeta& ctx_meta,
-    const physical::PhysicalPlan& plan) {
+bl::result<
+    std::tuple<std::unique_ptr<gs::runtime::IReadOperator>, ContextMeta, int>>
+PlanParser::parse_read_pipeline(const gs::Schema& schema,
+                                const ContextMeta& ctx_meta,
+                                const physical::PhysicalPlan& plan) {
   auto ret = parse_read_pipeline_with_meta(schema, ctx_meta, plan);
   if (!ret) {
     return ret.error();
   }
-  return std::move(ret.value().first);
-}*/
+  if (std::get<0>(ret.value()) == nullptr) {
+    return std::make_tuple(nullptr, std::get<1>(ret.value()), 0);
+  }
+
+  std::unique_ptr<gs::runtime::IReadOperator> opr =
+      std::make_unique<ops::Converter>(std::move(std::get<0>(ret.value())));
+  return std::make_tuple(std::move(opr), std::get<1>(ret.value()),
+                         std::get<2>(ret.value()));
+}
 /**
 
 bl::result<InsertPipeline> PlanParser::parse_write_pipeline(

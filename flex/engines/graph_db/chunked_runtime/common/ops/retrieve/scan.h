@@ -22,87 +22,13 @@
 #include "flex/engines/graph_db/runtime/utils/special_predicates.h"
 
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/value_columns.h"
+#include "flex/engines/graph_db/chunked_runtime/common/ops/retrieve/scan_state.h"
 
 namespace gs {
 namespace chunked_runtime {
 namespace ops {
 using gs::runtime::ScanParams;
 using gs::runtime::SPVertexPredicate;
-
-class ScanOprState : public IOprState {
- public:
-  ScanOprState()
-      : cur_idx_(0),
-        cur_size_(0),
-        cur_label_(std::numeric_limits<label_t>::max()),
-        initialized_(false) {}
-
-  ~ScanOprState() override = default;
-
-  void clear() override {
-    LOG(FATAL) << "ScanOprState::clear() should not be called";
-  }
-
-  bool getNextChunks(DataChunks& chunks) override {
-    if (cur_idx_ >= cur_size_) {
-      return false;  // No more chunks to process
-    }
-    for (size_t i = 0; i < Configs::MAX_THREAD_NUM; ++i) {
-      if (cur_idx_ >= cur_size_) {
-        break;  // No more chunks to process
-      }
-      if (vertex_columns_[cur_idx_]->size() > 0) {
-        chunks.append_chunk();
-        // auto& chunk = chunks[chunks.chunk_num() - 1];
-        //  chunk.table_->columns_.emplace_back(vertex_columns_[cur_idx_]);
-      }
-      cur_idx_++;
-    }
-    return true;
-  }
-
-  std::shared_ptr<IOprState> src_state() override { return nullptr; }
-
-  void append_column(label_t label) {
-    if (cur_size_ >= vertex_columns_.size()) {
-      vertex_columns_.emplace_back(std::make_shared<SLVertexColumn>(label));
-    } else {
-      vertex_columns_[cur_size_] = std::make_shared<SLVertexColumn>(label);
-    }
-    cur_size_++;
-  }
-
-  void start_label(label_t label) {
-    if (cur_label_ != label) {
-      cur_label_ = label;
-      append_column(cur_label_);
-    }
-  }
-
-  void collect(vid_t vid) {
-    if (__glibc_unlikely(vertex_columns_[cur_size_ - 1]->full())) {
-      append_column(cur_label_);
-    }
-    vertex_columns_[cur_size_ - 1]->push_back_opt(vid);
-  }
-
-  bool initialized() const override { return initialized_; }
-
-  void set_initialized(bool initialized) { initialized_ = initialized; }
-
-  DataChunks& src_chunks() override {
-    LOG(FATAL) << "ScanOprState::src_chunks() should not be called";
-    static DataChunks dummy_chunks;
-    return dummy_chunks;
-  }
-
-  std::vector<std::shared_ptr<SLVertexColumn>> vertex_columns_;
-  size_t cur_idx_;
-  size_t cur_size_;
-  // The current label being processed
-  label_t cur_label_;
-  bool initialized_ = false;
-};
 
 class Scan {
  public:
@@ -131,7 +57,7 @@ class Scan {
         }
       }
     }
-    state.set_initialized(true);
+    state.initialize(params.alias);
     return bl::result<void>();
   }
 
@@ -171,7 +97,7 @@ class Scan {
         }
       }
     }
-    state.set_initialized(true);
+    state.initialize(params.alias);
     return bl::result<void>();
   }
 
@@ -218,7 +144,7 @@ class Scan {
         }
       }
     }
-    state.set_initialized(true);
+    state.initialize(params.alias);
     return bl::result<void>();
   }
 
@@ -280,7 +206,7 @@ class Scan {
         }
       }
     }
-    state.set_initialized(true);
+    state.initialize(params.alias);
     return bl::result<void>();
   }
 

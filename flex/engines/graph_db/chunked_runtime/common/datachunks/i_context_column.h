@@ -27,6 +27,8 @@ using gs::runtime::RTAny;
 using gs::runtime::RTAnyType;
 enum class ContextColumnType { kVertex, kEdge, kValue, kPath };
 
+template <typename T>
+class ValueColumn;
 class IContextColumn {
  public:
   virtual ~IContextColumn() = default;
@@ -53,6 +55,12 @@ class IContextColumn {
   virtual void set_arena(const std::shared_ptr<Arena>&) {}
 
   virtual bool has_value(size_t idx) const = 0;
+
+  virtual std::shared_ptr<IContextColumn> shuffle(
+      const ValueColumn<size_t>& offsets, bool shift) {
+    // Default implementation, can be overridden by derived classes
+    return nullptr;
+  }
 };
 
 }  // namespace chunked_runtime

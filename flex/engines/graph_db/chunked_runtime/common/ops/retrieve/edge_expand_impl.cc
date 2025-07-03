@@ -28,7 +28,7 @@ struct DummyPredicate {
 };
 template <>
 bool expand_vertex_without_predicate_impl<SLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state) {
   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
@@ -139,7 +139,7 @@ bool expand_vertex_without_predicate_impl<SLVertexColumn>(
 
 template <>
 bool expand_vertex_without_predicate_optional_impl<SLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state) {
   label_t input_label = *input.get_vertex_labels_set(v_tag).begin();
@@ -221,7 +221,7 @@ bool expand_vertex_without_predicate_optional_impl<SLVertexColumn>(
 }
 template <>
 bool expand_vertex_without_predicate_impl<MLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state) {
   const auto& input_labels = input.get_vertex_labels_set(v_tag);
@@ -332,7 +332,7 @@ bool expand_vertex_without_predicate_impl<MLVertexColumn>(
 
 template <>
 bool expand_vertex_without_predicate_optional_impl<MLVertexColumn>(
-    const GraphReadInterface& graph, const DataChunk& input, size_t v_tag,
+    const GraphReadInterface& graph, const DataChunk& input, int v_tag,
     const std::vector<LabelTriplet>& labels, Direction dir,
     LocalEdgeExpandState& state) {
   const auto& input_labels = input.get_vertex_labels_set(v_tag);

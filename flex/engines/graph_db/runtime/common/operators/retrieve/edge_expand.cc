@@ -697,8 +697,8 @@ Context expand_vertex_ep_lt_ml_impl(
   std::vector<size_t> offsets;
   for (auto& csr : views) {
     label_t nbr_label = std::get<0>(label_dirs[csr_idx]);
-    casted_input_vertex_list->foreach_vertex(
-        [&](size_t idx, label_t label, vid_t v) {
+    foreach_vertex(
+        *casted_input_vertex_list, [&](size_t idx, label_t label, vid_t v) {
           csr.foreach_edges_lt(v, max_value, [&](vid_t nbr, const T& e) {
             builder.push_back_opt(nbr_label, nbr);
             offsets.push_back(idx);
@@ -826,9 +826,8 @@ Context expand_vertex_ep_gt_sl_impl(
   auto builder = SLVertexColumnBuilder::builder(std::get<0>(label_dirs[0]));
   std::vector<size_t> offsets;
   for (auto& csr : views) {
-    size_t idx = 0;
     casted_input_vertex_list->foreach_vertex(
-        [&](size_t index, label_t label, vid_t v) {
+        [&](size_t idx, label_t label, vid_t v) {
           csr.foreach_edges_gt(v, max_value, [&](vid_t nbr, const T& val) {
             builder.push_back_opt(nbr);
             offsets.push_back(idx);
