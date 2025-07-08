@@ -124,6 +124,7 @@ struct GetVState : public IOprState {
     alias_ = alias;
     cur_idx_ = 0;
     initialized_ = true;
+    local_states_.clear();
   }
 
   LocalGetVState& getLocalState() {

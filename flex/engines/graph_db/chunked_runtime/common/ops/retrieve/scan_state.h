@@ -31,7 +31,7 @@ class ScanOprState : public IOprState {
   void initialize(int alias) {
     initialized_ = true;
     alias_ = alias;
-  }
+    }
 
   ~ScanOprState() override = default;
 

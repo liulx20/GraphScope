@@ -149,6 +149,7 @@ struct EdgeExpandState : public IOprState {
     src_table_ = src_table;
     alias_ = alias;
     initialized_ = true;
+    local_states.clear();
   }
 
   bool getNextChunks(DataChunks& chunks) override {

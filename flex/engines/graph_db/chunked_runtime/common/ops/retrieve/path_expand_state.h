@@ -149,6 +149,7 @@ struct PathState : public IOprState {
     cur_col_ = 0;
     cur_idx_ = 0;
     initialized_ = true;
+    local_states.clear();
   }
 
   PathState(std::shared_ptr<IOprState> src_state)
@@ -277,6 +278,7 @@ struct SSSPState : public IOprState {
     cur_col_ = 0;
     cur_idx_ = 0;
     initialized_ = true;
+    // local_states.clear();
   }
 
   SSSPState(std::shared_ptr<IOprState> src_state)

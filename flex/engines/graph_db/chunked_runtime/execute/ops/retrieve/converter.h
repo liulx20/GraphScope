@@ -24,7 +24,7 @@ namespace ops {
 struct ConverterState : public IOprState {
   ConverterState(std::shared_ptr<IOprState> src_state)
       : initialized_(false), src_state_(src_state) {}
-  void clear() override {}
+  void clear() override { src_chunks_.clear(); }
   bool initialized() const override { return initialized_; }
   std::shared_ptr<IOprState> src_state() override { return src_state_; }
 

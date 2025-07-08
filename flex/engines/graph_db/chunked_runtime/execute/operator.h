@@ -63,6 +63,7 @@ class IReadOpr {
       DataChunks& chunks) {
     if (!state.initialized() || !state.getNextChunks(chunks)) {
       if (source_opr() != nullptr) {
+        state.clear();
         if (source_opr()
                 ->getNextChunks(graph, params, *state.src_state(),
                                 state.src_chunks())
