@@ -40,30 +40,30 @@ struct LocalEdgeExpandState {
     if (cur_vec_idx >= context_columns.size()) {
       // TODO: fixme how to make a new edge column
       context_columns.emplace_back(std::make_shared<ColT>(args...));
-      offsets_.emplace_back();
-      leaves_offsets_.emplace_back();
+      offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
+      leaves_offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
       auto res = std::make_tuple(
           dynamic_cast<ColT*>(context_columns[cur_vec_idx].get()),
-          &offsets_[cur_vec_idx], &leaves_offsets_[cur_vec_idx]);
+          offsets_[cur_vec_idx].get(), leaves_offsets_[cur_vec_idx].get());
       cur_vec_idx++;
       return res;
     } else {
       context_columns[cur_vec_idx]->clear();
       // dynamic_cast<ColT*>(context_columns[cur_vec_idx].get())
       //   ->init(std::forward<Args>(args)...);
-      offsets_[cur_vec_idx].clear();
-      leaves_offsets_[cur_vec_idx].clear();
+      offsets_[cur_vec_idx]->clear();
+      leaves_offsets_[cur_vec_idx]->clear();
       auto res = std::make_tuple(
           dynamic_cast<ColT*>(context_columns[cur_vec_idx].get()),
-          &offsets_[cur_vec_idx], &leaves_offsets_[cur_vec_idx]);
+          offsets_[cur_vec_idx].get(), leaves_offsets_[cur_vec_idx].get());
       cur_vec_idx++;
       return res;
     }
   }
 
   std::vector<std::shared_ptr<IContextColumn>> context_columns;
-  std::vector<ValueColumn<size_t>> offsets_;
-  std::vector<ValueColumn<size_t>> leaves_offsets_;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets_;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> leaves_offsets_;
   size_t cur_vec_idx;
 };
 
@@ -219,23 +219,23 @@ struct LocalTCState {
       // TODO: fixme how to make a new edge column
       vertex_column0.emplace_back(std::make_shared<SLVertexColumn>(label0));
       vertex_column1.emplace_back(std::make_shared<SLVertexColumn>(label1));
-      offsets_.emplace_back();
-      leaves_offsets_.emplace_back();
+      offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
+      leaves_offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
       auto res = std::make_tuple(
           vertex_column0[cur_vec_idx].get(), vertex_column1[cur_vec_idx].get(),
-          &offsets_[cur_vec_idx], &leaves_offsets_[cur_vec_idx]);
+          offsets_[cur_vec_idx].get(), leaves_offsets_[cur_vec_idx].get());
       cur_vec_idx++;
       return res;
     } else {
       vertex_column0[cur_vec_idx]->clear();
       // dynamic_cast<ColT*>(context_columns[cur_vec_idx].get())
       //   ->init(std::forward<Args>(args)...);
-      offsets_[cur_vec_idx].clear();
-      leaves_offsets_[cur_vec_idx].clear();
+      offsets_[cur_vec_idx]->clear();
+      leaves_offsets_[cur_vec_idx]->clear();
       vertex_column1[cur_vec_idx]->clear();
       auto res = std::make_tuple(
           vertex_column0[cur_vec_idx].get(), vertex_column1[cur_vec_idx].get(),
-          &offsets_[cur_vec_idx], &leaves_offsets_[cur_vec_idx]);
+          offsets_[cur_vec_idx].get(), leaves_offsets_[cur_vec_idx].get());
       cur_vec_idx++;
       return res;
     }
@@ -243,8 +243,8 @@ struct LocalTCState {
 
   std::vector<std::shared_ptr<SLVertexColumn>> vertex_column0;
   std::vector<std::shared_ptr<SLVertexColumn>> vertex_column1;
-  std::vector<ValueColumn<size_t>> offsets_;
-  std::vector<ValueColumn<size_t>> leaves_offsets_;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets_;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> leaves_offsets_;
   size_t cur_vec_idx;
 };
 

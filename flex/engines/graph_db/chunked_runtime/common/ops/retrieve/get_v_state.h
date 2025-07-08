@@ -37,17 +37,17 @@ struct LocalGetVState {
   template <typename ColT, typename... Args>
   GetVCollector<ColT> getVertexCollector(const Args&... args) {
     column = std::make_shared<ColT>(args...);
-    offsets.clear();
-    return GetVCollector<ColT>(column, offsets);
+    offsets = std::make_shared<ValueColumn<size_t>>();
+    return GetVCollector<ColT>(column, *offsets);
   }
 
   GetVOffsetCollector getOffsetCollector() {
     column = nullptr;
-    offsets.clear();
-    return GetVOffsetCollector(offsets);
+    offsets->clear();
+    return GetVOffsetCollector(*offsets);
   }
   std::shared_ptr<IVertexColumn> column;
-  ValueColumn<size_t> offsets;
+  std::shared_ptr<ValueColumn<size_t>> offsets;
 };
 
 template <typename ColT>
@@ -96,7 +96,7 @@ struct GetVState : public IOprState {
           break;  // No more local states to process
         }
 
-        if (local_states_[cur_idx_].offsets.size() == 0) {
+        if (local_states_[cur_idx_].offsets->size() == 0) {
           cur_idx_++;
           continue;  // Skip empty columns
         }

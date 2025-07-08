@@ -35,21 +35,21 @@ struct LocalPathState {
     previous_offset = std::numeric_limits<uint32_t>::max();
     dst_vertex_column.emplace_back(std::make_shared<SLVertexColumn>(dst_label));
     path_column.emplace_back(std::make_shared<GeneralPathColumn>());
-    offsets.emplace_back();
-    leaves_offsets.emplace_back();
+    offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
+    leaves_offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
   }
 
   inline void push_back(size_t offset, vid_t vertex,
                         std::unique_ptr<gs::runtime::PathImpl>&& path) {
     if (previous_offset != offset) {
       size_t sz = path_column[cur_vec_idx]->size();
-      offsets[cur_vec_idx].push_back(offset);
-      leaves_offsets[cur_vec_idx].push_back((sz << 32));
+      offsets[cur_vec_idx]->push_back(offset);
+      leaves_offsets[cur_vec_idx]->push_back((sz << 32));
       previous_offset = offset;
     }
 
-    auto size = leaves_offsets[cur_vec_idx].size();
-    leaves_offsets[cur_vec_idx][size - 1] += 1;
+    auto size = leaves_offsets[cur_vec_idx]->size();
+    (*leaves_offsets[cur_vec_idx])[size - 1] += 1;
     dst_vertex_column[cur_vec_idx]->push_back_opt(vertex);
     path_column[cur_vec_idx]->push_back_opt(std::move(path));
 
@@ -60,13 +60,13 @@ struct LocalPathState {
         dst_vertex_column.emplace_back(
             std::make_shared<SLVertexColumn>(dst_label));
         path_column.emplace_back(std::make_shared<GeneralPathColumn>());
-        offsets.emplace_back();
-        leaves_offsets.emplace_back();
+        offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
+        leaves_offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
       } else {
         dst_vertex_column[cur_vec_idx]->clear();
         path_column[cur_vec_idx]->clear();
-        offsets[cur_vec_idx].clear();
-        leaves_offsets[cur_vec_idx].clear();
+        offsets[cur_vec_idx]->clear();
+        leaves_offsets[cur_vec_idx]->clear();
       }
     }
   }
@@ -79,8 +79,8 @@ struct LocalPathState {
     leaves_offsets.clear();
     dst_vertex_column.emplace_back(std::make_shared<SLVertexColumn>(dst_label));
     path_column.emplace_back(std::make_shared<GeneralPathColumn>());
-    offsets.emplace_back();
-    leaves_offsets.emplace_back();
+    offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
+    leaves_offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
     init(dst_label);
   }
   label_t dst_label;
@@ -88,8 +88,8 @@ struct LocalPathState {
   size_t previous_offset;
   std::vector<std::shared_ptr<SLVertexColumn>> dst_vertex_column;
   std::vector<std::shared_ptr<GeneralPathColumn>> path_column;
-  std::vector<ValueColumn<size_t>> offsets;
-  std::vector<ValueColumn<size_t>> leaves_offsets;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> leaves_offsets;
 };
 
 struct PathState : public IOprState {
@@ -176,18 +176,18 @@ struct LocalSSSPState {
     previous_offset = std::numeric_limits<uint32_t>::max();
     dst_vertex_column.emplace_back(std::make_shared<SLVertexColumn>(dst_label));
     len_column.emplace_back(std::make_shared<ValueColumn<int>>());
-    offsets.emplace_back();
-    leaves_offsets.emplace_back();
+    offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
+    leaves_offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
   }
   inline void push_back(size_t offset, vid_t vertex, int len) {
     if (previous_offset != offset) {
       size_t sz = len_column[cur_vec_idx]->size();
-      offsets[cur_vec_idx].push_back(offset);
-      leaves_offsets[cur_vec_idx].push_back((sz << 32));
+      offsets[cur_vec_idx]->push_back(offset);
+      leaves_offsets[cur_vec_idx]->push_back((sz << 32));
       previous_offset = offset;
     }
-    auto size = leaves_offsets[cur_vec_idx].size();
-    leaves_offsets[cur_vec_idx][size - 1] += 1;
+    auto size = leaves_offsets[cur_vec_idx]->size();
+    (*leaves_offsets[cur_vec_idx])[size - 1] += 1;
     dst_vertex_column[cur_vec_idx]->push_back_opt(vertex);
     len_column[cur_vec_idx]->push_back(len);
 
@@ -198,27 +198,35 @@ struct LocalSSSPState {
         dst_vertex_column.emplace_back(
             std::make_shared<SLVertexColumn>(dst_label));
         len_column.emplace_back(std::make_shared<ValueColumn<int>>());
-        offsets.emplace_back();
-        leaves_offsets.emplace_back();
+        offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
+        leaves_offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
       } else {
         dst_vertex_column[cur_vec_idx]->clear();
         len_column[cur_vec_idx]->clear();
-        offsets[cur_vec_idx].clear();
-        leaves_offsets[cur_vec_idx].clear();
+        offsets[cur_vec_idx]->clear();
+        leaves_offsets[cur_vec_idx]->clear();
       }
     }
   }
   void clear() {
     cur_vec_idx = 0;
     previous_offset = std::numeric_limits<size_t>::max();
+    offsets.clear();
+    leaves_offsets.clear();
+    dst_vertex_column.clear();
+    len_column.clear();
+    dst_vertex_column.emplace_back(std::make_shared<SLVertexColumn>(dst_label));
+    len_column.emplace_back(std::make_shared<ValueColumn<int>>());
+    offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
+    leaves_offsets.emplace_back(std::make_shared<ValueColumn<size_t>>());
   }
   label_t dst_label;
   size_t cur_vec_idx = 0;
   size_t previous_offset;
   std::vector<std::shared_ptr<SLVertexColumn>> dst_vertex_column;
   std::vector<std::shared_ptr<ValueColumn<int>>> len_column;
-  std::vector<ValueColumn<size_t>> offsets;
-  std::vector<ValueColumn<size_t>> leaves_offsets;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets;
+  std::vector<std::shared_ptr<ValueColumn<size_t>>> leaves_offsets;
 };
 
 struct SSSPState : public IOprState {

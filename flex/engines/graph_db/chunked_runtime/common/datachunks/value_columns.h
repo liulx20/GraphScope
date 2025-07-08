@@ -47,21 +47,6 @@ class ValueColumn : public IContextColumn {
     other.valid_ = nullptr;
   }
 
-  ValueColumn(const ValueColumn<T>& other)
-      : is_optional_(other.is_optional_),
-        size_(other.size_),
-        data_(std::make_unique<T[]>(Configs::CHUNK_SIZE)),
-        valid_(other.valid_
-                   ? std::make_unique<uint8_t[]>(Configs::CHUNK_SIZE / 8)
-                   : nullptr),
-        arena_(other.arena_) {
-    std::copy(other.data_.get(), other.data_.get() + size_, data_.get());
-    if (valid_) {
-      std::copy(other.valid_.get(),
-                other.valid_.get() + Configs::CHUNK_SIZE / 8, valid_.get());
-    }
-  }
-
   void clear() override { size_ = 0; }
   size_t size() const override { return size_; }
 

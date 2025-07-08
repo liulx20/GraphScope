@@ -97,7 +97,8 @@ class DataChunk {
     }
     return leaves_offsets;
   }
-  static DataChunk create(DataChunk& other, const ValueColumn<size_t>& offsets,
+  static DataChunk create(DataChunk& other,
+                          std::shared_ptr<ValueColumn<size_t>>& offsets,
                           int src_table_id, int alias) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
@@ -114,11 +115,11 @@ class DataChunk {
       CHECK(src_table_id != 0) << "src_table_id should not be 0";
 
     } else {
-      chunk.leaves_[src_table_id - 1]->shuffle(offsets);
-      chunk.offsets_[src_table_id - 1]->shuffle(offsets, false);
-      if (offsets.size() != other.leaves_[src_table_id - 1]->row_num()) {
+      chunk.leaves_[src_table_id - 1]->shuffle(*offsets);
+      chunk.offsets_[src_table_id - 1]->shuffle(*offsets, false);
+      if (offsets->size() != other.leaves_[src_table_id - 1]->row_num()) {
         chunk.offsets_[src_table_id - 1] = generate_leaves_offsets(
-            offsets, chunk.offsets_[src_table_id - 1]->size());
+            *offsets, chunk.offsets_[src_table_id - 1]->size());
       }
     }
     return chunk;
@@ -126,8 +127,8 @@ class DataChunk {
 
   static DataChunk create(DataChunk& other,
                           std::shared_ptr<IContextColumn> column,
-                          ValueColumn<size_t>& offsets, int src_table_id,
-                          int alias) {
+                          std::shared_ptr<ValueColumn<size_t>>& offsets,
+                          int src_table_id, int alias) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
     src_table_id = TABLE_ID(other.alias_map_.at(src_table_id));
@@ -148,8 +149,8 @@ class DataChunk {
       chunk.alias_map_[alias] =
           GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));*/
     } else {
-      chunk.leaves_[src_table_id - 1]->shuffle(offsets);
-      chunk.offsets_[src_table_id - 1]->shuffle(offsets, false);
+      chunk.leaves_[src_table_id - 1]->shuffle(*offsets);
+      chunk.offsets_[src_table_id - 1]->shuffle(*offsets, false);
       chunk.leaves_[src_table_id - 1]->columns_.emplace_back(column);
       chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(
           src_table_id, (chunk.leaves_[src_table_id - 1]->col_num() - 1));
@@ -157,17 +158,18 @@ class DataChunk {
         chunk.alias_map_[-1] = GLOBAL_COLUMN_ID(
             src_table_id, (chunk.leaves_[src_table_id - 1]->col_num() - 1));
       }
-      if (offsets.size() != other.leaves_[src_table_id - 1]->row_num()) {
+      if (offsets->size() != other.leaves_[src_table_id - 1]->row_num()) {
         chunk.offsets_[src_table_id - 1] = generate_leaves_offsets(
-            offsets, chunk.offsets_[src_table_id - 1]->size());
+            *offsets, chunk.offsets_[src_table_id - 1]->size());
       }
     }
 
     return chunk;
   }
 
-  static DataChunk create(DataChunk& other, const ValueColumn<size_t>& offsets,
-                          const ValueColumn<size_t>& leaves_offsets,
+  static DataChunk create(DataChunk& other,
+                          std::shared_ptr<ValueColumn<size_t>>& offsets,
+                          std::shared_ptr<ValueColumn<size_t>>& leaves_offsets,
                           std::shared_ptr<IContextColumn> column, int alias,
                           int src_table_id) {
     DataChunk chunk;
@@ -185,9 +187,8 @@ class DataChunk {
         chunk.offsets_[i] = other.offsets_[i];
       }
       chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
-      chunk.table_->shuffle(offsets);
-      chunk.offsets_.emplace_back(
-          std::make_shared<ValueColumn<size_t>>(leaves_offsets));
+      chunk.table_->shuffle(*offsets);
+      chunk.offsets_.emplace_back(leaves_offsets);
       chunk.leaves_.emplace_back(std::make_shared<Table>());
       chunk.leaves_.back()->push_back(column);
       chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(chunk.offsets_.size(), 0);
@@ -196,7 +197,7 @@ class DataChunk {
       }
     } else {
       chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
-      chunk.table_->shuffle(offsets, true);
+      chunk.table_->shuffle(*offsets, true);
       chunk.offsets_.resize(other.offsets_.size());
       for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
         chunk.leaves_.emplace_back(std::make_shared<Table>());
@@ -206,7 +207,7 @@ class DataChunk {
         chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
                                     chunk.alias_map_);
         chunk.offsets_[i] = other.offsets_[i];
-        chunk.offsets_[i]->shuffle(offsets, true);
+        chunk.offsets_[i]->shuffle(*offsets, true);
       }
       for (int i = 0;
            i < static_cast<int>(other.leaves_[src_table_id - 1]->col_num());
@@ -217,14 +218,13 @@ class DataChunk {
           continue;
         } else {
           auto col =
-              other.leaves_[src_table_id - 1]->get(i)->shuffle(offsets, false);
+              other.leaves_[src_table_id - 1]->get(i)->shuffle(*offsets, false);
           chunk.table_->push_back(col);
           chunk.alias_map_[v] =
               GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));
         }
       }
-      chunk.offsets_[src_table_id - 1] =
-          std::make_shared<ValueColumn<size_t>>(leaves_offsets);
+      chunk.offsets_[src_table_id - 1] = leaves_offsets;
       chunk.leaves_[src_table_id - 1]->push_back(column);
       chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(src_table_id, 0);
       if (alias != -1) {
@@ -236,8 +236,8 @@ class DataChunk {
   }
 
   static DataChunk create(
-      DataChunk& other, const ValueColumn<size_t>& offsets,
-      const ValueColumn<size_t>& leaves_offsets,
+      DataChunk& other, std::shared_ptr<ValueColumn<size_t>>& offsets,
+      std::shared_ptr<ValueColumn<size_t>>& leaves_offsets,
       std::vector<std::pair<std::shared_ptr<IContextColumn>, int>> columns,
       int src_table_id) {
     DataChunk chunk;
@@ -252,9 +252,8 @@ class DataChunk {
         chunk.offsets_.emplace_back(other.offsets_[i]);
       }
       chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
-      chunk.table_->shuffle(offsets);
-      chunk.offsets_.emplace_back(
-          std::make_shared<ValueColumn<size_t>>(leaves_offsets));
+      chunk.table_->shuffle(*offsets);
+      chunk.offsets_.emplace_back(leaves_offsets);
       chunk.leaves_.emplace_back(std::make_shared<Table>());
       size_t idx = 0;
       for (const auto& pair : columns) {
@@ -264,7 +263,7 @@ class DataChunk {
       }
     } else {
       chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
-      chunk.table_->shuffle(offsets, true);
+      chunk.table_->shuffle(*offsets, true);
       for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
         chunk.leaves_.emplace_back(std::make_shared<Table>());
         if (i + 1 == src_table_id) {
@@ -273,7 +272,7 @@ class DataChunk {
         chunk.leaves_[i]->copy_from(*other.leaves_[i], i + 1, revert_map,
                                     chunk.alias_map_);
         chunk.offsets_.emplace_back(other.offsets_[i]);
-        chunk.offsets_[i]->shuffle(offsets, true);
+        chunk.offsets_[i]->shuffle(*offsets, true);
       }
       for (int i = 0;
            i < static_cast<int>(other.leaves_[src_table_id - 1]->col_num());
@@ -284,14 +283,13 @@ class DataChunk {
           continue;
         } else {
           auto col =
-              other.leaves_[src_table_id - 1]->get(i)->shuffle(offsets, false);
+              other.leaves_[src_table_id - 1]->get(i)->shuffle(*offsets, false);
           chunk.table_->push_back(col);
           chunk.alias_map_[v] =
               GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));
         }
       }
-      chunk.offsets_[src_table_id - 1] =
-          std::make_shared<ValueColumn<size_t>>(leaves_offsets);
+      chunk.offsets_[src_table_id - 1] = leaves_offsets;
       for (const auto& pair : columns) {
         chunk.leaves_[src_table_id - 1]->push_back(pair.first);
         chunk.alias_map_[pair.second] = GLOBAL_COLUMN_ID(
