@@ -42,13 +42,12 @@ struct LocalPathState {
   inline void push_back(size_t offset, vid_t vertex,
                         std::unique_ptr<gs::runtime::PathImpl>&& path) {
     if (previous_offset != offset) {
-      size_t sz = leaves_offsets[cur_vec_idx].size();
+      size_t sz = path_column[cur_vec_idx]->size();
       offsets[cur_vec_idx].push_back(offset);
       leaves_offsets[cur_vec_idx].push_back((sz << 32));
+      previous_offset = offset;
     }
-    CHECK(leaves_offsets.size() > cur_vec_idx)
-        << "leaves_offsets size: " << leaves_offsets.size()
-        << ", cur_vec_idx: " << cur_vec_idx;
+
     auto size = leaves_offsets[cur_vec_idx].size();
     leaves_offsets[cur_vec_idx][size - 1] += 1;
     dst_vertex_column[cur_vec_idx]->push_back_opt(vertex);
@@ -181,9 +180,10 @@ struct LocalSSSPState {
   }
   inline void push_back(size_t offset, vid_t vertex, int len) {
     if (previous_offset != offset) {
-      size_t sz = leaves_offsets[cur_vec_idx].size();
+      size_t sz = len_column[cur_vec_idx]->size();
       offsets[cur_vec_idx].push_back(offset);
       leaves_offsets[cur_vec_idx].push_back((sz << 32));
+      previous_offset = offset;
     }
     auto size = leaves_offsets[cur_vec_idx].size();
     leaves_offsets[cur_vec_idx][size - 1] += 1;
@@ -227,6 +227,7 @@ struct SSSPState : public IOprState {
     cur_col_ = 0;
     cur_idx_ = 0;
     local_states.clear();
+    source_chunks.clear();
   }
 
   bool getNextChunks(DataChunks& chunks) override {

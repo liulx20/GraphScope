@@ -24,29 +24,31 @@ std::shared_ptr<IContextColumn> SDSLEdgeColumn::shuffle(
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
+  size_t offset_size = offsets.size();
   if (!shift) {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->edges_[i] = edges_[offsets[i] & 0xFFFFFFFF];
       ptr->prop_col_.set_any(i, prop_col_, offsets[i] & 0xFFFFFFFF);
     }
   } else {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->edges_[i] = edges_[offsets[i] >> 32];
       ptr->prop_col_.set_any(i, prop_col_, offsets[i] >> 32);
     }
   }
-  ptr->size_ = size_;
+  ptr->size_ = offset_size;
   return ptr;
 }
 
 std::shared_ptr<IContextColumn> SDMLEdgeColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
   auto ptr = std::make_shared<SDMLEdgeColumn>(dir_, edge_labels_);
+  size_t offset_size = offsets.size();
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
   if (!shift) {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->edges_[i] = edges_[offsets[i] & 0xFFFFFFFF];
       auto index = std::get<0>(ptr->edges_[i]);
       auto offset = std::get<3>(ptr->edges_[i]);
@@ -55,7 +57,7 @@ std::shared_ptr<IContextColumn> SDMLEdgeColumn::shuffle(
       std::get<3>(ptr->edges_[i]) = new_offset;
     }
   } else {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->edges_[i] = edges_[offsets[i] >> 32];
       auto index = std::get<0>(ptr->edges_[i]);
       auto offset = std::get<3>(ptr->edges_[i]);
@@ -64,7 +66,7 @@ std::shared_ptr<IContextColumn> SDMLEdgeColumn::shuffle(
       std::get<3>(ptr->edges_[i]) = new_offset;
     }
   }
-  ptr->size_ = size_;
+  ptr->size_ = offset_size;
   return ptr;
 }
 
@@ -74,20 +76,21 @@ std::shared_ptr<IContextColumn> BDSLEdgeColumn::shuffle(
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
+  size_t offset_size = offsets.size();
   if (!shift) {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       auto offset = offsets[i] & 0xFFFFFFFF;
       ptr->edges_[i] = edges_[offset];
       ptr->prop_col_.set_any(i, prop_col_, offset);
     }
   } else {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       auto offset = offsets[i] >> 32;
       ptr->edges_[i] = edges_[offset];
       ptr->prop_col_.set_any(i, prop_col_, offset);
     }
   }
-  ptr->size_ = size_;
+  ptr->size_ = offset_size;
   return ptr;
 }
 
@@ -97,9 +100,10 @@ std::shared_ptr<IContextColumn> BDMLEdgeColumn::shuffle(
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
+  size_t offset_size = offsets.size();
 
   if (!shift) {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->edges_[i] = edges_[offsets[i] & 0xFFFFFFFF];
       auto index = std::get<0>(ptr->edges_[i]);
       auto offset = std::get<3>(ptr->edges_[i]);
@@ -108,7 +112,7 @@ std::shared_ptr<IContextColumn> BDMLEdgeColumn::shuffle(
       std::get<3>(ptr->edges_[i]) = new_offset;
     }
   } else {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->edges_[i] = edges_[offsets[i] >> 32];
       auto index = std::get<0>(ptr->edges_[i]);
       auto offset = std::get<3>(ptr->edges_[i]);
@@ -118,7 +122,7 @@ std::shared_ptr<IContextColumn> BDMLEdgeColumn::shuffle(
     }
   }
 
-  ptr->size_ = size_;
+  ptr->size_ = offset_size;
   return ptr;
 }
 

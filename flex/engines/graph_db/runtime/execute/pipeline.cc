@@ -50,7 +50,17 @@ bl::result<Context> ReadPipeline::Execute(
       return bl::new_error(err);
     }
     ctx = std::move(ret);
-    ContextSize::getInstance().set_row_num(ctx.row_num());
+    /**for (size_t i = 0; i < ctx.row_num(); ++i) {
+      std::stringstream ss;
+      ss << "Row " << i << ": ";
+      for (const auto& col : ctx.columns) {
+        auto cast_col = dynamic_cast<const IVertexColumn*>(col.get());
+        if (cast_col) {
+          ss << cast_col->get_vertex(i).vid() << ",";
+        }
+      }
+      LOG(INFO) << ss.str();
+    }*/
   }
   return ctx;
 }

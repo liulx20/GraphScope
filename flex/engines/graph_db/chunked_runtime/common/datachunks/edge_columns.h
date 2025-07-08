@@ -170,10 +170,12 @@ class SDSLEdgeColumn : public IEdgeColumn {
                  PropertyType prop_type)
       : dir_(dir),
         label_(label),
+        size_(0),
         prop_type_(prop_type),
         prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)) {
     edges_ = std::make_unique<std::pair<vid_t, vid_t>[]>(
         gs::chunked_runtime::Configs::CHUNK_SIZE);
+    is_optional_ = false;
   }
 
   inline EdgeRecord get_edge(size_t idx) const override {
@@ -239,7 +241,8 @@ class SDSLEdgeColumn : public IEdgeColumn {
   template <typename FUNC_T>
   inline void foreach_edge(const FUNC_T& func) const {
     for (size_t i = 0; i < size_; ++i) {
-      func(i, label_, edges_[i].first, edges_[i].second, prop_col_.get(i));
+      func(i, label_, edges_[i].first, edges_[i].second, prop_col_.get(i),
+           dir_);
     }
   }
 
@@ -254,12 +257,13 @@ class SDSLEdgeColumn : public IEdgeColumn {
         size_t idx = offset + j;
         size_t index = (i << 32) | idx;
         func(index, label_, edges_[idx].first, edges_[idx].second,
-             prop_col_.get(idx));
+             prop_col_.get(idx), dir_);
       }
     }
   }
 
- private:
+  PropertyType prop_type() const { return prop_type_; }
+
   bool is_optional_ = false;
   Direction dir_;
   LabelTriplet label_;
@@ -285,6 +289,7 @@ class SDMLEdgeColumn : public IEdgeColumn {
       prop_cols_[index_[label.first]] =
           edge_property_vec::create_edge_prop_vec(label.second);
     }
+    is_optional_ = false;
   }
 
   std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
@@ -339,21 +344,21 @@ class SDMLEdgeColumn : public IEdgeColumn {
   inline void push_back_opt(LabelTriplet label, vid_t src, vid_t dst,
                             const EdgeData& data) {
     auto index = index_[label];
-    size_t len;
-    prop_cols_[index].set_edge_data(data, size_);
+    size_t len = prop_cols_[index].size();
+    prop_cols_[index].set_edge_data(data, len);
     edges_[size_++] = std::make_tuple(index, src, dst, len);
   }
 
   inline void push_back_elem(const RTAny& val) {
     const auto& e = val.as_edge();
     push_back_opt(e.label_triplet_, e.src_, e.dst_, e.prop_);
-    size_++;
   }
 
   inline void push_back_null() {
-    size_t len;
+    size_t len = prop_cols_[0].size();
+
     is_optional_ = true;
-    prop_cols_[0].set_null(size_);
+    prop_cols_[0].set_null(len);
     edges_[size_++] = std::make_tuple(0, std::numeric_limits<vid_t>::max(),
                                       std::numeric_limits<vid_t>::max(), len);
   }
@@ -387,7 +392,8 @@ class SDMLEdgeColumn : public IEdgeColumn {
       auto src = std::get<1>(e);
       auto dst = std::get<2>(e);
       auto offset = std::get<3>(e);
-      func(i, label, src, dst, prop_cols_[index].get(offset));
+      func(i, label, src, dst, prop_cols_[index].get(offset),
+           dir_);  // dir_ is always the same for SDMLEdgeColumn
     }
   }
   template <typename FUNC_T>
@@ -399,19 +405,18 @@ class SDMLEdgeColumn : public IEdgeColumn {
       int offset = offsets[i] >> 32;
       for (int j = 0; j < len; ++j) {
         size_t idx = offset + j;
-        auto& e = edges_[idx];
+        const auto& e = edges_[idx];
         auto index = std::get<0>(e);
         auto label = edge_labels_[index].first;
         auto src = std::get<1>(e);
         auto dst = std::get<2>(e);
         auto offset = std::get<3>(e);
         size_t index2 = (i << 32) | idx;
-        func(index2, label, src, dst, prop_cols_[index].get(offset));
+        func(index2, label, src, dst, prop_cols_[index].get(offset), dir_);
       }
     }
   }
 
- private:
   bool is_optional_ = false;
   Direction dir_;
   std::unordered_map<LabelTriplet, label_t, LabelTripletHash> index_;
@@ -541,9 +546,8 @@ class BDMLEdgeColumn : public IEdgeColumn {
   BDMLEdgeColumn(
       const std::vector<std::pair<LabelTriplet, PropertyType>>& labels)
       : size_(0), is_optional_(false) {
-    edges_ =
-        std::make_unique<std::tuple<label_t, vid_t, vid_t, size_t, bool>[]>(
-            gs::chunked_runtime::Configs::CHUNK_SIZE);
+    edges_ = std::make_unique<std::tuple<label_t, vid_t, vid_t, int, bool>[]>(
+        gs::chunked_runtime::Configs::CHUNK_SIZE);
     size_t idx = 0;
     prop_cols_.resize(labels.size());
     for (const auto& label : labels) {
@@ -600,16 +604,16 @@ class BDMLEdgeColumn : public IEdgeColumn {
   inline void push_back_opt(LabelTriplet label, vid_t src, vid_t dst,
                             const EdgeData& data, Direction dir) {
     auto index = index_[label];
-    size_t len;
-    prop_cols_[index].set_edge_data(data, size_);
+    size_t len = prop_cols_[index].size();
+    prop_cols_[index].set_edge_data(data, len);
     edges_[size_++] =
         std::make_tuple(index, src, dst, len, dir == Direction::kOut);
   }
 
   inline void push_back_null() {
-    size_t len;
+    size_t len = prop_cols_[0].size();
     is_optional_ = true;
-    prop_cols_[0].set_null(size_);
+    prop_cols_[0].set_null(len);
     edges_[size_++] =
         std::make_tuple(0, std::numeric_limits<vid_t>::max(),
                         std::numeric_limits<vid_t>::max(), len, false);
@@ -675,12 +679,11 @@ class BDMLEdgeColumn : public IEdgeColumn {
     }
   }
 
- private:
   uint32_t size_;
   bool is_optional_;
   std::unordered_map<LabelTriplet, label_t, LabelTripletHash> index_;
   std::vector<std::pair<LabelTriplet, PropertyType>> edge_labels_;
-  std::unique_ptr<std::tuple<label_t, vid_t, vid_t, size_t, bool>[]> edges_;
+  std::unique_ptr<std::tuple<label_t, vid_t, vid_t, int, bool>[]> edges_;
   std::vector<edge_property_vec> prop_cols_;
 };
 

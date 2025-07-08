@@ -24,7 +24,7 @@ class ProjectOprBuilder : public IReadOperatorBuilder {
   ProjectOprBuilder() = default;
   ~ProjectOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> src_opr,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>& src_opr,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,

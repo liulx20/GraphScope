@@ -272,7 +272,6 @@ bl::result<void> EdgeExpand::expand_edge_without_predicate(
                                                        params, state);
   }
   std::vector<size_t> shuffle_offset;
-
   if (params.labels.size() == 1) {
     if (params.dir == Direction::kIn) {
       label_t output_vertex_label = params.labels[0].src_label;

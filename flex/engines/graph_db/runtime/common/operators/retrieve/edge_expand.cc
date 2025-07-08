@@ -797,7 +797,7 @@ bl::result<Context> EdgeExpand::expand_vertex_ep_lt(
       RETURN_UNSUPPORTED_ERROR("not support edge type");
     }
   } else {
-    LOG(ERROR) << "not support vertex column type";
+    //    LOG(ERROR) << "not support vertex column type";
     RETURN_UNSUPPORTED_ERROR("not support vertex column type");
   }
 }
@@ -982,6 +982,12 @@ bl::result<Context> EdgeExpand::expand_vertex_ep_gt(
       }
     }
   } else {
+    if (ctx.row_num() == 0) {
+      auto builder = MLVertexColumnBuilder::builder();
+      ctx.set_with_reshuffle(params.alias, builder.finish(nullptr),
+                             std::vector<size_t>());
+      return ctx;
+    }
     LOG(ERROR) << "unexpected to reach here...";
     RETURN_UNSUPPORTED_ERROR("unexpected to reach here...");
   }

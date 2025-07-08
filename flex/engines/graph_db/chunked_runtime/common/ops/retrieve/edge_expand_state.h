@@ -79,7 +79,8 @@ struct EdgeExpandCollector {
   EdgeExpandCollector(LocalEdgeExpandState& s, const Args&... args);
   inline void push_back_null(size_t offset) {
     if (previous_offset != offset) {
-      size_t sz = leaves_offsets->size();
+      previous_offset = offset;
+      size_t sz = edge_col->size();
       offsets->push_back(offset);
       leaves_offsets->push_back((sz << 32));
     }
@@ -98,11 +99,13 @@ struct EdgeExpandCollector {
   template <typename... Params>
   inline void push_back_opt(size_t offset, Params&&... params) {
     if (previous_offset != offset) {
-      size_t sz = leaves_offsets->size();
+      size_t sz = edge_col->size();
+      previous_offset = offset;
       offsets->push_back(offset);
       leaves_offsets->push_back((sz << 32));
     }
     auto size = leaves_offsets->size();
+
     (*leaves_offsets)[size - 1] += 1;
     edge_col->push_back_opt(std::forward<Params>(params)...);
     if (__glibc_unlikely(is_full())) {
@@ -172,12 +175,6 @@ struct EdgeExpandState : public IOprState {
         auto& vertex_col = local_state.context_columns[cur_col_];
         auto& offsets = local_state.offsets_[cur_col_];
         auto& leaves_offsets = local_state.leaves_offsets_[cur_col_];
-        LOG(INFO) << "EdgeExpandState: cur_idx_ = " << cur_idx_
-                  << ", cur_col_ = " << cur_col_
-                  << ", vertex_col size = " << vertex_col->size()
-                  << ", offsets size = " << offsets.size()
-                  << ", leaves_offsets size = " << leaves_offsets.size()
-                  << " source_chunks size = " << source_chunks.chunk_num();
         chunks.emplace_back(DataChunk::create(source_chunks[cur_idx_], offsets,
                                               leaves_offsets, vertex_col,
                                               alias_, src_table_));
@@ -260,9 +257,10 @@ struct TCCollector {
 
   inline void push_back(size_t offset, vid_t vid0, vid_t vid1) {
     if (previous_offset != offset) {
-      size_t sz = leaves_offsets->size();
+      size_t sz = col0->size();
       offsets->push_back(offset);
       leaves_offsets->push_back((sz << 32));
+      previous_offset = offset;
     }
     auto size = leaves_offsets->size();
     (*leaves_offsets)[size - 1] += 1;

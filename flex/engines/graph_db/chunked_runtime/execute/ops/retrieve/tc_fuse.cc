@@ -295,9 +295,10 @@ std::unique_ptr<IReadOpr> make_tc_opr(
   return nullptr;
 }
 bl::result<ReadOpBuildResultT> TCOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
+  ContextMeta ret_meta = ctx_meta;
   if (tc_fusable(plan.plan(op_idx).opr().edge(),
                  plan.plan(op_idx + 1).opr().group_by(),
                  plan.plan(op_idx + 2).opr().edge(),
@@ -315,6 +316,11 @@ bl::result<ReadOpBuildResultT> TCOprBuilder::Build(
     if (plan.plan(op_idx + 4).opr().edge().has_alias()) {
       alias2 = plan.plan(op_idx + 4).opr().edge().alias().value();
     }
+
+    ret_meta.set(alias1, gs::runtime::ContextColumnType::kVertex,
+                 gs::runtime::RTAnyType::kVertex);
+    ret_meta.set(alias2, gs::runtime::ContextColumnType::kVertex,
+                 gs::runtime::RTAnyType::kVertex);
     auto labels0 =
         gs::runtime::parse_label_triplets(plan.plan(op_idx).meta_data(0));
     auto labels1 =

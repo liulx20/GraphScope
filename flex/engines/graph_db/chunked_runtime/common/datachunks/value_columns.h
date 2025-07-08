@@ -26,7 +26,8 @@ template <typename T>
 class ValueColumn : public IContextColumn {
  public:
   ValueColumn()
-      : size_(0),
+      : is_optional_(false),
+        size_(0),
         data_(std::make_unique<T[]>(Configs::CHUNK_SIZE)),
         valid_(nullptr),
         arena_(nullptr) {}
@@ -110,13 +111,14 @@ class ValueColumn : public IContextColumn {
   std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
                                           bool shift) override {
     auto ptr = std::make_shared<ValueColumn<T>>();
+    size_t offset_size = offsets.size();
 
     if (!shift) {
-      for (size_t i = 0; i < size_; ++i) {
+      for (size_t i = 0; i < offset_size; ++i) {
         ptr->data_[i] = data_[offsets[i] & 0xFFFFFFFF];
       }
     } else {
-      for (size_t i = 0; i < size_; ++i) {
+      for (size_t i = 0; i < offset_size; ++i) {
         ptr->data_[i] = data_[offsets[i] >> 32];
       }
     }
@@ -124,18 +126,17 @@ class ValueColumn : public IContextColumn {
     if (is_optional_) {
       ptr->is_optional_ = true;
       ptr->valid_ = std::make_unique<uint8_t[]>(Configs::CHUNK_SIZE / 8);
-      for (size_t i = 0; i < size_; ++i) {
-        int offset = shift ? offsets[i] >> 32 : offsets[i] & 0xFFFFFFFF;
+      for (size_t i = 0; i < offset_size; ++i) {
+        uint32_t offset = shift ? offsets[i] >> 32 : offsets[i] & 0xFFFFFFFF;
         uint8_t offset_byte = (valid_[offset / 8]) >> (offset % 8);
         ptr->valid_[i / 8] |= (offset_byte << (i % 8));
       }
     }
 
-    ptr->size_ = size_;
+    ptr->size_ = offset_size;
     return ptr;
   }
 
- private:
   bool is_optional_;
   size_t size_;
   std::unique_ptr<T[]> data_;
@@ -199,7 +200,6 @@ class ValueColumn<List> : public IContextColumn {
   std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
                                           bool shift) override;
 
- private:
   RTAnyType elem_type_;
   size_t size_;
   std::unique_ptr<List[]> data_;

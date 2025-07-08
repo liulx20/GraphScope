@@ -22,16 +22,17 @@ std::shared_ptr<IContextColumn> SLVertexColumn::shuffle(
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
+  size_t offset_size = offsets.size();
   if (!shift) {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->data_[i] = data_[offsets[i] & 0xFFFFFFFF];
     }
   } else {
-    for (size_t i = 0; i < size_; ++i) {
+    for (size_t i = 0; i < offset_size; ++i) {
       ptr->data_[i] = data_[offsets[i] >> 32];
     }
   }
-  ptr->size_ = size_;
+  ptr->size_ = offset_size;
   return ptr;
 }
 
@@ -50,7 +51,7 @@ std::shared_ptr<IContextColumn> MLVertexColumn::shuffle(
       new_column->data_[i] = data_[offsets[i] >> 32];
     }
   }
-  new_column->size_ = offset_size;
+
   return new_column;
 }
 

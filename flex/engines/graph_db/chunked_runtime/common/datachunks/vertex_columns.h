@@ -106,7 +106,8 @@ class SLVertexColumn : public IVertexColumn {
   bool is_optional() const override { return is_optional_; }
 
   std::string column_info() const override {
-    return "SLVertexColumn[" + std::to_string(size_) + "]";
+    return "SLVertexColumn(" + to_string(static_cast<int>(label_)) + ")[" +
+           std::to_string(size_) + "]";
   }
   VertexRecord get_vertex(size_t idx) const override {
     return VertexRecord{label_, data_[idx]};
@@ -133,7 +134,6 @@ class SLVertexColumn : public IVertexColumn {
     }
   }
 
- private:
   bool is_optional_;
   label_t label_;
   size_t size_;
@@ -143,10 +143,12 @@ class SLVertexColumn : public IVertexColumn {
 class MLVertexColumn : public IVertexColumn {
  public:
   MLVertexColumn()
-      : size_(0),
+      : is_optional_(false),
+        size_(0),
         data_(std::make_unique<VertexRecord[]>(Configs::CHUNK_SIZE)) {}
   MLVertexColumn(const std::unordered_set<label_t>& labels)
-      : size_(0),
+      : is_optional_(false),
+        size_(0),
         data_(std::make_unique<VertexRecord[]>(Configs::CHUNK_SIZE)),
         labels_(labels) {}
   size_t size() const override { return size_; }
@@ -227,7 +229,6 @@ class MLVertexColumn : public IVertexColumn {
     return "MLVertexColumn(" + labels + ")[" + std::to_string(size()) + "]";
   }
 
- private:
   bool is_optional_ = false;
   size_t size_;
   std::unique_ptr<VertexRecord[]> data_;

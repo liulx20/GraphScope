@@ -423,12 +423,22 @@ class EdgeExpand {
       const std::array<std::tuple<label_t, label_t, label_t, Direction>, 3>&
           labels,
       int input_tag, int alias1, int alias2, bool LT, const std::string& val) {
+    if (ctx.row_num() == 0) {
+      auto d1_nbr_label = std::get<1>(labels[1]);
+      auto d2_nbr_label = std::get<1>(labels[2]);
+      auto builder1 = SLVertexColumnBuilder::builder(d1_nbr_label);
+      auto builder2 = SLVertexColumnBuilder::builder(d2_nbr_label);
+      ctx.set(alias1, builder1.finish(nullptr));
+      ctx.set(alias2, builder2.finish(nullptr));
+      return ctx;
+    }
     std::shared_ptr<IVertexColumn> input_vertex_list =
         std::dynamic_pointer_cast<IVertexColumn>(ctx.get(input_tag));
     if (input_vertex_list->vertex_column_type() != VertexColumnType::kSingle) {
       RETURN_UNSUPPORTED_ERROR(
           "Unsupported input for triangle counting, only single vertex column");
     }
+
     auto casted_input_vertex_list =
         std::dynamic_pointer_cast<SLVertexColumn>(input_vertex_list);
     label_t input_label = casted_input_vertex_list->label();

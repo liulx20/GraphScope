@@ -65,7 +65,7 @@ class Table {
 
   void shuffle(const ValueColumn<size_t>& offsets, bool shift = false) {
     for (auto& column : columns_) {
-      auto ret = column->shuffle(offsets, shift);
+      column = column->shuffle(offsets, shift);
     }
   }
   void push_back(const std::shared_ptr<IContextColumn>& column) {

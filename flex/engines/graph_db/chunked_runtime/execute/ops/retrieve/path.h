@@ -29,7 +29,7 @@ class SPOrderByLimitOprBuilder : public IReadOperatorBuilder {
   SPOrderByLimitOprBuilder() = default;
   ~SPOrderByLimitOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> source_opr,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>& source_opr,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,
@@ -55,7 +55,7 @@ class SPOprBuilder : public IReadOperatorBuilder {
   SPOprBuilder() = default;
   ~SPOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> source_opr,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>& source_opr,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,
@@ -76,7 +76,7 @@ class PathExpandVOprBuilder : public IReadOperatorBuilder {
   PathExpandVOprBuilder() = default;
   ~PathExpandVOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> source_opr,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>& source_opr,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,
@@ -96,7 +96,7 @@ class PathExpandOprBuilder : public IReadOperatorBuilder {
   PathExpandOprBuilder() = default;
   ~PathExpandOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> source_opr,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>& source_opr,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,

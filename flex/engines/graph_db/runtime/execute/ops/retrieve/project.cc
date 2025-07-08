@@ -1494,7 +1494,6 @@ bl::result<ReadOpBuildResultT> ProjectOrderByOprBuilder::Build(
       if (i == 0) {
         first_tuple = std::make_tuple(first_key, first_idx, asc);
         if (pair.key().has_property()) {
-          LOG(ERROR) << "key has property" << pair.DebugString();
           return std::make_pair(nullptr, ContextMeta());
         }
       }

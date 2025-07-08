@@ -104,6 +104,10 @@ class ContextMeta {
     return alias_set_.find(alias) != alias_set_.end();
   }
 
+  void set(int alias, ContextColumnType type, RTAnyType elem_type) {
+    types[alias] = {type, elem_type};
+  }
+
   void set(int alias) {
     if (alias >= 0) {
       head_ = alias;
@@ -124,8 +128,11 @@ class ContextMeta {
     }
   }
 
+  auto metas() const { return types; }
+
  private:
   std::set<int> alias_set_;
+  std::unordered_map<int, std::pair<ContextColumnType, RTAnyType>> types;
   int head_ = -1;
   bool head_exists_ = false;
 };

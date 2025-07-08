@@ -5,10 +5,10 @@
 namespace gs {
 namespace chunked_runtime {
 struct Configs {
-  constexpr static size_t CHUNK_SIZE = 64 * 1024;  // 64K
+  constexpr static size_t CHUNK_SIZE = 4096;  // 4K
 
   constexpr static int MAX_THREAD_NUM =
-      16;  // Maximum number of threads for parallel execution
+      4;  // Maximum number of threads for parallel execution
 };
 }  // namespace chunked_runtime
 }  // namespace gs

@@ -30,7 +30,7 @@ class ScanOprBuilder : public IReadOperatorBuilder {
   ScanOprBuilder() = default;
   ~ScanOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>&,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,

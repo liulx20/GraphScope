@@ -754,6 +754,7 @@ bl::result<void> PathExpand::single_source_single_dest_shortest_path(
         "only support same src and dst label and both "
         "direction");
   }
+  state.init(label_triplet.dst_label);
 
   ctx.foreach_vertex(
       params.start_tag, [&](size_t index, label_t label, vid_t v) {

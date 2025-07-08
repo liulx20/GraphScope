@@ -1158,7 +1158,8 @@ expand_vertex_impl(const GraphReadInterface& graph, const MLVertexColumn& input,
     }
   }
   if (ed_types.size() == 0) {
-    LOG(INFO) << "no edge property type in an edge(vertex) expand, fallback";
+    //    LOG(INFO) << "no edge property type in an edge(vertex) expand,
+    //    fallback";
     auto builder = MLVertexColumnBuilder::builder();
     return std::make_pair(builder.finish(nullptr), std::vector<size_t>());
   }

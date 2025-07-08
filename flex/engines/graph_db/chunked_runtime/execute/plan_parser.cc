@@ -151,7 +151,7 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
   int i = 0;
   std::unique_ptr<IReadOpr> previous_opr = nullptr;
   ContextMeta cur_ctx_meta = ctx_meta;
-  for (i = 0; i < opr_num;) {
+  for (; i < opr_num;) {
     physical::PhysicalOpr_Operator::OpKindCase cur_op_kind =
         plan.plan(i).opr().op_kind_case();
     if (cur_op_kind == physical::PhysicalOpr_Operator::OpKindCase::kSink) {
@@ -162,10 +162,6 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
     }
     auto& builders = read_op_builders_[cur_op_kind];
     int old_i = i;
-    if (i != 0 && previous_opr == nullptr) {
-      LOG(FATAL) << plan.DebugString() << "Failed to parse plan at index " << i
-                 << ", previous operator is null.";
-    }
     gs::Status status = gs::Status::OK();
     for (auto& pair : builders) {
       auto pattern = pair.first;
@@ -183,8 +179,8 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
         bl::result<ReadOpBuildResultT> res_pair_status = bl::try_handle_some(
             [&builder, &schema, &cur_ctx_meta, &plan, &i,
              &previous_opr]() -> bl::result<ReadOpBuildResultT> {
-              return builder->Build(std::move(previous_opr), schema,
-                                    cur_ctx_meta, plan, i);
+              return builder->Build(previous_opr, schema, cur_ctx_meta, plan,
+                                    i);
             },
             [&status](const gs::Status& err) {
               status = err;
@@ -214,12 +210,7 @@ PlanParser::parse_read_pipeline_with_meta(const gs::Schema& schema,
             status = gs::Status::OK();
             break;
           } else {
-            // If the operator is null, it means the builder has failed, we need
-            // to stage the error.
-            status = gs::Status(gs::StatusCode::INTERNAL_ERROR,
-                                "Failed to build operator at index " +
-                                    std::to_string(i) +
-                                    ", op_kind: " + get_opr_name(cur_op_kind));
+            continue;
           }
         }
       }
@@ -249,7 +240,8 @@ PlanParser::parse_read_pipeline(const gs::Schema& schema,
   }
 
   std::unique_ptr<gs::runtime::IReadOperator> opr =
-      std::make_unique<ops::Converter>(std::move(std::get<0>(ret.value())));
+      std::make_unique<ops::Converter>(std::move(std::get<0>(ret.value())),
+                                       std::get<1>(ret.value()));
   return std::make_tuple(std::move(opr), std::get<1>(ret.value()),
                          std::get<2>(ret.value()));
 }

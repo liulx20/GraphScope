@@ -106,10 +106,10 @@ struct GetVState : public IOprState {
         auto& offsets = local_state.offsets;
         if (vertex_col == nullptr) {
           chunks.emplace_back(DataChunk::create(src_chunks_[cur_idx_], offsets,
-                                                alias_, src_table_));
+                                                src_table_, alias_));
         } else {
           chunks.emplace_back(DataChunk::create(
-              src_chunks_[cur_idx_], vertex_col, offsets, alias_, src_table_));
+              src_chunks_[cur_idx_], vertex_col, offsets, src_table_, alias_));
         }
         cur_idx_++;
         break;

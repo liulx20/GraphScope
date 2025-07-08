@@ -20,6 +20,7 @@ namespace gs {
 namespace runtime {
 
 bl::result<Context> Unfold::unfold(Context&& ctxs, int key, int alias) {
+  
   auto col = ctxs.get(key);
   if (col->elem_type() != RTAnyType::kList) {
     LOG(ERROR) << "Unfold column type is not list";

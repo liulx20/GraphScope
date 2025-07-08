@@ -344,7 +344,7 @@ class SPOrderByLimitWithGPredOpr : public IReadOpr {
 };
 
 bl::result<ReadOpBuildResultT> SPOrderByLimitOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   const auto& opr = plan.plan(op_idx).opr().path();
@@ -354,8 +354,10 @@ bl::result<ReadOpBuildResultT> SPOrderByLimitOprBuilder::Build(
   if (is_shortest_path_with_order_by_limit(plan, op_idx, path_len_alias,
                                            vertex_alias, limit_upper)) {
     ContextMeta ret_meta = ctx_meta;
-    ret_meta.set(vertex_alias);
-    ret_meta.set(path_len_alias);
+    ret_meta.set(vertex_alias, gs::runtime::ContextColumnType::kVertex,
+                 gs::runtime::RTAnyType::kVertex);
+    ret_meta.set(path_len_alias, gs::runtime::ContextColumnType::kValue,
+                 gs::runtime::RTAnyType::kI32Value);
     if (!opr.has_start_tag()) {
       LOG(ERROR) << "Shortest path with order by limit must have start tag";
       return std::make_pair(nullptr, ContextMeta());
@@ -514,7 +516,7 @@ class SSSDSPOpr : public IReadOpr {
 };
 
 bl::result<ReadOpBuildResultT> SPOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   ContextMeta ret_meta = ctx_meta;
@@ -532,8 +534,10 @@ bl::result<ReadOpBuildResultT> SPOprBuilder::Build(
     if (plan.plan(op_idx).opr().path().has_alias()) {
       alias = plan.plan(op_idx).opr().path().alias().value();
     }
-    ret_meta.set(v_alias);
-    ret_meta.set(alias);
+    ret_meta.set(v_alias, gs::runtime::ContextColumnType::kVertex,
+                 gs::runtime::RTAnyType::kVertex);
+    ret_meta.set(alias, gs::runtime::ContextColumnType::kPath,
+                 gs::runtime::RTAnyType::kPath);
 
     const auto& opr = plan.plan(op_idx).opr().path();
     if (!opr.has_start_tag()) {
@@ -590,8 +594,10 @@ bl::result<ReadOpBuildResultT> SPOprBuilder::Build(
     if (plan.plan(op_idx).opr().path().has_alias()) {
       alias = plan.plan(op_idx).opr().path().alias().value();
     }
-    ret_meta.set(v_alias);
-    ret_meta.set(alias);
+    ret_meta.set(v_alias, gs::runtime::ContextColumnType::kVertex,
+                 gs::runtime::RTAnyType::kVertex);
+    ret_meta.set(alias, gs::runtime::ContextColumnType::kPath,
+                 gs::runtime::RTAnyType::kPath);
     const auto& path = plan.plan(op_idx).opr().path();
     if (!path.has_start_tag()) {
       LOG(ERROR) << "Shortest path must have start tag";
@@ -649,7 +655,7 @@ class PathExpandVOpr : public IReadOpr {
 };
 
 bl::result<ReadOpBuildResultT> PathExpandVOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   const auto& opr = plan.plan(op_idx).opr().path();
@@ -663,7 +669,8 @@ bl::result<ReadOpBuildResultT> PathExpandVOprBuilder::Build(
       alias = next_opr.alias().value();
     }
     ContextMeta ret_meta = ctx_meta;
-    ret_meta.set(alias);
+    ret_meta.set(alias, gs::runtime::ContextColumnType::kVertex,
+                 gs::runtime::RTAnyType::kVertex);
     int start_tag = opr.has_start_tag() ? opr.start_tag().value() : -1;
     if (opr.path_opt() !=
         physical::PathExpand_PathOpt::PathExpand_PathOpt_ARBITRARY) {
@@ -742,7 +749,7 @@ class PathExpandOpr : public IReadOpr {
 };
 
 bl::result<ReadOpBuildResultT> PathExpandOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   const auto& opr = plan.plan(op_idx).opr().path();
@@ -751,7 +758,8 @@ bl::result<ReadOpBuildResultT> PathExpandOprBuilder::Build(
     alias = opr.alias().value();
   }
   ContextMeta ret_meta = ctx_meta;
-  ret_meta.set(alias);
+  ret_meta.set(alias, gs::runtime::ContextColumnType::kPath,
+               gs::runtime::RTAnyType::kPath);
 
   if (!opr.has_start_tag()) {
     LOG(ERROR) << "PathExpandOpr must have start tag";

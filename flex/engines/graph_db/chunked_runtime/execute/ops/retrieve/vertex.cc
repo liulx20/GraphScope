@@ -49,6 +49,7 @@ class GetVFromVerticesWithLabelWithInOpr : public IReadOpr {
     bool flag = true;
     auto& casted_state = dynamic_cast<GetVState&>(state);
     auto& chunks = casted_state.src_chunks();
+    casted_state.initialize(v_params_.tag, v_params_.alias);
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto labels = chunk.get_vertex_labels_set(v_params_.tag);
       for (auto label : labels) {
@@ -109,6 +110,7 @@ class GetVFromVerticesWithPKExactOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<GetVState&>(state);
+    casted_state.initialize(v_params_.tag, v_params_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](const DataChunk& chunk) {
       auto& local_state = casted_state.getLocalState();
@@ -151,6 +153,7 @@ class GetVFromVerticesWithPredicateOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<GetVState&>(state);
+    casted_state.initialize(v_params_.tag, v_params_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](DataChunk& chunk) {
       GeneralVertexPredicate pred(graph, chunk, params,
@@ -208,6 +211,7 @@ class GetVFromEdgesWithPredicateOpr : public IReadOpr {
                               const std::map<std::string, std::string>& params,
                               IOprState& state) override {
     auto& casted_state = dynamic_cast<GetVState&>(state);
+    casted_state.initialize(v_params_.tag, v_params_.alias);
     auto& chunks = casted_state.src_chunks();
     return ForEachChunk(chunks, [&](DataChunk& chunk) {
       auto& local_state = casted_state.getLocalState();
@@ -231,7 +235,7 @@ class GetVFromEdgesWithPredicateOpr : public IReadOpr {
 };
 
 bl::result<ReadOpBuildResultT> VertexOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   const auto& vertex = plan.plan(op_idx).opr().vertex();
@@ -242,7 +246,8 @@ bl::result<ReadOpBuildResultT> VertexOprBuilder::Build(
   }
 
   ContextMeta ret_meta = ctx_meta;
-  ret_meta.set(alias);
+  ret_meta.set(alias, gs::runtime::ContextColumnType::kVertex,
+               gs::runtime::RTAnyType::kVertex);
 
   int tag = -1;
   if (vertex.has_tag()) {
@@ -271,7 +276,7 @@ bl::result<ReadOpBuildResultT> VertexOprBuilder::Build(
               std::make_unique<GetVFromVerticesWithLabelWithInOpr>(
                   std::move(src_opr), plan.plan(op_idx).opr().vertex(), p,
                   labels_set),
-              ctx_meta);
+              ret_meta);
         }
       }
 
@@ -285,26 +290,26 @@ bl::result<ReadOpBuildResultT> VertexOprBuilder::Build(
               std::make_unique<GetVFromVerticesWithPKExactOpr>(
                   std::move(src_opr), plan.plan(op_idx).opr().vertex(), p,
                   exact_pk_label, exact_pk),
-              ctx_meta);
+              ret_meta);
         }
       }
       // general predicate
       return std::make_pair(
           std::make_unique<GetVFromVerticesWithPredicateOpr>(
               std::move(src_opr), plan.plan(op_idx).opr().vertex(), p),
-          ctx_meta);
+          ret_meta);
     } else if (opt == VOpt::kEnd || opt == VOpt::kStart) {
       return std::make_pair(
           std::make_unique<GetVFromEdgesWithPredicateOpr>(
               std::move(src_opr), plan.plan(op_idx).opr().vertex(), p),
-          ctx_meta);
+          ret_meta);
     }
   } else {
     if (opt == VOpt::kEnd || opt == VOpt::kStart || opt == VOpt::kOther) {
       return std::make_pair(
           std::make_unique<GetVFromEdgesWithPredicateOpr>(
               std::move(src_opr), plan.plan(op_idx).opr().vertex(), p),
-          ctx_meta);
+          ret_meta);
     }
   }
 

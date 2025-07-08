@@ -715,7 +715,7 @@ static bool check_label_in_set(const Direction& dir,
 }
 
 bl::result<ReadOpBuildResultT> EdgeExpandOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   int alias = -1;
@@ -723,7 +723,7 @@ bl::result<ReadOpBuildResultT> EdgeExpandOprBuilder::Build(
     alias = plan.plan(op_idx).opr().edge().alias().value();
   }
   ContextMeta meta = ctx_meta;
-  meta.set(alias);
+
   auto opr = plan.plan(op_idx).opr().edge();
   int v_tag = opr.has_v_tag() ? opr.v_tag().value() : -1;
   Direction dir = gs::runtime::parse_direction(opr.direction());
@@ -741,6 +741,8 @@ bl::result<ReadOpBuildResultT> EdgeExpandOprBuilder::Build(
   eep.alias = alias;
   eep.is_optional = is_optional;
   if (opr.expand_opt() == physical::EdgeExpand_ExpandOpt_VERTEX) {
+    meta.set(alias, gs::runtime::ContextColumnType::kVertex,
+             gs::runtime::RTAnyType::kVertex);
     if (query_params.has_predicate()) {
       auto tp = gs::runtime::parse_sp_pred(query_params.predicate());
       const auto& op2 = query_params.predicate().operators(2);
@@ -772,6 +774,8 @@ bl::result<ReadOpBuildResultT> EdgeExpandOprBuilder::Build(
           meta);
     }
   } else if (opr.expand_opt() == physical::EdgeExpand_ExpandOpt_EDGE) {
+    meta.set(alias, gs::runtime::ContextColumnType::kEdge,
+             gs::runtime::RTAnyType::kEdge);
     if (query_params.has_predicate()) {
       auto sp_edge_pred =
           gs::runtime::parse_special_edge_predicate(query_params.predicate());
@@ -796,7 +800,7 @@ bl::result<ReadOpBuildResultT> EdgeExpandOprBuilder::Build(
 }
 
 bl::result<ReadOpBuildResultT> EdgeExpandGetVOprBuilder::Build(
-    std::unique_ptr<IReadOpr> src_opr, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>& src_opr, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
   if (edge_expand_get_v_fusable(plan.plan(op_idx).opr().edge(),
@@ -807,7 +811,8 @@ bl::result<ReadOpBuildResultT> EdgeExpandGetVOprBuilder::Build(
       alias = plan.plan(op_idx + 1).opr().vertex().alias().value();
     }
     ContextMeta meta = ctx_meta;
-    meta.set(alias);
+    meta.set(alias, gs::runtime::ContextColumnType::kVertex,
+             gs::runtime::RTAnyType::kVertex);
     const auto& ee_opr = plan.plan(op_idx).opr().edge();
     const auto& v_opr = plan.plan(op_idx + 1).opr().vertex();
     int v_tag = ee_opr.has_v_tag() ? ee_opr.v_tag().value() : -1;

@@ -518,14 +518,17 @@ class ScanWithoutPredOpr : public IReadOpr {
 };
 
 bl::result<ReadOpBuildResultT> ScanOprBuilder::Build(
-    std::unique_ptr<IReadOpr>, const gs::Schema& schema,
+    std::unique_ptr<IReadOpr>&, const gs::Schema& schema,
     const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
     int op_idx) {
+  int alias = -1;
   ContextMeta ret_meta;
-  // int alias = -1;
-  // if (plan.plan(op_idx).opr().scan().has_alias()) {
-  // alias = plan.plan(op_idx).opr().scan().alias().value();
-  //}
+  if (plan.plan(op_idx).opr().scan().has_alias()) {
+    alias = plan.plan(op_idx).opr().scan().alias().value();
+  }
+  ret_meta.set(alias, gs::runtime::ContextColumnType::kVertex,
+               gs::runtime::RTAnyType::kVertex);
+
   // ret_meta.set(alias);
   auto scan_opr = plan.plan(op_idx).opr().scan();
   if (scan_opr.scan_opt() != physical::Scan::VERTEX) {

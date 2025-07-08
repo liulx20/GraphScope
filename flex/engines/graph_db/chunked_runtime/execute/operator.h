@@ -68,9 +68,6 @@ class IReadOpr {
                                 state.src_chunks())
                 .value()) {
           EvalChunks(graph, params, state);
-          LOG(INFO) << "Chunks retrieved from source operator: "
-                    << source_opr()->get_operator_name()
-                    << ", chunk num: " << state.src_chunks().chunk_num();
           return state.getNextChunks(chunks);
         }
         return false;
@@ -102,7 +99,7 @@ class IReadOperatorBuilder {
  public:
   virtual ~IReadOperatorBuilder() = default;
   virtual bl::result<ReadOpBuildResultT> Build(
-      std::unique_ptr<IReadOpr> source_opr, const gs::Schema& schema,
+      std::unique_ptr<IReadOpr>& source_opr, const gs::Schema& schema,
       const ContextMeta& ctx_meta, const physical::PhysicalPlan& plan,
       int op_idx) = 0;
   virtual int stepping(int i) { return i + GetOpKinds().size(); }

@@ -47,6 +47,7 @@ class GeneralPathColumn : public IPathColumn {
     data_ = std::make_unique<Path[]>(Configs::CHUNK_SIZE);
     valid_ = nullptr;
     is_optional_ = false;
+    arena_ = std::make_shared<Arena>();
   }
   GeneralPathColumn(GeneralPathColumn&& other)
       : is_optional_(other.is_optional_),
@@ -139,7 +140,6 @@ class GeneralPathColumn : public IPathColumn {
     }
   }
 
- private:
   bool is_optional_;
   size_t size_;
   std::unique_ptr<Path[]> data_;

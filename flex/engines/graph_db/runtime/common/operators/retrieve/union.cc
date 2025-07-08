@@ -30,6 +30,12 @@ bl::result<Context> Union::union_op(std::vector<Context>&& ctxs) {
     LOG(ERROR) << "Union: column size not match";
     RETURN_BAD_REQUEST_ERROR("Union: column size not match");
   }
+  if (ctx0.row_num() == 0) {
+    return ctx1;
+  }
+  if (ctx1.row_num() == 0) {
+    return ctx0;
+  }
   return ctx0.union_ctx(ctx1);
 }
 

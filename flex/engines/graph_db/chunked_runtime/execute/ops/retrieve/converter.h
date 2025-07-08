@@ -38,32 +38,23 @@ struct ConverterState : public IOprState {
 };
 class Converter : public gs::runtime::IReadOperator {
  public:
-  Converter(std::unique_ptr<IReadOpr>&& src) : source_opr_(std::move(src)) {}
+  Converter(std::unique_ptr<IReadOpr>&& src,
+            const gs::runtime::ContextMeta& meta)
+      : source_opr_(std::move(src)), ctx_meta_(meta) {}
 
   ~Converter() override = default;
   std::string get_operator_name() const override { return "Converter"; }
 
   std::shared_ptr<IOprState> initState(
       std::shared_ptr<IOprState> state_from_other_pipeline) {
-    CHECK(source_opr_ != nullptr)
-        << "Source operator should not be null in Converter";
     auto src = source_opr_->initState(state_from_other_pipeline);
     return std::make_shared<ConverterState>(src);
   }
 
+  void build_empty_context(gs::runtime::Context& ctx);
+
   void build_context(const std::vector<DataChunk>& chunks,
-                     gs::runtime::Context& ctx) {
-    ctx.clear();
-    if (chunks.empty()) {
-      return;
-    }
-    /**const auto& alias_map = chunks[0].alias_map();
-    for (int idx : alias_) {
-      int v = alias_map.at(idx);
-      int table_id = TABLE_ID(v);
-      int col_id = COLUMN_ID(v);
-    }*/
-  }
+                     gs::runtime::Context& ctx);
 
   bool exec(const GraphReadInterface& graph,
             const std::map<std::string, std::string>& params,
@@ -71,16 +62,16 @@ class Converter : public gs::runtime::IReadOperator {
     std::vector<DataChunk> chunks;
     std::shared_ptr<IOprState> state = initState(nullptr);
     state->clear();
-    while (source_opr_->getNextChunks(graph, params, *state->src_state(),
-                                      state->src_chunks())) {
+    while (source_opr_
+               ->getNextChunks(graph, params, *state->src_state(),
+                               state->src_chunks())
+               .value()) {
       const auto& src_chunks = state->src_chunks();
       for (size_t i = 0; i < src_chunks.chunk_num(); ++i) {
         chunks.emplace_back(std::move(src_chunks[i]));
       }
       state->clear();
     }
-    LOG(INFO) << chunks.size() << " chunks retrieved from source operator: "
-              << source_opr_->get_operator_name();
 
     build_context(chunks, ctx);
     return false;
@@ -95,6 +86,7 @@ class Converter : public gs::runtime::IReadOperator {
 
   std::unique_ptr<IReadOpr> source_opr_;
   std::vector<int> alias_;
+  gs::runtime::ContextMeta ctx_meta_;
 };
 }  // namespace ops
 }  // namespace chunked_runtime

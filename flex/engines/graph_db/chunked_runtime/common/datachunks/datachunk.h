@@ -27,22 +27,57 @@ namespace chunked_runtime {
 
 class DataChunk {
  public:
-  void info() const {
+  /**void info() const {
+    std::stringstream ss;
+    for (const auto& [alias, idx] : alias_map_) {
+      ss << "(Alias: " << alias << ", Index: " << idx << ") \n";
+    }
+    for (size_t i = 0; i < table_->columns_.size(); ++i) {
+      const auto& col = table_->columns_[i];
+      ss << "(0," << i << ")" << col->column_info() << ", ";
+    }
+    ss << "\n";
+    for (size_t i = 0; i < leaves_.size(); ++i) {
+      for (size_t j = 0; j < leaves_[i]->columns_.size(); ++j) {
+        const auto& col = leaves_[i]->columns_[j];
+        ss << "(" << (i + 1) << "," << j << ")" << col->column_info() << ", ";
+      }
+      ss << "\n";
+    }
     LOG(INFO) << "DataChunk info: table size: " << table_->col_num()
               << ", alias_map size: " << alias_map_.size()
               << ", leaves size: " << leaves_.size()
-              << ", offsets size: " << offsets_.size();
-    for (const auto& [alias, idx] : alias_map_) {
-      LOG(INFO) << "Alias: " << alias << ", Index: " << idx;
-    }
-  }
+              << ", offsets size: " << offsets_.size() << " \n"
+              << ss.str()
+              << "END\n====================================================";
+  }*/
   static DataChunk create(const std::shared_ptr<IContextColumn>& column,
                           int alias) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
     chunk.table_->columns_.emplace_back(column);
     chunk.alias_map_[alias] = 0;
+    if (alias != -1) {
+      chunk.alias_map_[-1] = 0;
+    }
     return chunk;
+  }
+
+  std::unordered_map<uint32_t, int32_t> get_revert_map() const {
+    std::unordered_map<uint32_t, int32_t> revert_map;
+    size_t sp_tag = std::numeric_limits<size_t>::max();
+    for (const auto& pair : alias_map_) {
+      if (pair.first == -1) {
+        sp_tag = pair.second;
+      } else {
+        revert_map[pair.second] = pair.first;
+      }
+    }
+    if (sp_tag != std::numeric_limits<size_t>::max() &&
+        revert_map.find(sp_tag) == revert_map.end()) {
+      revert_map[sp_tag] = -1;
+    }
+    return revert_map;
   }
 
   static std::shared_ptr<ValueColumn<size_t>> generate_leaves_offsets(
@@ -66,11 +101,8 @@ class DataChunk {
                           int src_table_id, int alias) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
-    src_table_id = other.alias_map_.at(src_table_id);
-    std::unordered_map<uint32_t, int32_t> revert_map;
-    for (const auto& pair : other.alias_map_) {
-      revert_map[pair.second] = pair.first;
-    }
+    src_table_id = TABLE_ID(other.alias_map_.at(src_table_id));
+    const auto& revert_map = other.get_revert_map();
     chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
     for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
       chunk.leaves_.emplace_back(std::make_shared<Table>());
@@ -98,11 +130,8 @@ class DataChunk {
                           int alias) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
-    src_table_id = other.alias_map_.at(src_table_id);
-    std::unordered_map<uint32_t, int32_t> revert_map;
-    for (const auto& pair : other.alias_map_) {
-      revert_map[pair.second] = pair.first;
-    }
+    src_table_id = TABLE_ID(other.alias_map_.at(src_table_id));
+    const auto& revert_map = other.get_revert_map();
     chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
     for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
       chunk.leaves_.emplace_back(std::make_shared<Table>());
@@ -124,6 +153,10 @@ class DataChunk {
       chunk.leaves_[src_table_id - 1]->columns_.emplace_back(column);
       chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(
           src_table_id, (chunk.leaves_[src_table_id - 1]->col_num() - 1));
+      if (alias != -1) {
+        chunk.alias_map_[-1] = GLOBAL_COLUMN_ID(
+            src_table_id, (chunk.leaves_[src_table_id - 1]->col_num() - 1));
+      }
       if (offsets.size() != other.leaves_[src_table_id - 1]->row_num()) {
         chunk.offsets_[src_table_id - 1] = generate_leaves_offsets(
             offsets, chunk.offsets_[src_table_id - 1]->size());
@@ -139,13 +172,10 @@ class DataChunk {
                           int src_table_id) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
-    other.info();
+
     src_table_id = TABLE_ID(other.alias_map_.at(src_table_id));
 
-    std::unordered_map<uint32_t, int32_t> revert_map;
-    for (const auto& pair : other.alias_map_) {
-      revert_map[pair.second] = pair.first;
-    }
+    const auto& revert_map = other.get_revert_map();
     if (src_table_id == 0) {
       chunk.offsets_.resize(other.offsets_.size());
       for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
@@ -161,6 +191,9 @@ class DataChunk {
       chunk.leaves_.emplace_back(std::make_shared<Table>());
       chunk.leaves_.back()->push_back(column);
       chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(chunk.offsets_.size(), 0);
+      if (alias != -1) {
+        chunk.alias_map_[-1] = GLOBAL_COLUMN_ID(chunk.offsets_.size(), 0);
+      }
     } else {
       chunk.table_->copy_from(*other.table_, 0, revert_map, chunk.alias_map_);
       chunk.table_->shuffle(offsets, true);
@@ -176,7 +209,7 @@ class DataChunk {
         chunk.offsets_[i]->shuffle(offsets, true);
       }
       for (int i = 0;
-           i < static_cast<int>(chunk.leaves_[src_table_id - 1]->col_num());
+           i < static_cast<int>(other.leaves_[src_table_id - 1]->col_num());
            ++i) {
         uint32_t idx = GLOBAL_COLUMN_ID(src_table_id, i);
         int32_t v = revert_map.at(idx);
@@ -194,7 +227,11 @@ class DataChunk {
           std::make_shared<ValueColumn<size_t>>(leaves_offsets);
       chunk.leaves_[src_table_id - 1]->push_back(column);
       chunk.alias_map_[alias] = GLOBAL_COLUMN_ID(src_table_id, 0);
+      if (alias != -1) {
+        chunk.alias_map_[-1] = GLOBAL_COLUMN_ID(src_table_id, 0);
+      }
     }
+
     return chunk;
   }
 
@@ -205,11 +242,8 @@ class DataChunk {
       int src_table_id) {
     DataChunk chunk;
     chunk.table_ = std::make_shared<Table>();
-    src_table_id = other.alias_map_.at(src_table_id);
-    std::unordered_map<uint32_t, int32_t> revert_map;
-    for (const auto& pair : other.alias_map_) {
-      revert_map[pair.second] = pair.first;
-    }
+    src_table_id = TABLE_ID(other.alias_map_.at(src_table_id));
+    const auto& revert_map = other.get_revert_map();
     if (src_table_id == 0) {
       for (int i = 0; i < static_cast<int>(other.leaves_.size()); ++i) {
         chunk.leaves_.emplace_back(std::make_shared<Table>());
@@ -242,7 +276,7 @@ class DataChunk {
         chunk.offsets_[i]->shuffle(offsets, true);
       }
       for (int i = 0;
-           i < static_cast<int>(chunk.leaves_[src_table_id - 1]->col_num());
+           i < static_cast<int>(other.leaves_[src_table_id - 1]->col_num());
            ++i) {
         uint32_t idx = GLOBAL_COLUMN_ID(src_table_id, i);
         int32_t v = revert_map.at(idx);
@@ -260,9 +294,11 @@ class DataChunk {
           std::make_shared<ValueColumn<size_t>>(leaves_offsets);
       for (const auto& pair : columns) {
         chunk.leaves_[src_table_id - 1]->push_back(pair.first);
-        chunk.alias_map_[pair.second] = GLOBAL_COLUMN_ID(src_table_id, 0);
+        chunk.alias_map_[pair.second] = GLOBAL_COLUMN_ID(
+            src_table_id, (chunk.leaves_[src_table_id - 1]->col_num() - 1));
       }
     }
+
     return chunk;
   }
 
@@ -336,7 +372,18 @@ class DataChunk {
   }
 
   template <typename FUNC_T>
-  void foreach_edge(int v_tag, const FUNC_T& func) const {}
+  void foreach_edge(int v_tag, const FUNC_T& func) const {
+    uint32_t idx = alias_map_.at(v_tag);
+    uint32_t table_id = TABLE_ID(idx);
+    if (table_id == 0) {
+      auto col = dynamic_cast<IEdgeColumn*>(table_->get(COLUMN_ID(idx)));
+      col->foreach_edge(func);
+    } else {
+      auto col = dynamic_cast<IEdgeColumn*>(
+          leaves_[table_id - 1]->get(COLUMN_ID(idx)));
+      col->foreach_edge(func, *offsets_[table_id - 1]);
+    }
+  }
 
   ContextColumnType get_column_type(int idx) const {
     return get(idx)->column_type();
@@ -360,7 +407,7 @@ class DataChunk {
     }
   }
 
-  inline IContextColumn* get(uint32_t idx) const {
+  inline IContextColumn* get(int idx) const {
     idx = alias_map_.at(idx);
     uint32_t table_id = TABLE_ID(idx);
     uint32_t column_id = COLUMN_ID(idx);
@@ -373,6 +420,10 @@ class DataChunk {
 
   const std::unordered_map<int32_t, uint32_t>& alias_map() const {
     return alias_map_;
+  }
+
+  const std::vector<std::shared_ptr<ValueColumn<size_t>>>& offsets() const {
+    return offsets_;
   }
 
  private:

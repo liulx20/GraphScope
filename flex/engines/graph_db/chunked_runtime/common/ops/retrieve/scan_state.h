@@ -36,7 +36,6 @@ class ScanOprState : public IOprState {
   ~ScanOprState() override = default;
 
   void clear() override {
-    initialized_ = false;
     cur_label_ = std::numeric_limits<label_t>::max();
     cur_idx_ = 0;
     cur_size_ = 0;

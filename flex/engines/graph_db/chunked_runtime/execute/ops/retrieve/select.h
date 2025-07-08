@@ -22,26 +22,7 @@ namespace gs {
 
 namespace chunked_runtime {
 
-namespace ops {
-
-class SelectOprBuilder : public IReadOperatorBuilder {
- public:
-  SelectOprBuilder() = default;
-  ~SelectOprBuilder() = default;
-
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> src_opr,
-                                       const gs::Schema& schema,
-                                       const ContextMeta& ctx_meta,
-                                       const physical::PhysicalPlan& plan,
-                                       int op_idx) override;
-
-  std::vector<physical::PhysicalOpr_Operator::OpKindCase> GetOpKinds()
-      const override {
-    return {physical::PhysicalOpr_Operator::OpKindCase::kSelect};
-  }
-};
-
-}  // namespace ops
+namespace ops {}  // namespace ops
 
 }  // namespace chunked_runtime
 

@@ -16,9 +16,7 @@
 #ifndef CHUNKED_RUNTIME_EXECUTE_RETRIEVE_OPS_EDGE_H_
 #define CHUNKED_RUNTIME_EXECUTE_RETRIEVE_OPS_EDGE_H_
 #include "flex/engines/graph_db/chunked_runtime/execute/operator.h"
-
 namespace gs {
-
 namespace chunked_runtime {
 
 namespace ops {
@@ -28,7 +26,7 @@ class EdgeExpandOprBuilder : public IReadOperatorBuilder {
   EdgeExpandOprBuilder() = default;
   ~EdgeExpandOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>&,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,
@@ -45,7 +43,7 @@ class EdgeExpandGetVOprBuilder : public IReadOperatorBuilder {
   EdgeExpandGetVOprBuilder() = default;
   ~EdgeExpandGetVOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr> source_opr,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>& source_opr,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,
@@ -65,7 +63,7 @@ class TCOprBuilder : public IReadOperatorBuilder {
   TCOprBuilder() = default;
   ~TCOprBuilder() = default;
 
-  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>,
+  bl::result<ReadOpBuildResultT> Build(std::unique_ptr<IReadOpr>&,
                                        const gs::Schema& schema,
                                        const ContextMeta& ctx_meta,
                                        const physical::PhysicalPlan& plan,
