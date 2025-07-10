@@ -38,9 +38,10 @@ class GetVFromVerticesWithLabelWithInOpr : public IReadOpr {
   IReadOpr* source_opr() const override { return source_opr_.get(); }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto ptr = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<GetVState>(ptr);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto ptr = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<GetVState>(ptr, mem_pool);
   }
 
   bl::result<void> EvalChunks(const gs::runtime::GraphReadInterface& graph,
@@ -101,9 +102,10 @@ class GetVFromVerticesWithPKExactOpr : public IReadOpr {
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto ptr = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<GetVState>(ptr);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto ptr = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<GetVState>(ptr, mem_pool);
   }
 
   bl::result<void> EvalChunks(const gs::runtime::GraphReadInterface& graph,
@@ -145,9 +147,10 @@ class GetVFromVerticesWithPredicateOpr : public IReadOpr {
   IReadOpr* source_opr() const override { return source_opr_.get(); }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto ptr = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<GetVState>(ptr);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto ptr = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<GetVState>(ptr, mem_pool);
   }
   bl::result<void> EvalChunks(const gs::runtime::GraphReadInterface& graph,
                               const std::map<std::string, std::string>& params,
@@ -202,9 +205,10 @@ class GetVFromEdgesWithPredicateOpr : public IReadOpr {
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto ptr = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<GetVState>(ptr);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto ptr = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<GetVState>(ptr, mem_pool);
   }
 
   bl::result<void> EvalChunks(const gs::runtime::GraphReadInterface& graph,

@@ -42,20 +42,27 @@ class IPathColumn : public IContextColumn {
 
 class GeneralPathColumn : public IPathColumn {
  public:
-  GeneralPathColumn() {
+  GeneralPathColumn(const LocalMemPool& local_pool) : local_pool_(local_pool) {
     size_ = 0;
-    data_ = std::make_unique<Path[]>(Configs::CHUNK_SIZE);
+    data_ = static_cast<Path*>(
+        local_pool.Allocate(sizeof(Path) * Configs::CHUNK_SIZE));
     valid_ = nullptr;
     is_optional_ = false;
     arena_ = std::make_shared<Arena>();
   }
+
   GeneralPathColumn(GeneralPathColumn&& other)
       : is_optional_(other.is_optional_),
         size_(other.size_),
         data_(std::move(other.data_)),
         valid_(std::move(other.valid_)),
-        arena_(std::move(other.arena_)) {}
-  ~GeneralPathColumn() {}
+        arena_(std::move(other.arena_)),
+        local_pool_(other.local_pool_) {}
+  ~GeneralPathColumn() {
+    if (data_ != nullptr) {
+      local_pool_.Deallocate(data_, sizeof(Path) * Configs::CHUNK_SIZE);
+    }
+  }
   inline size_t size() const override { return size_; }
   std::string column_info() const override {
     return "GeneralPathColumn[" + std::to_string(size()) + "]";
@@ -142,9 +149,10 @@ class GeneralPathColumn : public IPathColumn {
 
   bool is_optional_;
   size_t size_;
-  std::unique_ptr<Path[]> data_;
+  Path* data_;
   std::unique_ptr<uint8_t[]> valid_;
   std::shared_ptr<Arena> arena_;
+  const LocalMemPool& local_pool_;
 };
 
 template <typename FUNC_T>

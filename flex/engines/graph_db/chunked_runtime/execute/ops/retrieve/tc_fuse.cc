@@ -92,9 +92,11 @@ class TCOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<TCState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<TCState>(source_state, mem_pool);
   }
 
  private:

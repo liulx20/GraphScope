@@ -21,7 +21,7 @@ namespace chunked_runtime {
 
 std::shared_ptr<IContextColumn> GeneralPathColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<GeneralPathColumn>();
+  auto ptr = std::make_shared<GeneralPathColumn>(local_pool_);
   size_t offset_size = offsets.size();
   if (!shift) {
     for (size_t i = 0; i < offset_size; ++i) {

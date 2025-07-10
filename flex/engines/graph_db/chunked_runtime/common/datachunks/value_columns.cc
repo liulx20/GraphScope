@@ -20,7 +20,7 @@ namespace chunked_runtime {
 
 std::shared_ptr<IContextColumn> ValueColumn<List>::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<ValueColumn<List>>(elem_type_);
+  auto ptr = std::make_shared<ValueColumn<List>>(local_pool_, elem_type_);
 
   if (!shift) {
     for (size_t i = 0; i < size_; ++i) {

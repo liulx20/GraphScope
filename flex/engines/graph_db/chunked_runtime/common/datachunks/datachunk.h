@@ -82,7 +82,8 @@ class DataChunk {
 
   static std::shared_ptr<ValueColumn<size_t>> generate_leaves_offsets(
       const ValueColumn<size_t>& offsets, size_t len) {
-    auto leaves_offsets = std::make_shared<ValueColumn<size_t>>();
+    auto leaves_offsets =
+        std::make_shared<ValueColumn<size_t>>(offsets.local_pool_);
     size_t cur_offset = 0;
     leaves_offsets->emplace_back(cur_offset << 32);
     for (size_t i = 0; i < offsets.size(); ++i) {

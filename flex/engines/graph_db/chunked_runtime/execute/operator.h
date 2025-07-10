@@ -27,6 +27,7 @@
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/datachunks.h"
 #include "flex/engines/graph_db/runtime/common/context.h"
 
+#include "flex/engines/graph_db/database/graph_db_session.h"
 namespace gs {
 
 namespace chunked_runtime {
@@ -56,7 +57,8 @@ class IReadOpr {
   }
 
   virtual std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) = 0;
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) = 0;
   bl::result<bool> getNextChunks(
       const GraphReadInterface& graph,
       const std::map<std::string, std::string>& params, IOprState& state,

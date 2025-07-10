@@ -20,7 +20,8 @@ namespace gs {
 namespace chunked_runtime {
 std::shared_ptr<IContextColumn> SDSLEdgeColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<SDSLEdgeColumn>(dir_, label_, prop_type_);
+  auto ptr =
+      std::make_shared<SDSLEdgeColumn>(mem_pool, dir_, label_, prop_type_);
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
@@ -42,7 +43,7 @@ std::shared_ptr<IContextColumn> SDSLEdgeColumn::shuffle(
 
 std::shared_ptr<IContextColumn> SDMLEdgeColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<SDMLEdgeColumn>(dir_, edge_labels_);
+  auto ptr = std::make_shared<SDMLEdgeColumn>(local_pool_, dir_, edge_labels_);
   size_t offset_size = offsets.size();
   if (is_optional_) {
     ptr->is_optional_ = true;
@@ -72,7 +73,7 @@ std::shared_ptr<IContextColumn> SDMLEdgeColumn::shuffle(
 
 std::shared_ptr<IContextColumn> BDSLEdgeColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<BDSLEdgeColumn>(label_, prop_type_);
+  auto ptr = std::make_shared<BDSLEdgeColumn>(local_pool_, label_, prop_type_);
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
@@ -96,7 +97,7 @@ std::shared_ptr<IContextColumn> BDSLEdgeColumn::shuffle(
 
 std::shared_ptr<IContextColumn> BDMLEdgeColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<BDMLEdgeColumn>(edge_labels_);
+  auto ptr = std::make_shared<BDMLEdgeColumn>(local_pool_, edge_labels_);
   if (is_optional_) {
     ptr->is_optional_ = true;
   }

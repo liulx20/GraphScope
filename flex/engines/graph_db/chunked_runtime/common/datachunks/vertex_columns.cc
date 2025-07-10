@@ -18,7 +18,7 @@ namespace gs {
 namespace chunked_runtime {
 std::shared_ptr<IContextColumn> SLVertexColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto ptr = std::make_shared<SLVertexColumn>(label_);
+  auto ptr = std::make_shared<SLVertexColumn>(local_pool_, label_);
   if (is_optional_) {
     ptr->is_optional_ = true;
   }
@@ -38,7 +38,7 @@ std::shared_ptr<IContextColumn> SLVertexColumn::shuffle(
 
 std::shared_ptr<IContextColumn> MLVertexColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
-  auto new_column = std::make_shared<MLVertexColumn>(labels_);
+  auto new_column = std::make_shared<MLVertexColumn>(local_pool_, labels_);
   int offset_size = offsets.size();
   new_column->is_optional_ = is_optional_;
   new_column->size_ = offset_size;

@@ -34,20 +34,23 @@ class GetVOffsetCollector {
 };
 
 struct LocalGetVState {
+  LocalGetVState(const LocalMemPool& mem_pool)
+      : column(nullptr), local_pool_(mem_pool) {}
   template <typename ColT, typename... Args>
   GetVCollector<ColT> getVertexCollector(const Args&... args) {
-    column = std::make_shared<ColT>(args...);
-    offsets = std::make_shared<ValueColumn<size_t>>();
+    column = std::make_shared<ColT>(local_pool_, args...);
+    offsets = std::make_shared<ValueColumn<size_t>>(local_pool_);
     return GetVCollector<ColT>(column, *offsets);
   }
 
   GetVOffsetCollector getOffsetCollector() {
     column = nullptr;
-    offsets->clear();
+    offsets = std::make_shared<ValueColumn<size_t>>(local_pool_);
     return GetVOffsetCollector(*offsets);
   }
   std::shared_ptr<IVertexColumn> column;
   std::shared_ptr<ValueColumn<size_t>> offsets;
+  const LocalMemPool& local_pool_;
 };
 
 template <typename ColT>
@@ -73,8 +76,10 @@ class GetVCollector {
 };
 
 struct GetVState : public IOprState {
-  GetVState(std::shared_ptr<IOprState> src_state)
-      : initialized_(false), src_state_(std::move(src_state)) {}
+  GetVState(std::shared_ptr<IOprState> src_state, const LocalMemPool& mem_pool)
+      : initialized_(false),
+        src_state_(std::move(src_state)),
+        local_pool_(mem_pool) {}
 
   void clear() override {
     local_states_.clear();
@@ -128,7 +133,7 @@ struct GetVState : public IOprState {
   }
 
   LocalGetVState& getLocalState() {
-    local_states_.emplace_back();
+    local_states_.emplace_back(local_pool_);
     return local_states_.back();
   }
 
@@ -140,6 +145,7 @@ struct GetVState : public IOprState {
   int src_table_;
   int alias_;
   size_t cur_idx_;
+  const LocalMemPool& local_pool_;
 };
 }  // namespace ops
 }  // namespace chunked_runtime

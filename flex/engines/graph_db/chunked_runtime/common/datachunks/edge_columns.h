@@ -19,6 +19,7 @@
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/i_context_column.h"
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/value_columns.h"
 #include "flex/engines/graph_db/chunked_runtime/utils/configs.h"
+#include "flex/engines/graph_db/database/graph_db_session.h"
 namespace gs {
 namespace chunked_runtime {
 enum class EdgeColumnType { kSDSL, kSDML, kBDSL, kBDML };
@@ -166,16 +167,27 @@ class IEdgeColumn : public IContextColumn {
 
 class SDSLEdgeColumn : public IEdgeColumn {
  public:
-  SDSLEdgeColumn(Direction dir, const LabelTriplet& label,
-                 PropertyType prop_type)
+  SDSLEdgeColumn(const LocalMemPool& mem_pool, Direction dir,
+                 const LabelTriplet& label, PropertyType prop_type)
       : dir_(dir),
         label_(label),
         size_(0),
         prop_type_(prop_type),
-        prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)) {
-    edges_ = std::make_unique<std::pair<vid_t, vid_t>[]>(
-        gs::chunked_runtime::Configs::CHUNK_SIZE);
+        prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)),
+        mem_pool(mem_pool) {
+    edges_ = static_cast<std::pair<vid_t, vid_t>*>(
+        mem_pool.Allocate(sizeof(std::pair<vid_t, vid_t>) *
+                          gs::chunked_runtime::Configs::CHUNK_SIZE));
+
     is_optional_ = false;
+  }
+
+  ~SDSLEdgeColumn() override {
+    if (edges_) {
+      mem_pool.Deallocate(edges_, sizeof(std::pair<vid_t, vid_t>) *
+                                      gs::chunked_runtime::Configs::CHUNK_SIZE);
+      edges_ = nullptr;
+    }
   }
 
   inline EdgeRecord get_edge(size_t idx) const override {
@@ -268,19 +280,21 @@ class SDSLEdgeColumn : public IEdgeColumn {
   Direction dir_;
   LabelTriplet label_;
   size_t size_;
-  std::unique_ptr<std::pair<vid_t, vid_t>[]> edges_;
+  std::pair<vid_t, vid_t>* edges_;
   PropertyType prop_type_;
   edge_property_vec prop_col_;
+  const LocalMemPool& mem_pool;
 };
 
 class SDMLEdgeColumn : public IEdgeColumn {
  public:
   SDMLEdgeColumn(
-      Direction dir,
+      const LocalMemPool& mem_pool, Direction dir,
       const std::vector<std::pair<LabelTriplet, PropertyType>>& labels)
-      : dir_(dir), size_(0) {
-    edges_ = std::make_unique<std::tuple<label_t, vid_t, vid_t, int>[]>(
-        gs::chunked_runtime::Configs::CHUNK_SIZE);
+      : dir_(dir), size_(0), local_pool_(mem_pool) {
+    edges_ = static_cast<std::tuple<label_t, vid_t, vid_t, int>*>(
+        mem_pool.Allocate(sizeof(std::tuple<label_t, vid_t, vid_t, int>) *
+                          gs::chunked_runtime::Configs::CHUNK_SIZE));
     size_t idx = 0;
     prop_cols_.resize(labels.size());
     for (const auto& label : labels) {
@@ -290,6 +304,15 @@ class SDMLEdgeColumn : public IEdgeColumn {
           edge_property_vec::create_edge_prop_vec(label.second);
     }
     is_optional_ = false;
+  }
+
+  ~SDMLEdgeColumn() override {
+    if (edges_) {
+      local_pool_.Deallocate(edges_,
+                             sizeof(std::tuple<label_t, vid_t, vid_t, int>) *
+                                 gs::chunked_runtime::Configs::CHUNK_SIZE);
+      edges_ = nullptr;
+    }
   }
 
   std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
@@ -422,20 +445,33 @@ class SDMLEdgeColumn : public IEdgeColumn {
   std::unordered_map<LabelTriplet, label_t, LabelTripletHash> index_;
   size_t size_;
   std::vector<std::pair<LabelTriplet, PropertyType>> edge_labels_;
-  std::unique_ptr<std::tuple<label_t, vid_t, vid_t, int>[]> edges_;
+  std::tuple<label_t, vid_t, vid_t, int>* edges_;
   std::vector<edge_property_vec> prop_cols_;
+  const LocalMemPool& local_pool_;
 };
 
 class BDSLEdgeColumn : public IEdgeColumn {
  public:
-  BDSLEdgeColumn(const LabelTriplet& label, PropertyType prop_type)
+  BDSLEdgeColumn(const LocalMemPool& mem_pool, const LabelTriplet& label,
+                 PropertyType prop_type)
       : label_(label),
         prop_type_(prop_type),
-        prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)) {
-    edges_ = std::make_unique<std::tuple<vid_t, vid_t, bool>[]>(
-        gs::chunked_runtime::Configs::CHUNK_SIZE);
+        prop_col_(edge_property_vec::create_edge_prop_vec(prop_type)),
+        local_pool_(mem_pool) {
+    edges_ = static_cast<std::tuple<vid_t, vid_t, bool>*>(
+        local_pool_.Allocate(sizeof(std::tuple<vid_t, vid_t, bool>) *
+                             gs::chunked_runtime::Configs::CHUNK_SIZE));
     size_ = 0;
     is_optional_ = false;
+  }
+
+  ~BDSLEdgeColumn() override {
+    if (edges_) {
+      local_pool_.Deallocate(edges_,
+                             sizeof(std::tuple<vid_t, vid_t, bool>) *
+                                 gs::chunked_runtime::Configs::CHUNK_SIZE);
+      edges_ = nullptr;
+    }
   }
 
   inline void push_back_opt(vid_t src, vid_t dst, const EdgeData& data,
@@ -538,16 +574,20 @@ class BDSLEdgeColumn : public IEdgeColumn {
   LabelTriplet label_;
   PropertyType prop_type_;
   edge_property_vec prop_col_;
-  std::unique_ptr<std::tuple<vid_t, vid_t, bool>[]> edges_;
+  std::tuple<vid_t, vid_t, bool>* edges_;
+  const LocalMemPool& local_pool_;
 };
 
 class BDMLEdgeColumn : public IEdgeColumn {
  public:
   BDMLEdgeColumn(
+      const LocalMemPool& mem_pool,
       const std::vector<std::pair<LabelTriplet, PropertyType>>& labels)
-      : size_(0), is_optional_(false) {
-    edges_ = std::make_unique<std::tuple<label_t, vid_t, vid_t, int, bool>[]>(
-        gs::chunked_runtime::Configs::CHUNK_SIZE);
+      : size_(0), is_optional_(false), local_pool_(mem_pool) {
+    edges_ = static_cast<std::tuple<label_t, vid_t, vid_t, int, bool>*>(
+        local_pool_.Allocate(
+            sizeof(std::tuple<label_t, vid_t, vid_t, int, bool>) *
+            gs::chunked_runtime::Configs::CHUNK_SIZE));
     size_t idx = 0;
     prop_cols_.resize(labels.size());
     for (const auto& label : labels) {
@@ -555,6 +595,15 @@ class BDMLEdgeColumn : public IEdgeColumn {
       index_[label.first] = idx++;
       prop_cols_[index_[label.first]] =
           edge_property_vec::create_edge_prop_vec(label.second);
+    }
+  }
+
+  ~BDMLEdgeColumn() override {
+    if (edges_) {
+      local_pool_.Deallocate(
+          edges_, sizeof(std::tuple<label_t, vid_t, vid_t, int, bool>) *
+                      gs::chunked_runtime::Configs::CHUNK_SIZE);
+      edges_ = nullptr;
     }
   }
 
@@ -683,8 +732,9 @@ class BDMLEdgeColumn : public IEdgeColumn {
   bool is_optional_;
   std::unordered_map<LabelTriplet, label_t, LabelTripletHash> index_;
   std::vector<std::pair<LabelTriplet, PropertyType>> edge_labels_;
-  std::unique_ptr<std::tuple<label_t, vid_t, vid_t, int, bool>[]> edges_;
+  std::tuple<label_t, vid_t, vid_t, int, bool>* edges_;
   std::vector<edge_property_vec> prop_cols_;
+  const LocalMemPool& local_pool_;
 };
 
 template <typename FUNC_T>

@@ -178,9 +178,11 @@ class EdgeExpandVWithoutPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   std::string get_operator_name() const override {
@@ -209,9 +211,11 @@ class EdgeExpandVWithEPGTOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -282,9 +286,11 @@ class EdgeExpandVWithEPLTOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& local_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, local_pool);
+    return std::make_shared<EdgeExpandState>(source_state, local_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -323,9 +329,11 @@ class EdgeExpandVWithEdgePredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -362,9 +370,11 @@ class EdgeExpandEWithoutPredicateOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -416,9 +426,11 @@ class EdgeExpandEWithSPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -459,9 +471,11 @@ class EdgeExpandEWithGPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -523,9 +537,11 @@ class EdgeExpandVWithExactVertexOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -570,9 +586,11 @@ class EdgeExpandVWithVertexEdgePredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -626,9 +644,11 @@ class EdgeExpandVWithSPVertexPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -668,9 +688,11 @@ class EdgeExpandVWithGPVertexPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }

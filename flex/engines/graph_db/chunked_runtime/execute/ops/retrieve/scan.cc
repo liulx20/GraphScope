@@ -47,8 +47,9 @@ class FilterOidsWithoutPredOpr : public IReadOpr {
 
   std::string get_operator_name() const override { return "FilterOidsOpr"; }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -80,8 +81,9 @@ class FilterMultiTypeOidsWithoutPredOpr : public IReadOpr {
 
   std::string get_operator_name() const override { return "FilterOidsOpr"; }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -115,8 +117,9 @@ class FilterGidsWithoutPredOpr : public IReadOpr {
 
   std::string get_operator_name() const override { return "FilterGidsOpr"; }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -146,8 +149,9 @@ class FilterOidsSPredOpr : public IReadOpr {
     return "FilterOidsSPredOpr";
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -196,8 +200,9 @@ class FilterOidsGPredOpr : public IReadOpr {
     return "FilterOidsGPredOpr";
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -235,8 +240,9 @@ class FilterOidsMultiTypeSPredOpr : public IReadOpr {
     return "FilterOidsMultiTypeSPredOpr";
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -291,8 +297,9 @@ class FilterOidsMultiTypeGPredOpr : public IReadOpr {
     }
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -327,8 +334,9 @@ class FilterGidsSPredOpr : public IReadOpr {
         graph, params_, *pred, gids, casted_state);
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -382,8 +390,9 @@ class FilterGidsGPredOpr : public IReadOpr {
     }
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -412,8 +421,9 @@ class ScanWithSPredOpr : public IReadOpr {
                                                            *pred, casted_state);
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -476,8 +486,9 @@ class ScanWithGPredOpr : public IReadOpr {
   }
   std::string get_operator_name() const override { return "ScanWithGPredOpr"; }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:
@@ -509,8 +520,9 @@ class ScanWithoutPredOpr : public IReadOpr {
     return "ScanWithoutPredOpr";
   }
 
-  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>) override {
-    return std::make_shared<ScanOprState>();
+  std::shared_ptr<IOprState> initState(std::shared_ptr<IOprState>,
+                                       const LocalMemPool& mem_pool) override {
+    return std::make_shared<ScanOprState>(mem_pool);
   }
 
  private:

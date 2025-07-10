@@ -28,6 +28,7 @@ namespace gs {
 class MutablePropertyFragment;
 class GraphDBSession;
 class VersionManager;
+class LocalMemPool;
 template <typename EDATA_T>
 class AdjListView {
   class nbr_iterator {
@@ -584,6 +585,7 @@ class ReadTransaction {
   }
 
   const GraphDBSession& GetSession() const;
+  LocalMemPool& GetLocalMemPool() const;
 
  private:
   void release();

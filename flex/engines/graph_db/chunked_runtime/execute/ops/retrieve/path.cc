@@ -283,9 +283,11 @@ class SPOrderByLimitWithOutPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<SSSPState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<SSSPState>(source_state, mem_pool);
   }
   IReadOpr* source_opr() const override { return source_opr_.get(); }
 
@@ -329,9 +331,11 @@ class SPOrderByLimitWithGPredOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<SSSPState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<SSSPState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -454,9 +458,11 @@ class ASPOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<PathState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<PathState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -502,9 +508,11 @@ class SSSDSPOpr : public IReadOpr {
   }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto source_state = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<PathState>(source_state);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto source_state =
+        source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<PathState>(source_state, mem_pool);
   }
 
   IReadOpr* source_opr() const override { return source_opr_.get(); }
@@ -644,9 +652,10 @@ class PathExpandVOpr : public IReadOpr {
   IReadOpr* source_opr() const override { return source_opr_.get(); }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto ptr = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(ptr);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto ptr = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(ptr, mem_pool);
   }
 
  private:
@@ -738,9 +747,10 @@ class PathExpandOpr : public IReadOpr {
   IReadOpr* source_opr() const override { return source_opr_.get(); }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) override {
-    auto ptr = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<EdgeExpandState>(ptr);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) override {
+    auto ptr = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<EdgeExpandState>(ptr, mem_pool);
   }
 
  private:

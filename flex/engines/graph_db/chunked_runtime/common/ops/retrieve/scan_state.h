@@ -23,11 +23,12 @@ namespace chunked_runtime {
 namespace ops {
 class ScanOprState : public IOprState {
  public:
-  ScanOprState()
+  ScanOprState(const LocalMemPool& mem_pool)
       : cur_idx_(0),
         cur_size_(0),
         cur_label_(std::numeric_limits<label_t>::max()),
-        initialized_(false) {}
+        initialized_(false),
+        local_pool_(mem_pool) {}
   void initialize(int alias) {
     initialized_ = true;
     alias_ = alias;
@@ -71,9 +72,11 @@ class ScanOprState : public IOprState {
 
   void append_column(label_t label) {
     if (cur_size_ >= vertex_columns_.size()) {
-      vertex_columns_.emplace_back(std::make_shared<SLVertexColumn>(label));
+      vertex_columns_.emplace_back(
+          std::make_shared<SLVertexColumn>(local_pool_, label));
     } else {
-      vertex_columns_[cur_size_] = std::make_shared<SLVertexColumn>(label);
+      vertex_columns_[cur_size_] =
+          std::make_shared<SLVertexColumn>(local_pool_, label);
     }
     cur_size_++;
   }
@@ -107,6 +110,7 @@ class ScanOprState : public IOprState {
   label_t cur_label_;
   bool initialized_ = false;
   int alias_;
+  const LocalMemPool& local_pool_;
 };
 }  // namespace ops
 }  // namespace chunked_runtime

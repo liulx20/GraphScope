@@ -28,7 +28,8 @@ template <typename ColT, typename... Args>
 class EdgeExpandCollector;
 
 struct LocalEdgeExpandState {
-  LocalEdgeExpandState() : cur_vec_idx(0) {}
+  LocalEdgeExpandState(const LocalMemPool& mem_pool)
+      : cur_vec_idx(0), local_pool_(mem_pool) {}
   inline void clear() { cur_vec_idx = 0; }
 
   template <typename ColT, typename... Args>
@@ -39,9 +40,11 @@ struct LocalEdgeExpandState {
       const Args&... args) {
     if (cur_vec_idx >= context_columns.size()) {
       // TODO: fixme how to make a new edge column
-      context_columns.emplace_back(std::make_shared<ColT>(args...));
-      offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
-      leaves_offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
+      context_columns.emplace_back(
+          std::make_shared<ColT>(local_pool_, args...));
+      offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>(local_pool_));
+      leaves_offsets_.emplace_back(
+          std::make_shared<ValueColumn<size_t>>(local_pool_));
       auto res = std::make_tuple(
           dynamic_cast<ColT*>(context_columns[cur_vec_idx].get()),
           offsets_[cur_vec_idx].get(), leaves_offsets_[cur_vec_idx].get());
@@ -65,6 +68,7 @@ struct LocalEdgeExpandState {
   std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets_;
   std::vector<std::shared_ptr<ValueColumn<size_t>>> leaves_offsets_;
   size_t cur_vec_idx;
+  const LocalMemPool& local_pool_;
 };
 
 template <typename ColT, typename... Args>
@@ -189,11 +193,12 @@ struct EdgeExpandState : public IOprState {
 
   bool initialized() const override { return initialized_; }
 
-  EdgeExpandState(std::shared_ptr<IOprState> src_state)
-      : initialized_(false), src_state_(src_state) {}
+  EdgeExpandState(std::shared_ptr<IOprState> src_state,
+                  const LocalMemPool& mem_pool)
+      : initialized_(false), src_state_(src_state), local_pool_(mem_pool) {}
 
   LocalEdgeExpandState& getLocalEdgeExpandState() {
-    local_states.emplace_back();
+    local_states.emplace_back(local_pool_);
     return local_states.back();
   }
 
@@ -203,11 +208,13 @@ struct EdgeExpandState : public IOprState {
   DataChunks source_chunks;
   std::shared_ptr<IOprState> src_state_;
   size_t cur_col_, cur_idx_, src_table_, alias_;
+  const LocalMemPool& local_pool_;
 };
 
 struct TCCollector;
 struct LocalTCState {
-  LocalTCState() : cur_vec_idx(0) {}
+  LocalTCState(const LocalMemPool& mem_pool)
+      : cur_vec_idx(0), local_pool_(mem_pool) {}
   inline void clear() { cur_vec_idx = 0; }
 
   TCCollector getTCCollector(label_t label0, label_t label1);
@@ -217,10 +224,13 @@ struct LocalTCState {
   allocate(label_t label0, label_t label1) {
     if (cur_vec_idx >= vertex_column0.size()) {
       // TODO: fixme how to make a new edge column
-      vertex_column0.emplace_back(std::make_shared<SLVertexColumn>(label0));
-      vertex_column1.emplace_back(std::make_shared<SLVertexColumn>(label1));
-      offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
-      leaves_offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>());
+      vertex_column0.emplace_back(
+          std::make_shared<SLVertexColumn>(local_pool_, label0));
+      vertex_column1.emplace_back(
+          std::make_shared<SLVertexColumn>(local_pool_, label1));
+      offsets_.emplace_back(std::make_shared<ValueColumn<size_t>>(local_pool_));
+      leaves_offsets_.emplace_back(
+          std::make_shared<ValueColumn<size_t>>(local_pool_));
       auto res = std::make_tuple(
           vertex_column0[cur_vec_idx].get(), vertex_column1[cur_vec_idx].get(),
           offsets_[cur_vec_idx].get(), leaves_offsets_[cur_vec_idx].get());
@@ -246,6 +256,7 @@ struct LocalTCState {
   std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets_;
   std::vector<std::shared_ptr<ValueColumn<size_t>>> leaves_offsets_;
   size_t cur_vec_idx;
+  const LocalMemPool& local_pool_;
 };
 
 struct TCCollector {
@@ -341,11 +352,11 @@ struct TCState : public IOprState {
 
   bool initialized() const override { return initialized_; }
 
-  TCState(std::shared_ptr<IOprState> src_state)
-      : initialized_(false), src_state_(src_state) {}
+  TCState(std::shared_ptr<IOprState> src_state, const LocalMemPool& mem_pool)
+      : initialized_(false), src_state_(src_state), local_pool_(mem_pool) {}
 
   LocalTCState& getLocalTCState() {
-    local_states.emplace_back();
+    local_states.emplace_back(local_pool_);
     return local_states.back();
   }
 
@@ -355,6 +366,7 @@ struct TCState : public IOprState {
   DataChunks source_chunks;
   std::shared_ptr<IOprState> src_state_;
   size_t cur_col_, cur_idx_, alias0_, alias1_, src_table_;
+  const LocalMemPool& local_pool_;
 };
 
 template <typename ColT, typename... Args>

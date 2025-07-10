@@ -383,6 +383,8 @@ class GraphReadInterface {
 
   const GraphDBSession& GetSession() const { return txn_.GetSession(); }
 
+  LocalMemPool& GetLocalMemPool() const { return txn_.GetLocalMemPool(); }
+
  private:
   const gs::ReadTransaction& txn_;
 };

@@ -14,6 +14,7 @@
  */
 
 #include "flex/engines/graph_db/database/read_transaction.h"
+#include "flex/engines/graph_db/database/graph_db_session.h"
 #include "flex/engines/graph_db/database/version_manager.h"
 #include "flex/engines/graph_db/runtime/utils/cypher_runner_impl.h"
 #include "flex/storages/rt_mutable_graph/mutable_property_fragment.h"
@@ -159,5 +160,9 @@ void ReadTransaction::release() {
 }
 
 const GraphDBSession& ReadTransaction::GetSession() const { return session_; }
+
+LocalMemPool& ReadTransaction::GetLocalMemPool() const {
+  return session_.local_mem_pool();
+}
 
 }  // namespace gs

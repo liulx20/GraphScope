@@ -19,18 +19,23 @@
 #include "flex/engines/graph_db/chunked_runtime/common/datachunks/i_context_column.h"
 #include "flex/engines/graph_db/chunked_runtime/utils/configs.h"
 
+#include "flex/engines/graph_db/database/graph_db_session.h"
+
 namespace gs {
 namespace chunked_runtime {
 using gs::runtime::List;
 template <typename T>
 class ValueColumn : public IContextColumn {
  public:
-  ValueColumn()
+  ValueColumn(const LocalMemPool& local_pool)
       : is_optional_(false),
         size_(0),
-        data_(std::make_unique<T[]>(Configs::CHUNK_SIZE)),
         valid_(nullptr),
-        arena_(nullptr) {}
+        arena_(nullptr),
+        local_pool_(local_pool) {
+    data_ =
+        static_cast<T*>(local_pool_.Allocate(sizeof(T) * Configs::CHUNK_SIZE));
+  }
 
   ContextColumnType column_type() const override {
     return ContextColumnType::kValue;
@@ -41,7 +46,8 @@ class ValueColumn : public IContextColumn {
         size_(other.size_),
         data_(std::move(other.data_)),
         valid_(std::move(other.valid_)),
-        arena_(std::move(other.arena_)) {
+        arena_(std::move(other.arena_)),
+        local_pool_(other.local_pool_) {
     other.size_ = 0;
     other.data_ = nullptr;
     other.valid_ = nullptr;
@@ -95,7 +101,7 @@ class ValueColumn : public IContextColumn {
 
   std::shared_ptr<IContextColumn> shuffle(const ValueColumn<size_t>& offsets,
                                           bool shift) override {
-    auto ptr = std::make_shared<ValueColumn<T>>();
+    auto ptr = std::make_shared<ValueColumn<T>>(local_pool_);
     size_t offset_size = offsets.size();
 
     if (!shift) {
@@ -122,21 +128,36 @@ class ValueColumn : public IContextColumn {
     return ptr;
   }
 
+  ~ValueColumn() {
+    if (data_) {
+      local_pool_.Deallocate(data_, sizeof(T) * Configs::CHUNK_SIZE);
+      data_ = nullptr;
+    }
+  }
+
   bool is_optional_;
   size_t size_;
-  std::unique_ptr<T[]> data_;
+  T* data_;
   std::unique_ptr<uint8_t[]> valid_;
   std::shared_ptr<Arena> arena_;
+  const LocalMemPool& local_pool_;
 };
 
 template <>
 class ValueColumn<List> : public IContextColumn {
  public:
-  ValueColumn(RTAnyType type)
+  ValueColumn(const LocalMemPool& mem_pool, RTAnyType type)
       : elem_type_(type),
         size_(0),
-        data_(std::make_unique<List[]>(Configs::CHUNK_SIZE)) {}
-  ~ValueColumn() = default;
+        data_(static_cast<List*>(
+            mem_pool.Allocate(sizeof(List) * Configs::CHUNK_SIZE))),
+        local_pool_(mem_pool) {}
+  ~ValueColumn() {
+    if (data_) {
+      local_pool_.Deallocate(data_, sizeof(List) * Configs::CHUNK_SIZE);
+      data_ = nullptr;
+    }
+  }
 
   size_t size() const override { return size_; }
 
@@ -187,9 +208,10 @@ class ValueColumn<List> : public IContextColumn {
 
   RTAnyType elem_type_;
   size_t size_;
-  std::unique_ptr<List[]> data_;
+  List* data_;
 
   std::shared_ptr<Arena> arena_;
+  const LocalMemPool& local_pool_;
 };
 
 }  // namespace chunked_runtime

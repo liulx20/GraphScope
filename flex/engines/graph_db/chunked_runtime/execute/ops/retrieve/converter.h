@@ -22,7 +22,8 @@ namespace gs {
 namespace chunked_runtime {
 namespace ops {
 struct ConverterState : public IOprState {
-  ConverterState(std::shared_ptr<IOprState> src_state)
+  ConverterState(std::shared_ptr<IOprState> src_state,
+                 const LocalMemPool& mem_pool)
       : initialized_(false), src_state_(src_state) {}
   void clear() override { src_chunks_.clear(); }
   bool initialized() const override { return initialized_; }
@@ -46,9 +47,10 @@ class Converter : public gs::runtime::IReadOperator {
   std::string get_operator_name() const override { return "Converter"; }
 
   std::shared_ptr<IOprState> initState(
-      std::shared_ptr<IOprState> state_from_other_pipeline) {
-    auto src = source_opr_->initState(state_from_other_pipeline);
-    return std::make_shared<ConverterState>(src);
+      std::shared_ptr<IOprState> state_from_other_pipeline,
+      const LocalMemPool& mem_pool) {
+    auto src = source_opr_->initState(state_from_other_pipeline, mem_pool);
+    return std::make_shared<ConverterState>(src, mem_pool);
   }
 
   void build_empty_context(gs::runtime::Context& ctx);
@@ -60,7 +62,8 @@ class Converter : public gs::runtime::IReadOperator {
             const std::map<std::string, std::string>& params,
             gs::runtime::Context& ctx) {
     std::vector<DataChunk> chunks;
-    std::shared_ptr<IOprState> state = initState(nullptr);
+    std::shared_ptr<IOprState> state =
+        initState(nullptr, graph.GetLocalMemPool());
     state->clear();
     while (source_opr_
                ->getNextChunks(graph, params, *state->src_state(),

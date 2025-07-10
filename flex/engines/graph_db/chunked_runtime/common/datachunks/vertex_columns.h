@@ -63,11 +63,20 @@ class IVertexColumn : public IContextColumn {
 
 class SLVertexColumn : public IVertexColumn {
  public:
-  SLVertexColumn(label_t label)
+  SLVertexColumn(const LocalMemPool& mem_pool, label_t label)
       : is_optional_(false),
         label_(label),
         size_(0),
-        data_(std::make_unique<vid_t[]>(Configs::CHUNK_SIZE)) {}
+        data_(static_cast<vid_t*>(
+            mem_pool.Allocate(sizeof(vid_t) * Configs::CHUNK_SIZE))),
+        local_pool_(mem_pool) {}
+
+  ~SLVertexColumn() {
+    if (data_) {
+      local_pool_.Deallocate(data_, sizeof(vid_t) * Configs::CHUNK_SIZE);
+      data_ = nullptr;
+    }
+  }
 
   void clear() override { size_ = 0; }
 
@@ -137,20 +146,33 @@ class SLVertexColumn : public IVertexColumn {
   bool is_optional_;
   label_t label_;
   size_t size_;
-  std::unique_ptr<vid_t[]> data_;
+  vid_t* data_;
+  const LocalMemPool& local_pool_;
 };
 
 class MLVertexColumn : public IVertexColumn {
  public:
-  MLVertexColumn()
+  MLVertexColumn(const LocalMemPool& mem_pool)
       : is_optional_(false),
         size_(0),
-        data_(std::make_unique<VertexRecord[]>(Configs::CHUNK_SIZE)) {}
-  MLVertexColumn(const std::unordered_set<label_t>& labels)
+        data_(static_cast<VertexRecord*>(
+            mem_pool.Allocate(sizeof(VertexRecord) * Configs::CHUNK_SIZE))),
+        local_pool_(mem_pool) {}
+  MLVertexColumn(const LocalMemPool& mem_pool,
+                 const std::unordered_set<label_t>& labels)
       : is_optional_(false),
         size_(0),
-        data_(std::make_unique<VertexRecord[]>(Configs::CHUNK_SIZE)),
-        labels_(labels) {}
+        data_(static_cast<VertexRecord*>(
+            mem_pool.Allocate(sizeof(VertexRecord) * Configs::CHUNK_SIZE))),
+        labels_(labels),
+        local_pool_(mem_pool) {}
+
+  ~MLVertexColumn() {
+    if (data_) {
+      local_pool_.Deallocate(data_, sizeof(VertexRecord) * Configs::CHUNK_SIZE);
+      data_ = nullptr;
+    }
+  }
   size_t size() const override { return size_; }
 
   void clear() override { size_ = 0; }
@@ -231,8 +253,9 @@ class MLVertexColumn : public IVertexColumn {
 
   bool is_optional_ = false;
   size_t size_;
-  std::unique_ptr<VertexRecord[]> data_;
+  VertexRecord* data_;
   std::unordered_set<label_t> labels_;
+  const LocalMemPool& local_pool_;
 };
 
 template <typename FUNC_T>

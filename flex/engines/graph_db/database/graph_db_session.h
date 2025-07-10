@@ -28,11 +28,47 @@
 #include "flex/utils/property/column.h"
 #include "flex/utils/result.h"
 
+#include "flex/engines/graph_db/chunked_runtime/utils/configs.h"
+
 namespace gs {
 
 class GraphDB;
 class IWalWriter;
 
+struct LocalMemPool {
+  LocalMemPool() : pools() {}
+  ~LocalMemPool() {
+    for (auto& pool : pools) {
+      for (auto& ptr : pool) {
+        if (ptr) {
+          free(ptr);
+        }
+      }
+    }
+  }
+  void* Allocate(size_t size) const {
+    if (size > 64 * 4 * gs::chunked_runtime::Configs::CHUNK_SIZE) {
+      return malloc(size);
+    }
+    size_t idx = size / (gs::chunked_runtime::Configs::CHUNK_SIZE * 4);
+    if (pools[idx].empty()) {
+      return malloc(size);
+    }
+    void* ptr = pools[idx].back();
+    pools[idx].pop_back();
+    return ptr;
+  }
+
+  void Deallocate(void* ptr, size_t size) const {
+    if (size > 64 * 4 * gs::chunked_runtime::Configs::CHUNK_SIZE) {
+      free(ptr);
+      return;
+    }
+    size_t idx = size / (gs::chunked_runtime::Configs::CHUNK_SIZE * 4);
+    pools[idx].push_back(ptr);
+  }
+  mutable std::array<std::vector<void*>, 64> pools;
+};
 class GraphDBSession {
  public:
   enum class InputFormat : uint8_t {
@@ -107,8 +143,10 @@ class GraphDBSession {
   AppBase* GetApp(int idx);
 
   AppBase* GetApp(const std::string& name);
+  LocalMemPool& local_mem_pool() const { return local_mem_pool_; }
 
  private:
+  mutable LocalMemPool local_mem_pool_;
   Result<std::pair<uint8_t, std::string_view>>
   parse_query_type_from_cypher_json(const std::string_view& input);
   Result<std::pair<uint8_t, std::string_view>>
@@ -116,8 +154,9 @@ class GraphDBSession {
   /**
    * @brief Parse the input format of the query.
    *        There are four formats:
-   *       0. CppEncoder: This format will be used by interactive-sdk to submit
-   * c++ stored prcoedure queries. The second last byte is the query id.
+   *       0. CppEncoder: This format will be used by interactive-sdk to
+   * submit c++ stored prcoedure queries. The second last byte is the query
+   * id.
    *       1. CypherJson: This format will be sended by interactive-sdk, the
    *        input is a json string + '\x01'
    *         {
@@ -136,8 +175,8 @@ class GraphDBSession {
    *        submit procedure query, the input is a proto-encoded string +
    *        '\x03', the string is the path to the dynamic library.
    * @param input The input query.
-   * @return The id of the query and a string_view which contains the real input
-   * of the query, discard the input format and query type.
+   * @return The id of the query and a string_view which contains the real
+   * input of the query, discard the input format and query type.
    */
   inline Result<std::pair<uint8_t, std::string_view>> parse_query_type(
       const std::string& input) {
@@ -161,8 +200,9 @@ class GraphDBSession {
     } else if (input_tag == static_cast<uint8_t>(InputFormat::kCypherJson)) {
       // For cypherJson there is no query-id provided. The query name is
       // provided in the json string.
-      // We don't discard the last byte, since we need it to determine the input
-      // format when deserializing the input arguments in deserialize() function
+      // We don't discard the last byte, since we need it to determine the
+      // input format when deserializing the input arguments in deserialize()
+      // function
       std::string_view str_view(input.data(), len);
       return parse_query_type_from_cypher_json(str_view);
     } else if (input_tag ==
