@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "flex/engines/graph_db/runtime/common/graph_interface.h"
 #include "flex/engines/graph_db/runtime/common/rt_any.h"
 
 namespace gs {
@@ -59,6 +60,14 @@ class IContextColumn {
   virtual std::shared_ptr<IContextColumn> shuffle(
       const ValueColumn<size_t>& offsets, bool shift) {
     // Default implementation, can be overridden by derived classes
+    return nullptr;
+  }
+
+  virtual std::shared_ptr<IContextColumn> project(
+      const gs::runtime::GraphReadInterface&, const std::string& property_name,
+      const RTAnyType& type) {
+    LOG(FATAL) << "Project not implemented for this column type"
+               << column_info();
     return nullptr;
   }
 };

@@ -347,6 +347,43 @@ class DataChunk {
     return dynamic_cast<IVertexColumn*>(get(idx))->vertex_column_type();
   }
 
+  std::shared_ptr<IContextColumn> project_impl(
+      const gs::runtime::GraphReadInterface& graph, int tag,
+      const std::string& property_name, const RTAnyType& type) const {
+    if (property_name == "") {
+      return get_shared(tag);
+    }
+    return get(tag)->project(graph, property_name, type);
+  }
+
+  void project(const gs::runtime::GraphReadInterface& graph, DataChunk& chunk,
+               const std::vector<std::pair<int, int>>& tag_alias,
+               const std::vector<std::pair<std::string, RTAnyType>>&
+                   property_name) const {
+    chunk.offsets_ = offsets_;
+    chunk.table_ = std::make_shared<Table>();
+    for (size_t i = 0; i < leaves_.size(); ++i) {
+      chunk.leaves_.emplace_back(std::make_shared<Table>());
+    }
+    for (size_t i = 0; i < tag_alias.size(); ++i) {
+      auto column =
+          project_impl(graph, tag_alias[i].first, property_name[i].first,
+                       property_name[i].second);
+      CHECK(column != nullptr)
+          << "Failed to project column for tag: " << tag_alias[i].first;
+      uint32_t table_id = TABLE_ID(alias_map_.at(tag_alias[i].first));
+      if (table_id == 0) {
+        chunk.table_->columns_.emplace_back(column);
+        chunk.alias_map_[tag_alias[i].second] =
+            GLOBAL_COLUMN_ID(0, (chunk.table_->col_num() - 1));
+      } else {
+        chunk.leaves_[table_id - 1]->columns_.emplace_back(column);
+        chunk.alias_map_[tag_alias[i].second] = GLOBAL_COLUMN_ID(
+            table_id, (chunk.leaves_[table_id - 1]->col_num() - 1));
+      }
+    }
+  }
+
   template <typename FUNC_T>
   void foreach_vertex(int v_tag, const FUNC_T& func) const {
     uint32_t idx = alias_map_.at(v_tag);
@@ -426,6 +463,16 @@ class DataChunk {
   }
 
  private:
+  inline std::shared_ptr<IContextColumn> get_shared(int idx) const {
+    idx = alias_map_.at(idx);
+    uint32_t table_id = TABLE_ID(idx);
+    uint32_t column_id = COLUMN_ID(idx);
+    if (table_id == 0) {
+      return table_->columns_[column_id];
+    } else {
+      return leaves_[table_id - 1]->columns_[column_id];
+    }
+  }
   std::shared_ptr<Table> table_;
   std::vector<std::shared_ptr<Table>> leaves_;
   std::vector<std::shared_ptr<ValueColumn<size_t>>> offsets_;

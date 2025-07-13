@@ -18,6 +18,83 @@
 
 namespace gs {
 namespace chunked_runtime {
+
+template <typename T>
+std::shared_ptr<IContextColumn> project_impl(
+    const gs::runtime::GraphReadInterface&, const IEdgeColumn& col,
+    const std::string& property_name) {
+  auto ptr = std::make_shared<ValueColumn<T>>(col.get_local_pool());
+  if (!col.is_optional()) {
+    if constexpr (std::is_same_v<T, int32_t>) {
+      if (property_name == "label") {
+        col.foreach_edge([&ptr](size_t idx, const LabelTriplet& label,
+                                vid_t src, vid_t dst, const EdgeData& data,
+                                Direction dir) {
+          ptr->push_back(static_cast<int32_t>(label.edge_label));
+        });
+      }
+      return ptr;
+    }
+    col.foreach_edge([&ptr](size_t idx, const LabelTriplet& label, vid_t src,
+                            vid_t dst, const EdgeData& data,
+                            Direction dir) { ptr->push_back(data.as<T>()); });
+  } else {
+    if constexpr (std::is_same_v<T, int32_t>) {
+      if (property_name == "label") {
+        col.foreach_edge([&ptr](size_t idx, const LabelTriplet& label,
+                                vid_t src, vid_t dst, const EdgeData& data,
+                                Direction dir) {
+          if (src != std::numeric_limits<vid_t>::max() ||
+              dst != std::numeric_limits<vid_t>::max()) {
+            ptr->push_back(static_cast<int32_t>(label.edge_label));
+          } else {
+            ptr->push_back_null();
+          }
+        });
+      }
+      return ptr;
+    }
+    col.foreach_edge([&ptr](size_t idx, const LabelTriplet& label, vid_t src,
+                            vid_t dst, const EdgeData& data, Direction dir) {
+      if (src != std::numeric_limits<vid_t>::max() ||
+          dst != std::numeric_limits<vid_t>::max()) {
+        ptr->push_back(data.as<T>());
+      } else {
+        ptr->push_back_null();
+      }
+    });
+  }
+  return ptr;
+}
+
+std::shared_ptr<IContextColumn> IEdgeColumn::project(
+    const gs::runtime::GraphReadInterface& graph,
+    const std::string& property_name, const RTAnyType& type) {
+  if (type == RTAnyType::kI32Value) {
+    return project_impl<int32_t>(graph, *this, property_name);
+  } else if (type == RTAnyType::kI64Value) {
+    return project_impl<int64_t>(graph, *this, property_name);
+  } else if (type == RTAnyType::kStringValue) {
+    return project_impl<std::string_view>(graph, *this, property_name);
+  } else if (type == RTAnyType::kDate32) {
+    return project_impl<Day>(graph, *this, property_name);
+  } else if (type == RTAnyType::kTimestamp) {
+    return project_impl<Date>(graph, *this, property_name);
+  }
+  return nullptr;
+}
+
+const LocalMemPool& IEdgeColumn::get_local_pool() const {
+  if (this->edge_column_type() == EdgeColumnType::kSDSL) {
+    return static_cast<const SDSLEdgeColumn*>(this)->mem_pool;
+  } else if (this->edge_column_type() == EdgeColumnType::kSDML) {
+    return static_cast<const SDMLEdgeColumn*>(this)->local_pool_;
+  } else if (this->edge_column_type() == EdgeColumnType::kBDSL) {
+    return static_cast<const BDSLEdgeColumn*>(this)->local_pool_;
+  } else {
+    return static_cast<const BDMLEdgeColumn*>(this)->local_pool_;
+  }
+}
 std::shared_ptr<IContextColumn> SDSLEdgeColumn::shuffle(
     const ValueColumn<size_t>& offsets, bool shift) {
   auto ptr =

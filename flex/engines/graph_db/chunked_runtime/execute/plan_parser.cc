@@ -15,8 +15,10 @@
 
 #include "flex/engines/graph_db/chunked_runtime/execute/plan_parser.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/converter.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/dedup.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/edge.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/path.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/project.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/scan.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/vertex.h"
 
@@ -33,6 +35,7 @@ void PlanParser::init() {
   register_read_operator_builder(std::make_unique<ops::EdgeExpandOprBuilder>());
 
   register_read_operator_builder(std::make_unique<ops::VertexOprBuilder>());
+  register_read_operator_builder(std::make_unique<ops::ProjectOprBuilder>());
   /**
   register_read_operator_builder(
       std::make_unique<ops::ProjectOrderByOprBuilder>());
@@ -40,11 +43,11 @@ void PlanParser::init() {
 
   register_read_operator_builder(std::make_unique<ops::OrderByOprBuilder>());
 
-  register_read_operator_builder(std::make_unique<ops::GroupByOprBuilder>());
+  register_read_operator_builder(std::make_unique<ops::GroupByOprBuilder>());*/
 
   register_read_operator_builder(std::make_unique<ops::DedupOprBuilder>());
 
-  register_read_operator_builder(std::make_unique<ops::SelectOprBuilder>());*/
+  // register_read_operator_builder(std::make_unique<ops::SelectOprBuilder>());
 
   register_read_operator_builder(
       std::make_unique<ops::SPOrderByLimitOprBuilder>());

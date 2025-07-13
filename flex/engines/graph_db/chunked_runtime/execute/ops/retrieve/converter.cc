@@ -43,6 +43,15 @@ void Converter::build_empty_context(gs::runtime::Context& ctx) {
       } else if (elem_type == gs::runtime::RTAnyType::kI64Value) {
         auto builder = gs::runtime::ValueColumnBuilder<int64_t>();
         ctx.set(k, builder.finish(nullptr));
+      } else if (elem_type == gs::runtime::RTAnyType::kDate32) {
+        auto builder = gs::runtime::ValueColumnBuilder<Day>();
+        ctx.set(k, builder.finish(nullptr));
+      } else if (elem_type == gs::runtime::RTAnyType::kTimestamp) {
+        auto builder = gs::runtime::ValueColumnBuilder<Date>();
+        ctx.set(k, builder.finish(nullptr));
+      } else if (elem_type == gs::runtime::RTAnyType::kStringValue) {
+        auto builder = gs::runtime::ValueColumnBuilder<std::string_view>();
+        ctx.set(k, builder.finish(nullptr));
       }
     }
   }
@@ -827,6 +836,35 @@ std::shared_ptr<gs::runtime::IContextColumn> create_value_column(
                                   TABLE_ID(chunk.alias_map().at(k)));
       }
       return builder.finish(nullptr);
+    } else if (elem_type == RTAnyType::kStringValue) {
+      gs::runtime::OptionalValueColumnBuilder<std::string_view> builder;
+      for (const auto& chunk : chunks) {
+        auto column = chunk.get(k);
+        auto casted_col =
+            dynamic_cast<const ValueColumn<std::string_view>*>(column);
+        copy_column_data<std::string_view>(builder, *casted_col,
+                                           chunk.offsets(),
+                                           TABLE_ID(chunk.alias_map().at(k)));
+      }
+      return builder.finish(nullptr);
+    } else if (elem_type == RTAnyType::kDate32) {
+      gs::runtime::OptionalValueColumnBuilder<Day> builder;
+      for (const auto& chunk : chunks) {
+        auto column = chunk.get(k);
+        auto casted_col = dynamic_cast<const ValueColumn<Day>*>(column);
+        copy_column_data<Day>(builder, *casted_col, chunk.offsets(),
+                              TABLE_ID(chunk.alias_map().at(k)));
+      }
+      return builder.finish(nullptr);
+    } else if (elem_type == RTAnyType::kTimestamp) {
+      gs::runtime::OptionalValueColumnBuilder<Date> builder;
+      for (const auto& chunk : chunks) {
+        auto column = chunk.get(k);
+        auto casted_col = dynamic_cast<const ValueColumn<Date>*>(column);
+        copy_column_data<Date>(builder, *casted_col, chunk.offsets(),
+                               TABLE_ID(chunk.alias_map().at(k)));
+      }
+      return builder.finish(nullptr);
     } else {
       LOG(FATAL) << "Unsupported type for optional value column: "
                  << static_cast<int>(elem_type);
@@ -852,6 +890,35 @@ std::shared_ptr<gs::runtime::IContextColumn> create_value_column(
       }
       return builder.finish(nullptr);
 
+    } else if (elem_type == RTAnyType::kStringValue) {
+      gs::runtime::ValueColumnBuilder<std::string_view> builder;
+      for (const auto& chunk : chunks) {
+        auto column = chunk.get(k);
+        auto casted_col =
+            dynamic_cast<const ValueColumn<std::string_view>*>(column);
+        copy_column_data<std::string_view>(builder, *casted_col,
+                                           chunk.offsets(),
+                                           TABLE_ID(chunk.alias_map().at(k)));
+      }
+      return builder.finish(nullptr);
+    } else if (elem_type == RTAnyType::kDate32) {
+      gs::runtime::ValueColumnBuilder<Day> builder;
+      for (const auto& chunk : chunks) {
+        auto column = chunk.get(k);
+        auto casted_col = dynamic_cast<const ValueColumn<Day>*>(column);
+        copy_column_data<Day>(builder, *casted_col, chunk.offsets(),
+                              TABLE_ID(chunk.alias_map().at(k)));
+      }
+      return builder.finish(nullptr);
+    } else if (elem_type == RTAnyType::kTimestamp) {
+      gs::runtime::ValueColumnBuilder<Date> builder;
+      for (const auto& chunk : chunks) {
+        auto column = chunk.get(k);
+        auto casted_col = dynamic_cast<const ValueColumn<Date>*>(column);
+        copy_column_data<Date>(builder, *casted_col, chunk.offsets(),
+                               TABLE_ID(chunk.alias_map().at(k)));
+      }
+      return builder.finish(nullptr);
     } else {
       LOG(FATAL) << "Unsupported type for value column: "
                  << static_cast<int>(elem_type);
@@ -1064,7 +1131,6 @@ void Converter::build_context(const std::vector<DataChunk>& chunks,
     build_empty_context(ctx);
     return;
   }
-
   for (auto& [k, v] : ctx_meta_.metas()) {
     const auto& [type, elem_type] = v;
     if (type == gs::runtime::ContextColumnType::kVertex) {
@@ -1072,12 +1138,15 @@ void Converter::build_context(const std::vector<DataChunk>& chunks,
       ctx.set(k, ptr);
     } else if (type == gs::runtime::ContextColumnType::kEdge) {
       auto ptr = create_edge_column(chunks, k);
+
       ctx.set(k, ptr);
     } else if (type == gs::runtime::ContextColumnType::kPath) {
       auto ptr = create_path_column(chunks, k);
+
       ctx.set(k, ptr);
     } else {
       auto ptr = create_value_column(chunks, k, elem_type);
+
       ctx.set(k, ptr);
     }
   }

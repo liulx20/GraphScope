@@ -163,6 +163,12 @@ class IEdgeColumn : public IContextColumn {
   template <typename FUNC_T>
   void foreach_edge(const FUNC_T& func,
                     const ValueColumn<size_t>& offsets) const;
+
+  std::shared_ptr<IContextColumn> project(
+      const gs::runtime::GraphReadInterface&, const std::string& property_name,
+      const RTAnyType& type) override;
+
+  const LocalMemPool& get_local_pool() const;
 };
 
 class SDSLEdgeColumn : public IEdgeColumn {

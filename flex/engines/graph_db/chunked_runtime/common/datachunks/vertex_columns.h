@@ -143,6 +143,9 @@ class SLVertexColumn : public IVertexColumn {
     }
   }
 
+  std::shared_ptr<IContextColumn> project(
+      const gs::runtime::GraphReadInterface&, const std::string& property_name,
+      const RTAnyType& type) override;
   bool is_optional_;
   label_t label_;
   size_t size_;
@@ -250,6 +253,10 @@ class MLVertexColumn : public IVertexColumn {
     }
     return "MLVertexColumn(" + labels + ")[" + std::to_string(size()) + "]";
   }
+
+  std::shared_ptr<IContextColumn> project(
+      const gs::runtime::GraphReadInterface&, const std::string& property_name,
+      const RTAnyType& type) override;
 
   bool is_optional_ = false;
   size_t size_;
