@@ -868,15 +868,37 @@ void RTAny::sink(const GraphReadInterface& graph, int id,
       auto edge_in_path = mutable_path->add_path();
 
       auto edge = edge_in_path->mutable_edge();
-      edge->mutable_src_label()->set_id(path_nodes[i].label());
-      edge->mutable_dst_label()->set_id(path_nodes[i + 1].label());
+      bool flag = false;
+      if (graph.schema().has_edge_label(path_nodes[i].label(),
+                                        path_nodes[i + 1].label(),
+                                        edge_labels[i])) {
+        // if the reverse edge exists, we need to check the direction
+        if (!graph.schema().has_edge_label(path_nodes[i + 1].label(),
+                                           path_nodes[i].label(),
+                                           edge_labels[i])) {
+          flag = true;
+        } else {
+          auto iter = graph.GetOutEdgeIterator(
+              path_nodes[i].label(), path_nodes[i].vid(),
+              path_nodes[i + 1].label(), edge_labels[i]);
+          vid_t target = path_nodes[i + 1].vid();
+          while (iter.IsValid()) {
+            if (iter.GetNeighbor() == target) {
+              flag = true;
+              break;
+            }
+            iter.Next();
+          }
+        }
+      }
+      VertexRecord src = flag ? path_nodes[i] : path_nodes[i + 1];
+      VertexRecord dst = flag ? path_nodes[i + 1] : path_nodes[i];
+      edge->mutable_src_label()->set_id(src.label());
+      edge->mutable_dst_label()->set_id(dst.label());
       edge->mutable_label()->set_id(edge_labels[i]);
-      edge->set_id(encode_unique_edge_id(edge_labels[i], path_nodes[i].vid(),
-                                         path_nodes[i + 1].vid()));
-      edge->set_src_id(
-          encode_unique_vertex_id(path_nodes[i].label(), path_nodes[i].vid()));
-      edge->set_dst_id(encode_unique_vertex_id(path_nodes[i + 1].label(),
-                                               path_nodes[i + 1].vid()));
+      edge->set_id(encode_unique_edge_id(edge_labels[i], src.vid(), dst.vid()));
+      edge->set_src_id(encode_unique_vertex_id(src.label(), src.vid()));
+      edge->set_dst_id(encode_unique_vertex_id(dst.label(), dst.vid()));
     }
     auto vertex_in_path = mutable_path->add_path();
     auto node = vertex_in_path->mutable_vertex();
