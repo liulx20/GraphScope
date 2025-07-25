@@ -1131,6 +1131,7 @@ void Converter::build_context(const std::vector<DataChunk>& chunks,
     build_empty_context(ctx);
     return;
   }
+
   for (auto& [k, v] : ctx_meta_.metas()) {
     const auto& [type, elem_type] = v;
     if (type == gs::runtime::ContextColumnType::kVertex) {

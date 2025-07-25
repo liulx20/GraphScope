@@ -55,10 +55,11 @@ class IVertexColumn : public IContextColumn {
   virtual std::unordered_set<label_t> get_labels_set() const = 0;
 
   template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func);
+  void foreach_vertex(const FUNC_T& func) const;
 
   template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func, const ValueColumn<size_t>& offsets);
+  void foreach_vertex(const FUNC_T& func,
+                      const ValueColumn<size_t>& offsets) const;
 };
 
 class SLVertexColumn : public IVertexColumn {
@@ -123,14 +124,15 @@ class SLVertexColumn : public IVertexColumn {
   }
 
   template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func) {
+  void foreach_vertex(const FUNC_T& func) const {
     for (size_t i = 0; i < size_; ++i) {
       func(i, label_, data_[i]);
     }
   }
 
   template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func, const ValueColumn<size_t>& offsets) {
+  void foreach_vertex(const FUNC_T& func,
+                      const ValueColumn<size_t>& offsets) const {
     size_t sz = offsets.size();
     for (size_t i = 0; i < sz; ++i) {
       size_t len = offsets[i] & 0xFFFFFFFF;
@@ -216,14 +218,15 @@ class MLVertexColumn : public IVertexColumn {
   }
 
   template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func) {
+  void foreach_vertex(const FUNC_T& func) const {
     for (size_t i = 0; i < size_; ++i) {
       func(i, data_[i].label_, data_[i].vid_);
     }
   }
 
   template <typename FUNC_T>
-  void foreach_vertex(const FUNC_T& func, const ValueColumn<size_t>& offsets) {
+  void foreach_vertex(const FUNC_T& func,
+                      const ValueColumn<size_t>& offsets) const {
     size_t sz = offsets.size();
     for (size_t i = 0; i < sz; ++i) {
       size_t len = offsets[i] & 0xFFFFFFFF;
@@ -266,21 +269,21 @@ class MLVertexColumn : public IVertexColumn {
 };
 
 template <typename FUNC_T>
-inline void IVertexColumn::foreach_vertex(const FUNC_T& func) {
+inline void IVertexColumn::foreach_vertex(const FUNC_T& func) const {
   if (vertex_column_type() == VertexColumnType::kSingle) {
-    static_cast<SLVertexColumn*>(this)->foreach_vertex(func);
+    static_cast<const SLVertexColumn*>(this)->foreach_vertex(func);
   } else {
-    static_cast<MLVertexColumn*>(this)->foreach_vertex(func);
+    static_cast<const MLVertexColumn*>(this)->foreach_vertex(func);
   }
 }
 
 template <typename FUNC_T>
-inline void IVertexColumn::foreach_vertex(const FUNC_T& func,
-                                          const ValueColumn<size_t>& offsets) {
+inline void IVertexColumn::foreach_vertex(
+    const FUNC_T& func, const ValueColumn<size_t>& offsets) const {
   if (vertex_column_type() == VertexColumnType::kSingle) {
-    static_cast<SLVertexColumn*>(this)->foreach_vertex(func, offsets);
+    static_cast<const SLVertexColumn*>(this)->foreach_vertex(func, offsets);
   } else {
-    static_cast<MLVertexColumn*>(this)->foreach_vertex(func, offsets);
+    static_cast<const MLVertexColumn*>(this)->foreach_vertex(func, offsets);
   }
 }
 }  // namespace chunked_runtime

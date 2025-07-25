@@ -21,6 +21,9 @@ namespace runtime {
 bl::result<Context> ReadPipeline::Execute(
     const GraphReadInterface& graph, Context&& ctx,
     const std::map<std::string, std::string>& params, OprTimer& timer) {
+#if DEBUG
+  auto start = std::chrono::high_resolution_clock::now();
+#endif
   for (auto& opr : operators_) {
     gs::Status status = gs::Status::OK();
     auto ret = bl::try_handle_all(
@@ -50,6 +53,14 @@ bl::result<Context> ReadPipeline::Execute(
       return bl::new_error(err);
     }
     ctx = std::move(ret);
+#if DEBUG
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    LOG(INFO) << "[Execute] " << opr->get_operator_name() << " executed in "
+              << elapsed.count() << " ms" << " with " << ctx.row_num()
+              << " rows";
+#endif
     /**for (size_t i = 0; i < ctx.row_num(); ++i) {
       std::stringstream ss;
       ss << "Row " << i << ": ";

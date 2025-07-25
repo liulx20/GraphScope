@@ -65,6 +65,9 @@ class Converter : public gs::runtime::IReadOperator {
     std::shared_ptr<IOprState> state =
         initState(nullptr, graph.GetLocalMemPool());
     state->clear();
+#if DEBUG
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
     while (source_opr_
                ->getNextChunks(graph, params, *state->src_state(),
                                state->src_chunks())
@@ -75,8 +78,22 @@ class Converter : public gs::runtime::IReadOperator {
       }
       state->clear();
     }
-
+#if DEBUG
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    LOG(INFO) << "[Converter] Retrieved " << chunks.size() << " chunks in "
+              << elapsed.count() << " ms";
+    start = std::chrono::high_resolution_clock::now();
+#endif
     build_context(chunks, ctx);
+#if DEBUG
+    end = std::chrono::high_resolution_clock::now();
+    elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    LOG(INFO) << "[Converter] Built context in " << elapsed.count()
+              << " ms, context size: " << ctx.row_num() << " rows, ";
+#endif
     return false;
   }
   bl::result<gs::runtime::Context> Eval(

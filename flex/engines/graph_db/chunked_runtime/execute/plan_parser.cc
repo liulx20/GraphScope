@@ -20,6 +20,7 @@
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/path.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/project.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/scan.h"
+#include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/select.h"
 #include "flex/engines/graph_db/chunked_runtime/execute/ops/retrieve/vertex.h"
 
 namespace gs {
@@ -47,7 +48,7 @@ void PlanParser::init() {
 
   register_read_operator_builder(std::make_unique<ops::DedupOprBuilder>());
 
-  // register_read_operator_builder(std::make_unique<ops::SelectOprBuilder>());
+  register_read_operator_builder(std::make_unique<ops::SelectOprBuilder>());
 
   register_read_operator_builder(
       std::make_unique<ops::SPOrderByLimitOprBuilder>());
