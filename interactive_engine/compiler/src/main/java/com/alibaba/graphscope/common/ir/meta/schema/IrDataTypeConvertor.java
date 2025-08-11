@@ -258,7 +258,7 @@ public interface IrDataTypeConvertor<T> {
                 }
             } else if ((value = typeMap.get("temporal")) != null) {
                 Map<String, Object> temporalType = (Map<String, Object>) value;
-                if (temporalType.containsKey("date32")) {
+                if (temporalType.containsKey("date")) {
                     // int32 days since 1970-01-01
                     return typeFactory.createSqlType(SqlTypeName.DATE);
                 } else if (temporalType.containsKey("time32")) {
@@ -367,7 +367,7 @@ public interface IrDataTypeConvertor<T> {
                     break;
                 case DATE:
                     Map dateMap = Maps.newHashMap();
-                    dateMap.put("date32", ImmutableMap.of());
+                    dateMap.put("date", ImmutableMap.of());
                     yamlDesc = ImmutableMap.of("temporal", dateMap);
                     break;
                 case TIME:
