@@ -786,6 +786,26 @@ bl::result<ReadOpBuildResultT> PathExpandVOprBuilder::Build(
                     "predicate";
       return std::make_pair(nullptr, ContextMeta());
     }
+    if (next_opr.has_params() && next_opr.params().has_predicate()) {
+      LOG(ERROR) << "Currently only support non-optional path expand without "
+                    "predicate";
+      return std::make_pair(nullptr, ContextMeta());
+    }
+    if (next_opr.has_params()) {
+      std::vector<label_t> vertex_labels = parse_tables(next_opr.params());
+      std::unordered_set<label_t> vertex_label_set(vertex_labels.begin(),
+                                                   vertex_labels.end());
+      for (const auto& lt : pep.labels) {
+        if ((pep.dir == Direction::kOut || pep.dir == Direction::kBoth) &&
+            vertex_label_set.find(lt.dst_label) == vertex_label_set.end()) {
+          return std::make_pair(nullptr, ContextMeta());
+        }
+        if ((pep.dir == Direction::kIn || pep.dir == Direction::kBoth) &&
+            vertex_label_set.find(lt.src_label) == vertex_label_set.end()) {
+          return std::make_pair(nullptr, ContextMeta());
+        }
+      }
+    }
     return std::make_pair(std::make_unique<PathExpandVOpr>(pep), ret_meta);
   } else {
     return std::make_pair(nullptr, ContextMeta());
