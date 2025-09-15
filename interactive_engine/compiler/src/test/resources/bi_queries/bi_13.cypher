@@ -31,7 +31,7 @@ WITH
   END as likerZombie
 WITH
   zombie,
-  count(likerZombie) AS zombieLikeCount,
+  sum(likerZombie) AS zombieLikeCount,
   count(likerPerson) as totalLikeCount
 RETURN
   zombie.id AS zid,
@@ -39,7 +39,7 @@ RETURN
   totalLikeCount,
   CASE totalLikeCount
     WHEN 0 THEN 0.0
-    ELSE zombieLikeCount / totalLikeCount
+    ELSE zombieLikeCount / gs.function.toFloat(totalLikeCount)
     END AS zombieScore
 ORDER BY
   zombieScore DESC,

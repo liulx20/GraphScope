@@ -4,18 +4,31 @@ graph_functions:
     params:
       - name: value
         type:
-          primitive_type: DT_SIGNED_INT32
+          temporal:
+            timestamp:
     returns:
       - name: timestamp
         type:
           temporal:
             timestamp:
+  - name: gs.function.date32
+    description: ""
+    params:
+      - name: value
+        type:
+          temporal:
+            timestamp:
+    returns:
+      - name: date
+        type:
+          temporal:
+            date:
   - name: gs.function.toFloat
     description: ""
     params:
       - name: integer
         type:
-          primitive_type: DT_SIGNED_INT32
+          primitive_type: DT_SIGNED_INT64
     returns:
       - name: float
         type:

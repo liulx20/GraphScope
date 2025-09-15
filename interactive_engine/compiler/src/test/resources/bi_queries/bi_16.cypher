@@ -1,40 +1,29 @@
 CALL {
-  MATCH (person:PERSON)<-[:HASCREATOR]-(msg:COMMENT|POST)-[:HASTAG]->(tag:TAG {name:$tagA})
-  WHERE gs.function.date32(msg.creationDate) = $dateA
-  WITH person, count(msg) as aCount
-
-  CALL {
-    RETURN person, aCount, -1 * $maxKnows as degree
-  }
-  UNION
-  CALL {
-    MATCH (person)-[:KNOWS]-(person2:PERSON)
-    RETURN person2 as person, 0 as aCount, count(person) as degree
-  }
-
-  WITH person, sum(aCount) as aCount, sum(degree) as degree
-  WHERE degree <= 0
-  RETURN person, aCount, 0 as bCount
+  MATCH (person1:PERSON) <-[:HASCREATOR]-(msg:COMMENT|POST)-[:HASTAG]->(tag:TAG {name: $tagA})
+  WHERE  gs.function.date32(msg.creationDate) = $dateA
+  OPTIONAL MATCH (person1)-[:KNOWS]-(person2:PERSON)<-[:HASCREATOR]-(msg2:POST|COMMENT)-[:HASTAG]->(tag)
+  WHERE gs.function.date32(msg2.creationDate) = $dateA
+  WITH person1, count(DISTINCT msg) AS cm, count(DISTINCT person2) AS cp2
+  WHERE cp2 <= $maxKnowsLimit
+  // return count
+  RETURN person1, cm, 0L as cm2
 }
 UNION
 CALL {
-  MATCH (person:PERSON)<-[:HASCREATOR]-(msg:COMMENT|POST)-[:HASTAG]->(tag:TAG {name:$tagB})
-  WHERE gs.function.date32(msg.creationDate) = $dateB
-  WITH person, count(msg) as bCount
-
-  CALL {
-    RETURN person, bCount, -1 * $maxKnows as degree
-  }
-  UNION
-  CALL {
-    MATCH (person)-[:KNOWS]-(person2:PERSON)
-    RETURN person2 as person, 0 as bCount, count(person) as degree
-  }
-
-  WITH person, sum(bCount) as bCount, sum(degree) as degree
-  WHERE degree <= 0
-  RETURN person, 0 as aCount, bCount
+  MATCH (person1:PERSON) <-[:HASCREATOR]-(msg:COMMENT|POST)-[:HASTAG]->(tag:TAG {name: $tagB})
+  WHERE  gs.function.date32(msg.creationDate) = $dateB
+  OPTIONAL MATCH (person1)-[:KNOWS]-(person2:PERSON)<-[:HASCREATOR]-(msg2:POST|COMMENT)-[:HASTAG]->(tag)
+  WHERE gs.function.date32(msg2.creationDate) = $dateB
+  WITH person1, count(DISTINCT msg) AS cm2, count(DISTINCT person2) AS cp2
+  WHERE cp2 <= $maxKnowsLimit
+  // return count
+  RETURN person1, 0L as cm, cm2
 }
-Return person.id as id, sum(aCount) as aCount, sum(bCount) as bCount
-ORDER BY aCount + bCount DESC, id ASC
-LIMIT 20;
+
+WITH person1, sum(cm) as msg1Cnt , sum(cm2) as msg2Cnt
+WHERE msg1Cnt > 0 AND msg2Cnt > 0
+RETURN person1.id as personId, msg1Cnt, msg2Cnt
+ORDER BY msg1Cnt + msg2Cnt DESC, personId ASC
+LIMIT 20
+
+  

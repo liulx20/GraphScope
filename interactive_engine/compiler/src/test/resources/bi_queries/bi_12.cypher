@@ -1,14 +1,14 @@
 CALL {
   MATCH (p2:PERSON)
   WITH count(p2) as personCnt
-  RETURN 0 as msgCnt, personCnt
+  RETURN 0L as msgCnt, personCnt
 }
 UNION
 CALL {
   MATCH (person:PERSON)<-[:HASCREATOR]-(message:COMMENT|POST),
         (message)-[:REPLYOF * 0..30]->(post:POST)
-  WHERE message.length > $lengthThreshold AND message.creationDate > $startDate
-        AND post.language IN ["a", "b"]
+  WHERE message.content <> "" AND message.length < $lengthThreshold AND message.creationDate > $startDate
+        AND post.language IN $languages
   WITH person, count(message) as msgCnt
   WITH msgCnt, count(person) as personCnt
   CALL {
@@ -16,7 +16,7 @@ CALL {
   }
   UNION
   CALL {
-    RETURN 0 as msgCnt, -1 * sum(personCnt) as personCnt
+    RETURN 0L as msgCnt, -1L * sum(personCnt) as personCnt
   }
   RETURN msgCnt, personCnt
 }

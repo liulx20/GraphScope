@@ -273,7 +273,7 @@ schema:
         - id
   edge_types:
     - type_name: STUDYAT
-      type_id: 10
+      type_id: 14
       vertex_type_pair_relations:
         - source_vertex: PERSON
           destination_vertex: ORGANISATION
@@ -284,7 +284,7 @@ schema:
           property_type:
             primitive_type: DT_SIGNED_INT32
     - type_name: WORKAT
-      type_id: 11
+      type_id: 10
       vertex_type_pair_relations:
         - source_vertex: PERSON
           destination_vertex: ORGANISATION
@@ -295,7 +295,7 @@ schema:
           property_type:
             primitive_type: DT_SIGNED_INT32
     - type_name: ISPARTOF
-      type_id: 12
+      type_id: 11
       vertex_type_pair_relations:
         - source_vertex: PLACE
           destination_vertex: PLACE
@@ -307,13 +307,13 @@ schema:
           destination_vertex: TAGCLASS
           relation: MANY_TO_MANY
     - type_name: HASMEMBER
-      type_id: 5
+      type_id: 4
       vertex_type_pair_relations:
         - source_vertex: FORUM
           destination_vertex: PERSON
           relation: MANY_TO_MANY
     - type_name: REPLYOF
-      type_id: 3
+      type_id: 2
       vertex_type_pair_relations:
         - source_vertex: COMMENT
           destination_vertex: COMMENT
@@ -331,13 +331,13 @@ schema:
           destination_vertex: POST
           relation: MANT_TO_MANY
     - type_name: HASINTEREST
-      type_id: 7
+      type_id: 6
       vertex_type_pair_relations:
         - source_vertex: PERSON
           destination_vertex: TAG
           relation: MANT_TO_MANY
     - type_name: HASTYPE
-      type_id: 14
+      type_id: 12
       vertex_type_pair_relations:
         - source_vertex: TAG
           destination_vertex: TAGCLASS
@@ -376,19 +376,19 @@ schema:
           destination_vertex: PERSON
           relation: MANT_TO_ONE
     - type_name: CONTAINEROF
-      type_id: 4
+      type_id: 3
       vertex_type_pair_relations:
         - source_vertex: FORUM
           destination_vertex: POST
           relation: ONE_TO_MANY
     - type_name: HASMODERATOR
-      type_id: 6
+      type_id: 5
       vertex_type_pair_relations:
         - source_vertex: FORUM
           destination_vertex: PERSON
           relation: MANY_TO_ONE
     - type_name: ISLOCATEDIN
-      type_id: 2
+      type_id: 7
       vertex_type_pair_relations:
         - source_vertex: PERSON
           destination_vertex: PLACE
