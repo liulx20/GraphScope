@@ -7,11 +7,13 @@ LIMIT 100
 WITH collect(forum) AS topForums
 CALL {
   UNWIND topForums AS topForums1
-  MATCH (topForums1:FORUM)-[:CONTAINEROF]->(post:POST)<-[:REPLYOF*0..10]-(message:POST|COMMENT)-[:HASCREATOR]->(person:PERSON)<-[:HASMEMBER]-(topForums2:FORUM)
-  WHERE topForums2 IN topForums
+  MATCH (topForums1:FORUM)-[:CONTAINEROF]->(post:POST)<-[:REPLYOF*0..10]-(message:POST|COMMENT)-[:HASCREATOR]->(person:PERSON)
+  WITH message, person, topForums
+  UNWIND topForums AS topForums2
+  MATCH (person)<-[:HASMEMBER]-(topForums2:FORUM)
   RETURN
     person,
-    count(message) AS messageCount
+    count(DISTINCT message) AS messageCount
   ORDER BY
     messageCount DESC,
     person.id ASC
@@ -23,7 +25,7 @@ CALL {
   // To this end, we return each person with a 0 messageCount
   UNWIND topForums AS topForum1
   MATCH (person:PERSON)<-[:HASMEMBER]-(topForum1:FORUM)
-  RETURN person, 0 AS messageCount
+  RETURN person, 0L AS messageCount
   ORDER BY
     person.id ASC
   LIMIT 100

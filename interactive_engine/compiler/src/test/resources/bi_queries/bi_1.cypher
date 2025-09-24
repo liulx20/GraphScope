@@ -6,16 +6,13 @@ MATCH (message:COMMENT|POST)
 WHERE message.creationDate < $datetime
 AND message.length > 0
 WITH
-  totalMessageCount,
+   totalMessageCount,
   message,
   message.creationDate AS date
 WITH
   totalMessageCount,
   date.year AS year,
-  CASE
-    WHEN 'POST' in labels(message)  THEN 0
-    ELSE                                 1
-    END AS isComment,
+  'COMMENT' in labels(message) AS isComment,
   CASE
     WHEN message.length <  40 THEN 0
     WHEN message.length <  80 THEN 1
@@ -23,17 +20,16 @@ WITH
     ELSE                           3
     END AS lengthCategory,
   count(message) AS messageCount,
-  sum(message.length) / count(message) AS averageMessageLength,
-  count(message.length) AS sumMessageLength
+  sum(message.length) AS sumMessageLength
 
 RETURN
   year,
   isComment,
   lengthCategory,
   messageCount,
-  averageMessageLength,
+   sumMessageLength / gs.function.toFloat(messageCount) AS averageMessageLength,
   sumMessageLength,
-  messageCount / totalMessageCount AS percentageOfMessages
+  messageCount / gs.function.toFloat(totalMessageCount) AS percentageOfMessages
   ORDER BY
   year DESC,
   isComment ASC,
