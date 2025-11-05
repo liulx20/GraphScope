@@ -38,7 +38,7 @@ RETURN
   zombieLikeCount,
   totalLikeCount,
   CASE totalLikeCount
-    WHEN 0 THEN 0.0
+    WHEN 0 THEN gs.function.toFloat(0L)
     ELSE zombieLikeCount / gs.function.toFloat(totalLikeCount)
     END AS zombieScore
 ORDER BY
